@@ -53,11 +53,13 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = req.nextUrl
 
-  // Parse and validate bounding box
-  const north = parseFloat(searchParams.get('north') ?? '')
-  const south = parseFloat(searchParams.get('south') ?? '')
-  const east  = parseFloat(searchParams.get('east')  ?? '')
-  const west  = parseFloat(searchParams.get('west')  ?? '')
+  // Accept both parameter formats:
+  //   north/south/east/west      — canonical (ContractorMap)
+  //   neLat/neLng/swLat/swLng   — alternate format
+  const north = parseFloat(searchParams.get('north') ?? searchParams.get('neLat') ?? '')
+  const south = parseFloat(searchParams.get('south') ?? searchParams.get('swLat') ?? '')
+  const east  = parseFloat(searchParams.get('east')  ?? searchParams.get('neLng') ?? '')
+  const west  = parseFloat(searchParams.get('west')  ?? searchParams.get('swLng') ?? '')
 
   if ([north, south, east, west].some(isNaN)) {
     return NextResponse.json(
