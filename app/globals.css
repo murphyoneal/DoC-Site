@@ -1,0 +1,76 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-ink:        #1C1C1C;
+  --color-bronze:     #8B6F47;
+  --color-sage:       #6B7F6B;
+  --color-cream:      #FAF7F2;
+  --color-navy:       #1B2A4A;
+  --color-gold:       #C9A84C;
+  --color-white:      #FFFFFF;
+  --color-light-gray: #F0EDEA;
+}
+
+html {
+  background-color: var(--color-cream);
+  color: var(--color-ink);
+}
+
+body {
+  font-family: Arial, system-ui, sans-serif;
+}
+
+h1, h2, h3, h4 {
+  font-family: Georgia, 'Times New Roman', serif;
+}
+
+.doc-marker {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--color-bronze);
+  border: 2px solid var(--color-white);
+  cursor: pointer;
+  transition: transform 0.15s ease;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+.doc-marker:hover { transform: scale(1.4); }
+.doc-marker.emergency { background: #C0392B; }
+.doc-marker.verified { background: var(--color-navy); }
+
+.filter-chip {
+  padding: 0.375rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  border: 1px solid var(--color-bronze);
+  color: var(--color-bronze);
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+.filter-chip:hover {
+  background: var(--color-bronze);
+  color: var(--color-white);
+}
+.filter-chip.active {
+  background: var(--color-navy);
+  border-color: var(--color-navy);
+  color: var(--color-white);
+}
+
+.disclaimer-banner {
+  background: var(--color-navy);
+  color: #aab4c8;
+  font-size: 0.7rem;
+  text-align: center;
+  padding: 0.3rem 1rem;
+  line-height: 1.4;
+}
+.disclaimer-banner a {
+  color: var(--color-gold);
+  text-decoration: underline;
+}
