@@ -1,9 +1,11 @@
+```typescript
 /**
  * GET /api/contractors
  * Bounding box query — returns map pins only (no full records).
  *
  * Query params:
  *   north, south, east, west  — float bounding box coordinates (required)
+ *   neLat, neLng, swLat, swLng — alternate format (also accepted)
  *   category                  — doc_category filter (optional)
  *   emergency                 — "true" to filter emergency_available (optional)
  *
@@ -11,7 +13,7 @@
  *   - Rate limited: 30 req/min per IP
  *   - Bounding box validated (max 2 degree span each axis)
  *   - Max 50 records returned
- *   - Supabase anon key NEVER used — service key server-side only
+ *   - Supabase service key server-side only, never exposed to client
  */
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -20,6 +22,7 @@ import { checkRateLimit, pruneRateLimitStore } from '@/lib/rateLimit'
 import type { BoundingBox } from '@/types/contractor'
 
 const MAX_SPAN_DEGREES = 2.0  // ~220km — prevents near-full-state queries
+const IS_DEV = process.env.NODE_ENV !== 'production'
 
 function getClientIp(req: NextRequest): string {
   return (
@@ -108,7 +111,16 @@ export async function GET(req: NextRequest) {
       }
     )
   } catch (err) {
-    console.error('[/api/contractors]', err)
-    return NextResponse.json({ error: 'Database error' }, { status: 500 })
+    const message = err instanceof Error ? err.message : String(err)
+    console.error('[/api/contractors] error:', message)
+    return NextResponse.json(
+      {
+        error: 'Database error',
+        // Detail only exposed outside production — reveals Supabase errors during debug
+        ...(IS_DEV && { detail: message }),
+      },
+      { status: 500 }
+    )
   }
 }
+```
