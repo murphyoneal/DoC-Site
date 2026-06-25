@@ -33,20 +33,3 @@ export async function GET(req: NextRequest) {
       }
     )
   }
-
-  const sp = req.nextUrl.searchParams
-
-  const north = parseFloat(sp.get('north') ?? sp.get('neLat') ?? '')
-  const south = parseFloat(sp.get('south') ?? sp.get('swLat') ?? '')
-  const east  = parseFloat(sp.get('east')  ?? sp.get('neLng') ?? '')
-  const west  = parseFloat(sp.get('west')  ?? sp.get('swLng') ?? '')
-
-  if ([north, south, east, west].some(isNaN)) {
-    return NextResponse.json(
-      { error: 'Missing or invalid bounding box: north, south, east, west required' },
-      { status: 400 }
-    )
-  }
-
-  if (north <= south) {
-    return
