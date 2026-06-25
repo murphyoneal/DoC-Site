@@ -1,7 +1,6 @@
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
-  // Security headers
   async headers() {
     return [
       {
@@ -14,7 +13,6 @@ const nextConfig: NextConfig = {
         ],
       },
       {
-        // Cache static assets
         source: '/api/qr/:path*',
         headers: [
           { key: 'Cache-Control', value: 'public, max-age=86400, stale-while-revalidate=604800' },
@@ -23,11 +21,15 @@ const nextConfig: NextConfig = {
     ]
   },
 
-  // Disable source maps in production
   productionBrowserSourceMaps: false,
 
   images: {
-    domains: ['eaifqorwmgayiqmbtzcg.supabase.co'],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'eaifqorwmgayiqmbtzcg.supabase.co',
+      },
+    ],
   },
 }
 
