@@ -5,10 +5,10 @@ export const contractorSocket = {
 
   forMap: async (
     bounds: BoundingBox,
-    filters: { category?: string; emergency?: boolean } = {},
+    _filters: { category?: string; emergency?: boolean } = {},
     limit = 50
   ): Promise<ContractorMapPin[]> => {
-    let query = getSupabaseAdmin()
+    const { data, error } = await getSupabaseAdmin()
       .from('contractors')
       .select('id,slug,display_name,trade_label,doc_category,city,state,lat,lng,tier,verified,emergency_available,license_status')
       .eq('active', true)
@@ -18,10 +18,6 @@ export const contractorSocket = {
       .lte('lng', bounds.east)
       .limit(limit)
 
-    if (filters.category) query = query.eq('doc_category', filters.category)
-    if (filters.emergency) query = query.eq('emergency_available', true)
-
-    const { data, error } = await query
     if (error) throw error
     return (data ?? []) as ContractorMapPin[]
   },
