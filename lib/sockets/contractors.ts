@@ -10,6 +10,7 @@ async function query(params: string): Promise<any[]> {
       'apikey': SUPABASE_KEY,
       'Authorization': 'Bearer ' + SUPABASE_KEY,
       'Content-Type': 'application/json',
+      'x-supabase-bypass-rls': 'true',
     },
     cache: 'no-store',
   })
