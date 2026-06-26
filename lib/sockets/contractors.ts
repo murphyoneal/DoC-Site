@@ -1,29 +1,23 @@
 import type { BoundingBox, Contractor, ContractorMapPin } from '@/types/contractor'
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY!
+const SB_HOST = 'eaifqorwmgayiqmbtzcg.supabase.co'
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVhaWZxb3J3bWdheWlxbWJ0emNnIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MjMxNjIzOCwiZXhwIjoyMDk3ODkyMjM4fQ.L23cjzASjDbuFQ1zeQt30CThOSX_aRwyWpbl7QLeO-E'
+const SB_HEADERS = { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
 
-async function query(params: string): Promise<any[]> {
-  const url = SUPABASE_URL + '/rest/v1/contractors?' + params
-  const res = await fetch(url, {
-    headers: {
-      'apikey': SUPABASE_KEY,
-      'Authorization': 'Bearer ' + SUPABASE_KEY,
-      'Content-Type': 'application/json',
-      'x-supabase-bypass-rls': 'true',
-    },
-    cache: 'no-store',
+function httpGet(path: string): Promise<any[]> {
+  return new Promise(function(resolve, reject) {
+    const https = require('https')
+    https.get({ hostname: SB_HOST, path: path, headers: SB_HEADERS }, function(res: any) {
+      let d = ''
+      res.on('data', function(c: any) { d += c })
+      res.on('end', function() { try { resolve(JSON.parse(d)) } catch(e) { resolve([]) } })
+    }).on('error', reject)
   })
-  if (!res.ok) {
-    const text = await res.text()
-    throw new Error('Supabase REST error: ' + res.status + ' ' + text)
-  }
-  return res.json()
 }
 
 export const contractorSocket = {
 
- forMap: async (bounds: BoundingBox, filters: { category?: string; emergency?: boolean } = {}, limit = 50): Promise<ContractorMapPin[]> => {
+  forMap: async function(bounds: BoundingBox, filters: { category?: string; emergency?: boolean } = {}, limit: number = 50): Promise<ContractorMapPin[]> {
     const parts = [
       'select=id,slug,display_name,trade_label,doc_category,city,state,lat,lng,tier,verified,emergency_available,license_status',
       'active=eq.true',
@@ -33,105 +27,112 @@ export const contractorSocket = {
       'lng=lte.' + bounds.east,
       'limit=' + limit,
     ]
-    if (filters.category) parts.push('doc_category=eq.' + filters.category)
-    if (filters.emergency) parts.push('emergency_available=eq.true')
-    const data = await query(parts.join('&'))
+    if (filters.category) { parts.push('doc_category=eq.' + filters.category) }
+    if (filters.emergency) { parts.push('emergency_available=eq.true') }
+    const data = await httpGet('/rest/v1/contractors?' + parts.join('&'))
     return data as ContractorMapPin[]
   },
-  forProfile: async (slug: string): Promise<Contractor | null> => {
-    const params = 'select=*&slug=eq.' + slug + '&active=eq.true&limit=1'
-    const data = await query(params)
+
+  forProfile: async function(slug: string): Promise<Contractor | null> {
+    const data = await httpGet('/rest/v1/contractors?select=*&slug=eq.' + slug + '&active=eq.true&limit=1')
     return data[0] as Contractor ?? null
   },
 
-  forVolusia: async (limit = 20): Promise<Contractor[]> => {
-    const params = [
+  forVolusia: async function(limit: number = 20): Promise<Contractor[]> {
+    const parts = [
       'select=id,slug,display_name,trade_label,doc_category,city,state,license_status,verified,tier,profile_tier_label',
       'in_volusia=eq.true',
       'active=eq.true',
       'order=verified.desc',
       'limit=' + limit,
-    ].join('&')
-    const data = await query(params)
+    ]
+    const data = await httpGet('/rest/v1/contractors?' + parts.join('&'))
     return data as Contractor[]
   },
 
-  countInVolusia: async (): Promise<number> => {
-    const url = SUPABASE_URL + '/rest/v1/contractors?in_volusia=eq.true&active=eq.true&select=id'
-    const res = await fetch(url, {
-      headers: {
-        'apikey': SUPABASE_KEY,
-        'Authorization': 'Bearer ' + SUPABASE_KEY,
-        'Prefer': 'count=exact',
-      },
-      cache: 'no-store',
+  countInVolusia: async function(): Promise<number> {
+    return new Promise(function(resolve) {
+      const https = require('https')
+      const req = https.get({
+        hostname: SB_HOST,
+        path: '/rest/v1/contractors?in_volusia=eq.true&active=eq.true&select=id',
+        headers: Object.assign({}, SB_HEADERS, { 'Prefer': 'count=exact' })
+      }, function(res: any) {
+        const h = res.headers['content-range']
+        res.on('data', function() {})
+        res.on('end', function() {
+          if (!h) { resolve(0); return }
+          const parts = h.split('/')
+          resolve(parts[1] ? parseInt(parts[1], 10) : 0)
+        })
+      })
+      req.on('error', function() { resolve(0) })
     })
-    if (!res.ok) return 0
-    const countHeader = res.headers.get('content-range')
-    if (!countHeader) return 0
-    const parts = countHeader.split('/')
-    return parts[1] ? parseInt(parts[1], 10) : 0
   },
 
-  forCounty: async (countyCode: string, state: string, limit = 20): Promise<Contractor[]> => {
-    const params = [
+  forCounty: async function(countyCode: string, state: string, limit: number = 20): Promise<Contractor[]> {
+    const parts = [
       'select=id,slug,display_name,trade_label,doc_category,city,state,license_status,verified,tier,profile_tier_label',
       'state=eq.' + state.toUpperCase(),
       'county_code=eq.' + countyCode,
       'active=eq.true',
       'order=verified.desc',
       'limit=' + limit,
-    ].join('&')
-    const data = await query(params)
+    ]
+    const data = await httpGet('/rest/v1/contractors?' + parts.join('&'))
     return data as Contractor[]
   },
 
-  forState: async (state: string, limit = 20): Promise<Contractor[]> => {
-    const params = [
+  forState: async function(state: string, limit: number = 20): Promise<Contractor[]> {
+    const parts = [
       'select=id,slug,display_name,trade_label,doc_category,city,state,license_status,verified,tier,profile_tier_label',
       'state=eq.' + state.toUpperCase(),
       'active=eq.true',
       'order=verified.desc',
       'limit=' + limit,
-    ].join('&')
-    const data = await query(params)
+    ]
+    const data = await httpGet('/rest/v1/contractors?' + parts.join('&'))
     return data as Contractor[]
   },
 
-  countInBounds: async (bounds: BoundingBox): Promise<number> => {
-    const url = SUPABASE_URL + '/rest/v1/contractors?' + [
-      'active=eq.true',
-      'lat=gte.' + bounds.south,
-      'lat=lte.' + bounds.north,
-      'lng=gte.' + bounds.west,
-      'lng=lte.' + bounds.east,
-      'select=id',
-    ].join('&')
-    const res = await fetch(url, {
-      headers: {
-        'apikey': SUPABASE_KEY,
-        'Authorization': 'Bearer ' + SUPABASE_KEY,
-        'Prefer': 'count=exact',
-      },
-      cache: 'no-store',
+  countInBounds: async function(bounds: BoundingBox): Promise<number> {
+    return new Promise(function(resolve) {
+      const https = require('https')
+      const parts = [
+        'active=eq.true',
+        'lat=gte.' + bounds.south,
+        'lat=lte.' + bounds.north,
+        'lng=gte.' + bounds.west,
+        'lng=lte.' + bounds.east,
+        'select=id',
+      ]
+      const req = https.get({
+        hostname: SB_HOST,
+        path: '/rest/v1/contractors?' + parts.join('&'),
+        headers: Object.assign({}, SB_HEADERS, { 'Prefer': 'count=exact' })
+      }, function(res: any) {
+        const h = res.headers['content-range']
+        res.on('data', function() {})
+        res.on('end', function() {
+          if (!h) { resolve(0); return }
+          const p = h.split('/')
+          resolve(p[1] ? parseInt(p[1], 10) : 0)
+        })
+      })
+      req.on('error', function() { resolve(0) })
     })
-    if (!res.ok) return 0
-    const countHeader = res.headers.get('content-range')
-    if (!countHeader) return 0
-    const parts = countHeader.split('/')
-    return parts[1] ? parseInt(parts[1], 10) : 0
   },
 
-  forCity: async (city: string, state: string, limit = 20): Promise<Contractor[]> => {
-    const params = [
+  forCity: async function(city: string, state: string, limit: number = 20): Promise<Contractor[]> {
+    const parts = [
       'select=id,slug,display_name,trade_label,doc_category,city,state,license_status,verified,tier,profile_tier_label',
       'state=eq.' + state.toUpperCase(),
       'city=ilike.*' + city + '*',
       'active=eq.true',
       'order=verified.desc',
       'limit=' + limit,
-    ].join('&')
-    const data = await query(params)
+    ]
+    const data = await httpGet('/rest/v1/contractors?' + parts.join('&'))
     return data as Contractor[]
   },
 }
