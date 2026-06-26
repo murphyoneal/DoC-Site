@@ -124,7 +124,7 @@ export default async function ContractorProfilePage({ params }: Props) {
                     className="text-xs font-bold px-2 py-1 rounded-full"
                     style={{ background: tierLabelColour.bg, color: tierLabelColour.text }}
                   >
-                    ✓ Verified
+                    {'✓ Verified'}
                   </span>
                 )}
                 {c.profile_tier_label && (
@@ -153,9 +153,7 @@ export default async function ContractorProfilePage({ params }: Props) {
                 href={`/api/vcard/${c.slug}`}
                 className="text-xs underline"
                 style={{ color: 'var(--color-bronze)' }}
-              >
-                📇 Save Contact
-              </a>
+              >{'📇 Save Contact'}</a>
             </div>
           </div>
         </div>
@@ -246,7 +244,7 @@ export default async function ContractorProfilePage({ params }: Props) {
               className="text-base font-bold mb-3"
               style={{ fontFamily: 'Georgia, serif', color: '#8e1c0e' }}
             >
-              🚨 Emergency Services
+              {'🚨 Emergency Services'}
             </h2>
             <div className="flex flex-wrap gap-2 mb-2">
               {emergencyFlags.map(flag => (
