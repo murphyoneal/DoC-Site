@@ -14,22 +14,13 @@ export default async function ClaimPage({ params }: Props) {
   if (c.claimed) {
     return (
       <div className="max-w-xl mx-auto px-4 py-16 text-center">
-        <h1
-          className="text-2xl font-bold mb-4"
-          style={{ fontFamily: 'Georgia, serif', color: 'var(--color-navy)' }}
-        >
+        <h1 className="text-2xl font-bold mb-4" style={{ fontFamily: 'Georgia, serif', color: 'var(--color-navy)' }}>
           This profile has already been claimed
         </h1>
         <p className="text-sm mb-6" style={{ color: 'var(--color-sage)' }}>
           If you believe this is an error, please contact us.
         </p>
-        
-          href={`/c/${slug}`}
-          className="text-sm underline"
-          style={{ color: 'var(--color-bronze)' }}
-        >
-          Back to profile
-        </a>
+        <a href={`/c/${slug}`} className="text-sm underline" style={{ color: 'var(--color-bronze)' }}>Back to profile</a>
       </div>
     )
   }
@@ -37,17 +28,8 @@ export default async function ClaimPage({ params }: Props) {
   return (
     <div className="max-w-xl mx-auto px-4 py-12">
       <div className="mb-8">
-        
-          href={`/c/${slug}`}
-          className="text-xs underline mb-4 inline-block"
-          style={{ color: 'var(--color-sage)' }}
-        >
-          Back to profile
-        </a>
-        <h1
-          className="text-2xl font-bold mb-2"
-          style={{ fontFamily: 'Georgia, serif', color: 'var(--color-navy)' }}
-        >
+        <a href={`/c/${slug}`} className="text-xs underline mb-4 inline-block" style={{ color: 'var(--color-sage)' }}>Back to profile</a>
+        <h1 className="text-2xl font-bold mb-2" style={{ fontFamily: 'Georgia, serif', color: 'var(--color-navy)' }}>
           Claim Your Profile
         </h1>
         <p className="text-sm" style={{ color: 'var(--color-sage)' }}>
@@ -55,14 +37,8 @@ export default async function ClaimPage({ params }: Props) {
         </p>
       </div>
 
-      <div
-        className="rounded-xl p-6 mb-6"
-        style={{ background: 'var(--color-white)', border: '1px solid var(--color-light-gray)' }}
-      >
-        <h2
-          className="text-base font-bold mb-1"
-          style={{ fontFamily: 'Georgia, serif', color: 'var(--color-navy)' }}
-        >
+      <div className="rounded-xl p-6 mb-6" style={{ background: 'var(--color-white)', border: '1px solid var(--color-light-gray)' }}>
+        <h2 className="text-base font-bold mb-1" style={{ fontFamily: 'Georgia, serif', color: 'var(--color-navy)' }}>
           {c.display_name}
         </h2>
         <p className="text-sm mb-1" style={{ color: 'var(--color-bronze)' }}>
@@ -73,11 +49,7 @@ export default async function ClaimPage({ params }: Props) {
         </p>
       </div>
 
-      <ClaimForm
-        slug={slug}
-        licenseNumber={c.license_number ?? ''}
-        displayName={c.display_name}
-      />
+      <ClaimForm slug={slug} licenseNumber={c.license_number ?? ''} displayName={c.display_name} />
     </div>
   )
 }
