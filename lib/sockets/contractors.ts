@@ -129,3 +129,11 @@ export const contractorSocket = {
       'state=eq.' + state.toUpperCase(),
       'city=ilike.*' + city + '*',
       'active=eq.true',
+      'order=verified.desc',
+      'limit=' + limit,
+    ]
+    const data = await httpGet('/rest/v1/contractors?' + parts.join('&'))
+    return data as Contractor[]
+  },
+
+}
