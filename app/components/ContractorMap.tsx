@@ -73,20 +73,49 @@ export default function ContractorMap({ category, emergency, onCountChange }: Ma
           c.license_status === 'active' ? '#2d7d46' :
           c.license_status === 'expired' ? '#c0392b' : '#8B6F47'
 
+        const CATEGORY_LABELS: Record<string, string> = {
+          general_contractor: 'General Contractor',
+          roofing: 'Roofing',
+          plumbing: 'Plumbing',
+          hvac: 'HVAC',
+          electrical: 'Electrical',
+          pool_spa: 'Pool & Spa',
+          solar: 'Solar',
+          painting: 'Painting',
+          flooring: 'Flooring',
+          masonry: 'Masonry',
+          landscaping: 'Landscaping',
+          windows_doors: 'Windows & Doors',
+          insulation: 'Insulation',
+          drywall: 'Drywall',
+          fencing: 'Fencing',
+          fire_protection: 'Fire Protection',
+          residential_contractor: 'Residential Contractor',
+          general_engineering: 'General Engineering',
+          qualifier_business: 'General Contractor',
+          pressure_washing: 'Pressure Washing',
+        }
+
+        const tradeDisplay = c.doc_category ? (CATEGORY_LABELS[c.doc_category] || c.doc_category) : 'Contractor'
+
+        const addressLine = c.address_line_1
+          ? c.address_line_1 + (c.city ? ', ' + c.city : '') + (c.state ? ', ' + c.state : '') + (c.zip_code ? ' ' + c.zip_code : '')
+          : c.city ? c.city + (c.state ? ', ' + c.state : '') : ''
+
         const popupHtml =
           '<div style="font-family:Arial,sans-serif;padding:2px">' +
           '<a href="/c/' + c.slug + '" style="font-weight:700;font-size:0.9rem;color:#1B2A4A;text-decoration:none">' + c.display_name + '</a>' +
-          '<p style="margin:3px 0 0;font-size:0.78rem;color:#6B7F6B">' + (c.trade_label || c.doc_category || 'Contractor') + '</p>' +
-          (c.city ? '<p style="margin:2px 0 0;font-size:0.75rem;color:#888">' + c.city + ', ' + c.state + '</p>' : '') +
+          '<p style="margin:3px 0 0;font-size:0.78rem;color:#6B7F6B">' + tradeDisplay + '</p>' +
+          (addressLine ? '<p style="margin:2px 0 0;font-size:0.74rem;color:#888">' + addressLine + '</p>' : '') +
           '<p style="margin:4px 0 0;font-size:0.74rem;font-weight:600;color:' + statusColour + '">' +
           (c.license_status ? c.license_status.charAt(0).toUpperCase() + c.license_status.slice(1) : '') +
-          (c.verified ? ' · \u2713 Verified' : '') +
+          (c.verified ? ' \u00b7 \u2713 Verified' : '') +
           '</p>' +
           (c.emergency_available ? '<p style="margin:3px 0 0;font-size:0.74rem;color:#c0392b;font-weight:600">\uD83D\uDEA8 Emergency Available</p>' : '') +
           '<a href="/c/' + c.slug + '" style="display:inline-block;margin-top:6px;font-size:0.74rem;color:#8B6F47;text-decoration:underline">View Profile \u2192</a>' +
           '</div>'
 
-        const popup = new mapboxgl.Popup({ offset: 12, maxWidth: '260px' }).setHTML(popupHtml)
+        const popup = new mapboxgl.Popup({ offset: 12, maxWidth: '280px' }).setHTML(popupHtml)
 
         const marker = new mapboxgl.Marker({ element: el })
           .setLngLat([c.lng, c.lat])
@@ -144,13 +173,11 @@ export default function ContractorMap({ category, emergency, onCountChange }: Ma
     return function() {
       abortRef.current?.abort()
       clearMarkers()
-      clearTimeout(moveTimer)
       if (map) map.remove()
       mapRef.current = null
     }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [])
 
-  // Re-fetch when category or emergency changes
   useEffect(function() {
     if (mapRef.current) fetchAndPlot(mapRef.current)
   }, [category, emergency, fetchAndPlot])
