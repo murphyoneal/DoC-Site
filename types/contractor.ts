@@ -1,3 +1,4 @@
+
 ```typescript
 export type LicenseStatus = 'active' | 'inactive' | 'expired' | 'revoked' | 'suspended'
 export type Tier = 'public' | 'verified' | 'member'
