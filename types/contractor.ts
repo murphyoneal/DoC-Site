@@ -1,17 +1,19 @@
+```typescript
 export type LicenseStatus = 'active' | 'inactive' | 'expired' | 'revoked' | 'suspended'
 export type Tier = 'public' | 'verified' | 'member'
 export type SubscriptionTier = 'listed' | 'enhanced' | 'member'
 export type ProfileTierLabel = 'Listed' | 'Claimed' | 'Enhanced' | 'Verified'
 
-/** Minimal contractor record returned by map bounding-box API */
 export interface ContractorMapPin {
   id: string
   slug: string
   display_name: string
   trade_label: string | null
   doc_category: string | null
+  address_line_1: string | null
   city: string | null
   state: string | null
+  zip_code: string | null
   lat: number
   lng: number
   tier: Tier | null
@@ -20,7 +22,6 @@ export interface ContractorMapPin {
   license_status: LicenseStatus | null
 }
 
-/** Full contractor record for profile page */
 export interface Contractor {
   id: string
   slug: string
@@ -36,6 +37,7 @@ export interface Contractor {
   license_status: LicenseStatus | null
   expiry_date: string | null
   phone: string | null
+  address_line_1: string | null
   city: string | null
   state: string | null
   zip_code: string | null
@@ -55,7 +57,6 @@ export interface Contractor {
   source_url: string | null
   subscription_tier: SubscriptionTier | null
   qr_code_url: string | null
-  // Specialist capability flags
   ada_compliant_work: boolean | null
   aging_in_place: boolean | null
   chemical_sensitivity_aware: boolean | null
@@ -83,7 +84,6 @@ export interface BoundingBox {
   west: number
 }
 
-/** Trade categories for filter chips */
 export const TRADE_CATEGORIES = [
   { value: 'general_contractor', label: 'General Contractor' },
   { value: 'roofing', label: 'Roofing' },
@@ -101,3 +101,4 @@ export const TRADE_CATEGORIES = [
   { value: 'drywall', label: 'Drywall' },
   { value: 'concrete', label: 'Concrete' },
 ] as const
+```
