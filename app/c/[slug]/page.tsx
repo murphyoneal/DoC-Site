@@ -28,7 +28,6 @@ export default async function ContractorProfilePage({ params }: Props) {
   const c = await contractorSocket.forProfile(slug)
   if (!c) notFound()
 
-  // Build specialist flags list
   const specialistFlags = [
     c.ada_compliant_work         && 'ADA Compliant Work',
     c.aging_in_place             && 'Aging-in-Place',
@@ -50,7 +49,6 @@ export default async function ContractorProfilePage({ params }: Props) {
     c.emergency_board_up        && 'Board-Up Services',
   ].filter(Boolean) as string[]
 
-  // JSON-LD structured data
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'LocalBusiness',
@@ -79,14 +77,12 @@ export default async function ContractorProfilePage({ params }: Props) {
 
   return (
     <>
-      {/* JSON-LD */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
 
       <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
-        {/* Breadcrumb */}
         <nav className="text-xs mb-4" style={{ color: 'var(--color-sage)' }}>
           <Link href="/" className="hover:underline">Home</Link>
           {' / '}
@@ -101,7 +97,6 @@ export default async function ContractorProfilePage({ params }: Props) {
           <span style={{ color: 'var(--color-ink)' }}>{c.display_name}</span>
         </nav>
 
-        {/* Profile header */}
         <div
           className="rounded-xl p-6 mb-6"
           style={{ background: 'var(--color-white)', border: '1px solid var(--color-light-gray)' }}
@@ -143,23 +138,28 @@ export default async function ContractorProfilePage({ params }: Props) {
               </div>
             </div>
 
-            {/* QR code — screen res, always public */}
-            <div className="flex flex-col items-center gap-1">
+            <div className="flex flex-col items-center gap-2">
               <img
-                src={`/api/qr/${c.slug}?size=120`}
+                src={`/api/qr/${c.slug}?size=120&ref=profile`}
                 alt={`QR code for ${c.display_name}`}
                 width={120}
                 height={120}
                 className="rounded"
               />
               <span className="text-xs" style={{ color: 'var(--color-sage)' }}>
-                Scan to share
+                Scan to save contact
               </span>
+              
+                href={`/api/vcard/${c.slug}`}
+                className="text-xs underline"
+                style={{ color: 'var(--color-bronze)' }}
+              >
+                📇 Save Contact
+              </a>
             </div>
           </div>
         </div>
 
-        {/* Licence details */}
         <div
           className="rounded-xl p-6 mb-6"
           style={{ background: 'var(--color-white)', border: '1px solid var(--color-light-gray)' }}
@@ -212,7 +212,6 @@ export default async function ContractorProfilePage({ params }: Props) {
           </dl>
         </div>
 
-        {/* Specialist capabilities */}
         {specialistFlags.length > 0 && (
           <div
             className="rounded-xl p-6 mb-6"
@@ -238,7 +237,6 @@ export default async function ContractorProfilePage({ params }: Props) {
           </div>
         )}
 
-        {/* Emergency services */}
         {emergencyFlags.length > 0 && (
           <div
             className="rounded-xl p-6 mb-6"
@@ -269,7 +267,6 @@ export default async function ContractorProfilePage({ params }: Props) {
           </div>
         )}
 
-        {/* Claim CTA — for unclaimed profiles */}
         {!c.claimed && (
           <div
             className="rounded-xl p-6 mb-6 text-center"
@@ -294,11 +291,10 @@ export default async function ContractorProfilePage({ params }: Props) {
           </div>
         )}
 
-        {/* Disclaimer */}
         <p className="text-xs mt-6 text-center" style={{ color: 'var(--color-sage)' }}>
           Licence data sourced from{' '}
           {c.source_url ? (
-            <a
+            
               href={c.source_url}
               target="_blank"
               rel="noopener noreferrer"
