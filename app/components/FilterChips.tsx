@@ -1,6 +1,6 @@
 'use client'
 
-import { TRADE_CATEGORIES } from '@/types/contractor'
+import { TRADE_CATEGORIES } from '@/lib/trade-categories'
 
 interface FilterChipsProps {
   selected: string | null
