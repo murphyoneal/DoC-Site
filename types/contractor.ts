@@ -1,10 +1,9 @@
+export {}
 
-```typescript
 export type LicenseStatus = 'active' | 'inactive' | 'expired' | 'revoked' | 'suspended'
 export type Tier = 'public' | 'verified' | 'member'
 export type SubscriptionTier = 'listed' | 'enhanced' | 'member'
 export type ProfileTierLabel = 'Listed' | 'Claimed' | 'Enhanced' | 'Verified'
-
 export interface ContractorMapPin {
   id: string
   slug: string
@@ -22,7 +21,6 @@ export interface ContractorMapPin {
   emergency_available: boolean | null
   license_status: LicenseStatus | null
 }
-
 export interface Contractor {
   id: string
   slug: string
@@ -77,14 +75,12 @@ export interface Contractor {
   created_at: string | null
   updated_at: string | null
 }
-
 export interface BoundingBox {
   north: number
   south: number
   east: number
   west: number
 }
-
 export const TRADE_CATEGORIES = [
   { value: 'general_contractor', label: 'General Contractor' },
   { value: 'roofing', label: 'Roofing' },
@@ -102,4 +98,3 @@ export const TRADE_CATEGORIES = [
   { value: 'drywall', label: 'Drywall' },
   { value: 'concrete', label: 'Concrete' },
 ] as const
-```
