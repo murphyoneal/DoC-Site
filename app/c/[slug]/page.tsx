@@ -146,14 +146,8 @@ export default async function ContractorProfilePage({ params }: Props) {
                 height={120}
                 className="rounded"
               />
-              <span className="text-xs" style={{ color: 'var(--color-sage)' }}>
-                Scan to save contact
-              </span>
-              
-                href={`/api/vcard/${c.slug}`}
-                className="text-xs underline"
-                style={{ color: 'var(--color-bronze)' }}
-              >{'📇 Save Contact'}</a>
+              <span className="text-xs" style={{ color: 'var(--color-sage)' }}>Scan to save contact</span>
+              <a href={`/api/vcard/${c.slug}`} className="text-xs underline" style={{ color: 'var(--color-bronze)' }}>Save Contact</a>
             </div>
           </div>
         </div>
@@ -202,9 +196,7 @@ export default async function ContractorProfilePage({ params }: Props) {
             {c.source && (
               <>
                 <dt style={{ color: 'var(--color-sage)' }}>Data Source</dt>
-                <dd className="text-xs" style={{ color: 'var(--color-sage)' }}>
-                  {c.source}
-                </dd>
+                <dd className="text-xs" style={{ color: 'var(--color-sage)' }}>{c.source}</dd>
               </>
             )}
           </dl>
@@ -244,7 +236,7 @@ export default async function ContractorProfilePage({ params }: Props) {
               className="text-base font-bold mb-3"
               style={{ fontFamily: 'Georgia, serif', color: '#8e1c0e' }}
             >
-              {'🚨 Emergency Services'}
+              Emergency Services
             </h2>
             <div className="flex flex-wrap gap-2 mb-2">
               {emergencyFlags.map(flag => (
@@ -292,21 +284,14 @@ export default async function ContractorProfilePage({ params }: Props) {
         <p className="text-xs mt-6 text-center" style={{ color: 'var(--color-sage)' }}>
           Licence data sourced from{' '}
           {c.source_url ? (
-            
-              href={c.source_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="underline"
-            >
+            <a href={c.source_url} target="_blank" rel="noopener noreferrer" className="underline">
               {c.source ?? 'official registry'}
             </a>
           ) : (
             c.source ?? 'official registry'
           )}
           . Always verify current status directly with the licensing authority.{' '}
-          <Link href="/disclaimer" className="underline">
-            Disclaimer
-          </Link>
+          <Link href="/disclaimer" className="underline">Disclaimer</Link>
         </p>
       </div>
     </>
