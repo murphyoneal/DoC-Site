@@ -23,8 +23,8 @@ async function query(params: string): Promise<any[]> {
 
 export const contractorSocket = {
 
-  forMap: async (bounds: BoundingBox, _filters: { category?: string; emergency?: boolean } = {}, limit = 50): Promise<ContractorMapPin[]> => {
-    const params = [
+ forMap: async (bounds: BoundingBox, filters: { category?: string; emergency?: boolean } = {}, limit = 50): Promise<ContractorMapPin[]> => {
+    const parts = [
       'select=id,slug,display_name,trade_label,doc_category,city,state,lat,lng,tier,verified,emergency_available,license_status',
       'active=eq.true',
       'lat=gte.' + bounds.south,
@@ -32,11 +32,12 @@ export const contractorSocket = {
       'lng=gte.' + bounds.west,
       'lng=lte.' + bounds.east,
       'limit=' + limit,
-    ].join('&')
-    const data = await query(params)
+    ]
+    if (filters.category) parts.push('doc_category=eq.' + filters.category)
+    if (filters.emergency) parts.push('emergency_available=eq.true')
+    const data = await query(parts.join('&'))
     return data as ContractorMapPin[]
   },
-
   forProfile: async (slug: string): Promise<Contractor | null> => {
     const params = 'select=*&slug=eq.' + slug + '&active=eq.true&limit=1'
     const data = await query(params)
