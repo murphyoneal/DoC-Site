@@ -1,0 +1,17 @@
+export const TRADE_CATEGORIES = [
+  { value: 'general_contractor', label: 'General Contractor' },
+  { value: 'roofing', label: 'Roofing' },
+  { value: 'plumbing', label: 'Plumbing' },
+  { value: 'hvac', label: 'HVAC' },
+  { value: 'electrical', label: 'Electrical' },
+  { value: 'painting', label: 'Painting' },
+  { value: 'flooring', label: 'Flooring' },
+  { value: 'masonry', label: 'Masonry' },
+  { value: 'pool', label: 'Pool' },
+  { value: 'landscaping', label: 'Landscaping' },
+  { value: 'solar', label: 'Solar' },
+  { value: 'windows_doors', label: 'Windows & Doors' },
+  { value: 'insulation', label: 'Insulation' },
+  { value: 'drywall', label: 'Drywall' },
+  { value: 'concrete', label: 'Concrete' },
+] as const
