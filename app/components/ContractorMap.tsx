@@ -32,7 +32,6 @@ const FLOOD_LEGEND = [
   { color: '#fdbf6f', label: 'Undetermined (D)' },
 ]
 
-// ── PROPS ─────────────────────────────────────────────────────────────────────
 interface MapProps {
   category: string | null
   emergency: boolean
@@ -42,7 +41,6 @@ interface MapProps {
 const DEFAULT_CENTER: [number, number] = [-81.0, 29.1]
 const DEFAULT_ZOOM = 10
 
-// ── COMPONENT ─────────────────────────────────────────────────────────────────
 export default function ContractorMap({ category, emergency, onCountChange }: MapProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<any>(null)
@@ -51,7 +49,6 @@ export default function ContractorMap({ category, emergency, onCountChange }: Ma
   const categoryRef = useRef<string | null>(category)
   const emergencyRef = useRef<boolean>(emergency)
 
-  // Layer state
   const [activeBase, setActiveBase] = useState<BaseLayer>('satellite')
   const [activeOverlays, setActiveOverlays] = useState<Set<OverlayLayer>>(new Set())
 
@@ -167,7 +164,6 @@ export default function ContractorMap({ category, emergency, onCountChange }: Ma
     }
   }, [clearMarkers, onCountChange])
 
-  // ── MAP INIT ────────────────────────────────────────────────────────────────
   useEffect(function() {
     if (!mapContainerRef.current) return
     if (mapRef.current) return
@@ -184,7 +180,7 @@ export default function ContractorMap({ category, emergency, onCountChange }: Ma
 
       map = new mapboxgl.Map({
         container: mapContainerRef.current!,
-        style: BASE_STYLES['satellite'],   // default: aerial
+        style: BASE_STYLES['satellite'],
         center: DEFAULT_CENTER,
         zoom: DEFAULT_ZOOM,
       })
@@ -220,31 +216,24 @@ export default function ContractorMap({ category, emergency, onCountChange }: Ma
     if (mapRef.current) fetchAndPlot(mapRef.current)
   }, [category, emergency, fetchAndPlot])
 
-  // ── BASE LAYER CHANGE ───────────────────────────────────────────────────────
   const handleBaseChange = useCallback((layer: BaseLayer) => {
     if (!mapRef.current) return
     setActiveBase(layer)
     mapRef.current.setStyle(BASE_STYLES[layer])
-    // Re-add overlays after style change
     mapRef.current.once('style.load', () => {
       applyFloodOverlay(mapRef.current, activeOverlays.has('flood'))
     })
   }, [activeOverlays])
 
-  // ── OVERLAY TOGGLE ──────────────────────────────────────────────────────────
   const handleOverlayToggle = useCallback((layer: OverlayLayer) => {
     setActiveOverlays(prev => {
       const next = new Set(prev)
-      if (next.has(layer)) {
-        next.delete(layer)
-      } else {
-        next.add(layer)
-      }
+      if (next.has(layer)) next.delete(layer)
+      else next.add(layer)
       return next
     })
   }, [])
 
-  // Apply flood overlay when toggle changes
   useEffect(() => {
     if (!mapRef.current) return
     const map = mapRef.current
@@ -255,20 +244,17 @@ export default function ContractorMap({ category, emergency, onCountChange }: Ma
     }
   }, [activeOverlays])
 
-  // ── RENDER ──────────────────────────────────────────────────────────────────
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%', minHeight: '100%' }}>
-      {/* Map canvas */}
       <div
         ref={mapContainerRef}
         style={{ width: '100%', height: '100%', minHeight: '100%' }}
         aria-label="Contractor map"
       />
 
-      {/* Layer toggle panel */}
       <div style={{
         position: 'absolute',
-        top: '56px',   // below navigation controls
+        top: '56px',
         left: '10px',
         zIndex: 10,
         display: 'flex',
@@ -276,7 +262,6 @@ export default function ContractorMap({ category, emergency, onCountChange }: Ma
         gap: '6px',
         pointerEvents: 'auto',
       }}>
-        {/* Base layers */}
         <div style={panelStyle}>
           <div style={panelHeaderStyle}>Base Map</div>
           {BASE_LAYERS.map(layer => (
@@ -294,18 +279,14 @@ export default function ContractorMap({ category, emergency, onCountChange }: Ma
               <span>{layer.label}</span>
               {activeBase === layer.id && (
                 <span style={{
-                  marginLeft: 'auto',
-                  width: '6px', height: '6px',
-                  borderRadius: '50%',
-                  background: '#3B82F6',
-                  flexShrink: 0,
+                  marginLeft: 'auto', width: '6px', height: '6px',
+                  borderRadius: '50%', background: '#3B82F6', flexShrink: 0,
                 }} />
               )}
             </button>
           ))}
         </div>
 
-        {/* Overlays */}
         <div style={panelStyle}>
           <div style={panelHeaderStyle}>Overlays</div>
           {OVERLAY_LAYERS.map(layer => {
@@ -330,21 +311,16 @@ export default function ContractorMap({ category, emergency, onCountChange }: Ma
                   ? <span style={{ marginLeft: 'auto', fontSize: '10px', color: '#9CA3AF' }}>Soon</span>
                   : (
                     <span style={{
-                      marginLeft: 'auto',
-                      width: '28px', height: '14px',
+                      marginLeft: 'auto', width: '28px', height: '14px',
                       borderRadius: '7px',
                       background: isOn ? '#22C55E' : '#D1D5DB',
-                      position: 'relative',
-                      flexShrink: 0,
-                      transition: 'background 0.2s',
+                      position: 'relative', flexShrink: 0, transition: 'background 0.2s',
                     }}>
                       <span style={{
-                        position: 'absolute',
-                        top: '2px',
+                        position: 'absolute', top: '2px',
                         left: isOn ? '14px' : '2px',
                         width: '10px', height: '10px',
-                        borderRadius: '50%',
-                        background: '#fff',
+                        borderRadius: '50%', background: '#fff',
                         boxShadow: '0 1px 2px rgba(0,0,0,0.2)',
                         transition: 'left 0.2s',
                       }} />
@@ -356,7 +332,6 @@ export default function ContractorMap({ category, emergency, onCountChange }: Ma
           })}
         </div>
 
-        {/* Flood legend */}
         {activeOverlays.has('flood') && (
           <div style={panelStyle}>
             <div style={panelHeaderStyle}>FEMA Flood Zones</div>
@@ -364,11 +339,8 @@ export default function ContractorMap({ category, emergency, onCountChange }: Ma
               {FLOOD_LEGEND.map(item => (
                 <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
                   <span style={{
-                    width: '14px', height: '10px',
-                    borderRadius: '2px',
-                    background: item.color,
-                    opacity: 0.75,
-                    flexShrink: 0,
+                    width: '14px', height: '10px', borderRadius: '2px',
+                    background: item.color, opacity: 0.75, flexShrink: 0,
                   }} />
                   <span style={{ fontSize: '11px', color: '#4B5563' }}>{item.label}</span>
                 </div>
@@ -384,7 +356,9 @@ export default function ContractorMap({ category, emergency, onCountChange }: Ma
   )
 }
 
-// ── FLOOD OVERLAY HELPER ───────────────────────────────────────────────────────
+// ── FLOOD OVERLAY ─────────────────────────────────────────────────────────────
+// Uses FEMA ArcGIS REST export endpoint as XYZ-style tiles
+// Layer 28 = Flood Hazard Zones (the main FIRM zones layer)
 function applyFloodOverlay(map: any, show: boolean) {
   const SOURCE_ID = 'fema-nfhl'
   const LAYER_ID  = 'fema-flood-fill'
@@ -394,18 +368,24 @@ function applyFloodOverlay(map: any, show: boolean) {
       map.addSource(SOURCE_ID, {
         type: 'raster',
         tiles: [
-          'https://hazards.fema.gov/gis/nfhl/services/public/NFHLWMS/MapServer/WMSServer' +
-          '?bbox={bbox-epsg-3857}&service=WMS&request=GetMap&version=1.1.1' +
-          '&layers=28&width=256&height=256&srs=EPSG:3857' +
-          '&format=image/png&transparent=true&styles='
+          'https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer/export' +
+          '?bbox={bbox-epsg-3857}' +
+          '&bboxSR=3857' +
+          '&layers=show:28' +
+          '&size=256,256' +
+          '&imageSR=3857' +
+          '&format=png32' +
+          '&transparent=true' +
+          '&f=image'
         ],
         tileSize: 256,
+        attribution: 'FEMA NFHL',
       })
       map.addLayer({
         id: LAYER_ID,
         type: 'raster',
         source: SOURCE_ID,
-        paint: { 'raster-opacity': 0.55 },
+        paint: { 'raster-opacity': 0.6 },
       })
     } else {
       map.setLayoutProperty(LAYER_ID, 'visibility', 'visible')
@@ -417,7 +397,7 @@ function applyFloodOverlay(map: any, show: boolean) {
   }
 }
 
-// ── INLINE STYLES ──────────────────────────────────────────────────────────────
+// ── STYLES ────────────────────────────────────────────────────────────────────
 const panelStyle: React.CSSProperties = {
   background: '#fff',
   borderRadius: '10px',
