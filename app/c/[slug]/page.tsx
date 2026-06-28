@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
+import ScanTracker from '@/app/components/ScanTracker'
 
 const SB_HOST = 'eaifqorwmgayiqmbtzcg.supabase.co'
 const SB_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVhaWZxb3J3bWdheWlxbWJ0emNnIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MjMxNjIzOCwiZXhwIjoyMDk3ODkyMjM4fQ.L23cjzASjDbuFQ1zeQt30CThOSX_aRwyWpbl7QLeO-E'
@@ -16,7 +17,6 @@ async function getContractor(slug: string) {
 }
 
 async function getPermitSummary(slug: string) {
-  // Get contractor name to fuzzy-match permits
   const res = await fetch(
     `https://${SB_HOST}/rest/v1/contractors?slug=eq.${encodeURIComponent(slug)}&select=business_name&limit=1`,
     { headers: SB_HEADERS, next: { revalidate: 300 } }
@@ -83,8 +83,13 @@ export default async function ContractorProfilePage({ params }: { params: Promis
 
   const address = [c.address_line_1, c.city, c.state, c.zip_code].filter(Boolean).join(', ')
 
+  const qrUrl = `/api/qr/${slug}?ref=profile&size=200`
+  const scanUrl = `/c/${slug}/scan`
+
   return (
     <main style={{ minHeight: '100vh', background: 'var(--color-cream)', padding: '0' }}>
+
+      <ScanTracker slug={slug} tradeCategory={c.doc_category} city={c.city} state={c.state} />
 
       {/* Header bar */}
       <div style={{ background: 'var(--color-navy)', padding: '12px 24px', display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -98,34 +103,55 @@ export default async function ContractorProfilePage({ params }: { params: Promis
         {/* Profile card */}
         <div style={{ background: 'var(--color-white)', borderRadius: '14px', border: '1px solid var(--color-light-gray)', padding: '28px', marginBottom: '20px' }}>
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px', flexWrap: 'wrap' }}>
-            <div style={{ flex: 1 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '24px', flexWrap: 'wrap' }}>
+            <div style={{ flex: 1, minWidth: '200px' }}>
               <h1 style={{ fontFamily: 'Georgia, serif', color: 'var(--color-navy)', fontSize: '1.5rem', fontWeight: 700, margin: '0 0 4px' }}>
                 {c.display_name}
               </h1>
               <p style={{ color: 'var(--color-bronze)', fontSize: '0.9rem', margin: '0 0 8px' }}>{tradeLabel}</p>
               {address && (
-                <p style={{ color: 'var(--color-sage)', fontSize: '0.82rem', margin: '0 0 4px' }}>{address}</p>
+                <p style={{ color: 'var(--color-sage)', fontSize: '0.82rem', margin: '0 0 12px' }}>{address}</p>
               )}
+
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                <span style={{
+                  padding: '4px 12px', borderRadius: '20px', fontSize: '0.78rem', fontWeight: 600,
+                  background: statusColor + '18', color: statusColor, border: `1px solid ${statusColor}40`
+                }}>
+                  {c.license_status ? c.license_status.charAt(0).toUpperCase() + c.license_status.slice(1) : 'Unknown'}
+                </span>
+                {c.verified && (
+                  <span style={{ fontSize: '0.75rem', color: 'var(--color-navy)', background: '#e8f0fb', padding: '3px 10px', borderRadius: '20px' }}>
+                    ✓ Verified
+                  </span>
+                )}
+                {c.emergency_available && (
+                  <span style={{ fontSize: '0.75rem', color: '#c0392b', background: '#fde8e8', padding: '3px 10px', borderRadius: '20px', fontWeight: 600 }}>
+                    🚨 Emergency
+                  </span>
+                )}
+              </div>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
-              <span style={{
-                padding: '4px 12px', borderRadius: '20px', fontSize: '0.78rem', fontWeight: 600,
-                background: statusColor + '18', color: statusColor, border: `1px solid ${statusColor}40`
-              }}>
-                {c.license_status ? c.license_status.charAt(0).toUpperCase() + c.license_status.slice(1) : 'Unknown'}
-              </span>
-              {c.verified && (
-                <span style={{ fontSize: '0.75rem', color: 'var(--color-navy)', background: '#e8f0fb', padding: '3px 10px', borderRadius: '20px' }}>
-                  ✓ Verified
-                </span>
-              )}
-              {c.emergency_available && (
-                <span style={{ fontSize: '0.75rem', color: '#c0392b', background: '#fde8e8', padding: '3px 10px', borderRadius: '20px', fontWeight: 600 }}>
-                  🚨 Emergency Available
-                </span>
-              )}
+            {/* QR Code — always visible */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+              <a href={scanUrl} title="Scan to view mobile profile">
+                <img
+                  src={qrUrl}
+                  alt={`QR code for ${c.display_name}`}
+                  width={120}
+                  height={120}
+                  style={{ borderRadius: '8px', border: '1px solid var(--color-light-gray)', display: 'block' }}
+                />
+              </a>
+              <span style={{ fontSize: '0.68rem', color: 'var(--color-sage)', textAlign: 'center' }}>Scan or share</span>
+              <a
+                href={`/api/qr/${slug}?ref=download&size=512`}
+                download={`doc-qr-${slug}.png`}
+                style={{ fontSize: '0.72rem', color: 'var(--color-bronze)', textDecoration: 'underline' }}
+              >
+                Download hi-res
+              </a>
             </div>
           </div>
 
@@ -227,7 +253,7 @@ export default async function ContractorProfilePage({ params }: { params: Promis
           </div>
         )}
 
-        {/* QR / vCard */}
+        {/* vCard */}
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
           <a
             href={`/api/vcard/${slug}`}
@@ -238,16 +264,6 @@ export default async function ContractorProfilePage({ params }: { params: Promis
           >
             ↓ Save Contact
           </a>
-          <Link
-            href={`/api/qr/${slug}`}
-            style={{
-              padding: '9px 18px', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 600,
-              background: 'var(--color-cream)', color: 'var(--color-navy)',
-              textDecoration: 'none', border: '1px solid var(--color-light-gray)',
-            }}
-          >
-            QR Code
-          </Link>
         </div>
 
       </div>
