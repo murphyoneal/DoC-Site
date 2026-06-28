@@ -1,299 +1,256 @@
-import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { contractorSocket } from '@/lib/sockets/contractors'
-import StatusBadge from '@/app/components/StatusBadge'
 
-interface Props {
-  params: Promise<{ slug: string }>
+const SB_HOST = 'eaifqorwmgayiqmbtzcg.supabase.co'
+const SB_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVhaWZxb3J3bWdheWlxbWJ0emNnIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MjMxNjIzOCwiZXhwIjoyMDk3ODkyMjM4fQ.L23cjzASjDbuFQ1zeQt30CThOSX_aRwyWpbl7QLeO-E'
+const SB_HEADERS = { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
+
+async function getContractor(slug: string) {
+  const res = await fetch(
+    `https://${SB_HOST}/rest/v1/contractors?slug=eq.${encodeURIComponent(slug)}&limit=1`,
+    { headers: SB_HEADERS, next: { revalidate: 60 } }
+  )
+  if (!res.ok) return null
+  const rows = await res.json()
+  return rows?.[0] ?? null
 }
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { slug } = await params
-  const contractor = await contractorSocket.forProfile(slug)
-  if (!contractor) return { title: 'Contractor Not Found' }
+async function getPermitSummary(slug: string) {
+  // Get contractor name to fuzzy-match permits
+  const res = await fetch(
+    `https://${SB_HOST}/rest/v1/contractors?slug=eq.${encodeURIComponent(slug)}&select=business_name&limit=1`,
+    { headers: SB_HEADERS, next: { revalidate: 300 } }
+  )
+  if (!res.ok) return null
+  const rows = await res.json()
+  if (!rows?.[0]?.business_name) return null
 
+  const name = rows[0].business_name.toUpperCase()
+  const permitRes = await fetch(
+    `https://${SB_HOST}/rest/v1/property_permit_history?contractor_name=ilike.*${encodeURIComponent(name)}*&select=trade_category,permit_date,job_value&limit=100`,
+    { headers: SB_HEADERS, next: { revalidate: 300 } }
+  )
+  if (!permitRes.ok) return null
+  return await permitRes.json()
+}
+
+const CATEGORY_LABELS: Record<string, string> = {
+  general_contractor: 'General Contractor',
+  roofing: 'Roofing',
+  plumbing: 'Plumbing',
+  hvac: 'HVAC',
+  electrical: 'Electrical',
+  pool_spa: 'Pool & Spa',
+  solar: 'Solar',
+  painting: 'Painting',
+  flooring: 'Flooring',
+  masonry: 'Masonry',
+  landscaping: 'Landscaping',
+  windows_doors: 'Windows & Doors',
+  insulation: 'Insulation',
+  drywall: 'Drywall',
+  fencing: 'Fencing',
+  fire_protection: 'Fire Protection',
+  residential_contractor: 'Residential Contractor',
+  general_engineering: 'General Engineering',
+  pressure_washing: 'Pressure Washing',
+}
+
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params
+  const c = await getContractor(slug)
+  if (!c) return { title: 'Contractor Not Found' }
   return {
-    title: `${contractor.display_name} — ${contractor.trade_label ?? 'Contractor'} in ${contractor.city ?? ''}, ${contractor.state ?? ''} | DoC`,
-    description: `${contractor.display_name} is a ${contractor.trade_label ?? 'licensed contractor'} based in ${contractor.city ?? ''}, ${contractor.state ?? ''}. Licence ${contractor.license_number ?? ''} — ${contractor.license_status ?? 'status unknown'}.`,
-    openGraph: {
-      title: contractor.display_name,
-      description: `${contractor.trade_label} · ${contractor.city}, ${contractor.state}`,
-    },
+    title: `${c.display_name} | Department of Construction`,
+    description: `${CATEGORY_LABELS[c.doc_category] ?? 'Contractor'} in ${c.city ?? 'Florida'}. License ${c.license_number}.`,
   }
 }
 
-export default async function ContractorProfilePage({ params }: Props) {
+export default async function ContractorProfilePage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
-  const c = await contractorSocket.forProfile(slug)
+  const c = await getContractor(slug)
   if (!c) notFound()
 
-  const specialistFlags = [
-    c.ada_compliant_work         && 'ADA Compliant Work',
-    c.aging_in_place             && 'Aging-in-Place',
-    c.chemical_sensitivity_aware && 'Chemical Sensitivity Aware',
-    c.mobility_accessible_worksite && 'Accessible Worksite',
-    c.hurricane_hardening        && 'Hurricane Hardening',
-    c.impact_window_certified    && 'Impact Window Certified',
-    c.roof_certification         && 'Roof Certification',
-    c.storm_restoration          && 'Storm Restoration',
-  ].filter(Boolean) as string[]
+  const permits = await getPermitSummary(slug)
+  const permitCount = permits?.length ?? 0
+  const totalValue = permits?.reduce((sum: number, p: any) => sum + (p.job_value ?? 0), 0) ?? 0
 
-  const emergencyFlags = [
-    c.emergency_available       && 'Emergency Services',
-    c.emergency_plumbing        && 'Emergency Plumbing',
-    c.emergency_roofing         && 'Emergency Roofing',
-    c.emergency_electrical      && 'Emergency Electrical',
-    c.emergency_storm_damage    && 'Storm Damage Response',
-    c.emergency_water_damage    && 'Water Damage Response',
-    c.emergency_board_up        && 'Board-Up Services',
-  ].filter(Boolean) as string[]
+  const tradeLabel = CATEGORY_LABELS[c.doc_category] ?? c.trade_label ?? 'Contractor'
 
-  const jsonLd = {
-    '@context': 'https://schema.org',
-    '@type': 'LocalBusiness',
-    name: c.display_name,
-    description: c.trade_label ?? undefined,
-    identifier: c.license_number ?? undefined,
-    address: {
-      '@type': 'PostalAddress',
-      addressLocality: c.city ?? undefined,
-      addressRegion: c.state ?? undefined,
-      addressCountry: c.country_code ?? 'US',
-    },
-    ...(c.lat && c.lng ? {
-      geo: {
-        '@type': 'GeoCoordinates',
-        latitude: c.lat,
-        longitude: c.lng,
-      },
-    } : {}),
-    url: `https://departmentofconstruction.com/c/${c.slug}`,
-  }
+  const statusColor =
+    c.license_status === 'active'  ? '#2d7d46' :
+    c.license_status === 'expired' ? '#c0392b' : '#8B6F47'
 
-  const tierLabelColour = c.verified
-    ? { bg: '#e8f0fb', text: '#1B2A4A' }
-    : { bg: '#f5f0e8', text: '#8B6F47' }
+  const address = [c.address_line_1, c.city, c.state, c.zip_code].filter(Boolean).join(', ')
 
   return (
-    <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
+    <main style={{ minHeight: '100vh', background: 'var(--color-cream)', padding: '0' }}>
 
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
-        <nav className="text-xs mb-4" style={{ color: 'var(--color-sage)' }}>
-          <Link href="/" className="hover:underline">Home</Link>
-          {' / '}
-          {c.state && (
-            <>
-              <Link href={`/${c.state.toLowerCase()}`} className="hover:underline">
-                {c.state}
-              </Link>
-              {' / '}
-            </>
-          )}
-          <span style={{ color: 'var(--color-ink)' }}>{c.display_name}</span>
-        </nav>
+      {/* Header bar */}
+      <div style={{ background: 'var(--color-navy)', padding: '12px 24px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <Link href="/" style={{ color: 'var(--color-bronze)', textDecoration: 'none', fontSize: '0.82rem' }}>
+          ← Department of Construction
+        </Link>
+      </div>
 
-        <div
-          className="rounded-xl p-6 mb-6"
-          style={{ background: 'var(--color-white)', border: '1px solid var(--color-light-gray)' }}
-        >
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <h1
-                className="text-2xl font-bold mb-1"
-                style={{ fontFamily: 'Georgia, serif', color: 'var(--color-navy)' }}
-              >
+      <div style={{ maxWidth: '760px', margin: '0 auto', padding: '32px 16px' }}>
+
+        {/* Profile card */}
+        <div style={{ background: 'var(--color-white)', borderRadius: '14px', border: '1px solid var(--color-light-gray)', padding: '28px', marginBottom: '20px' }}>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px', flexWrap: 'wrap' }}>
+            <div style={{ flex: 1 }}>
+              <h1 style={{ fontFamily: 'Georgia, serif', color: 'var(--color-navy)', fontSize: '1.5rem', fontWeight: 700, margin: '0 0 4px' }}>
                 {c.display_name}
               </h1>
-              {c.trading_name && c.trading_name !== c.business_name && (
-                <p className="text-sm mb-2" style={{ color: 'var(--color-sage)' }}>
-                  Trading as {c.trading_name}
-                </p>
+              <p style={{ color: 'var(--color-bronze)', fontSize: '0.9rem', margin: '0 0 8px' }}>{tradeLabel}</p>
+              {address && (
+                <p style={{ color: 'var(--color-sage)', fontSize: '0.82rem', margin: '0 0 4px' }}>{address}</p>
               )}
-              <p className="text-base mb-3" style={{ color: 'var(--color-bronze)' }}>
-                {c.trade_label ?? c.doc_category ?? 'Licensed Contractor'}
-              </p>
-              <div className="flex flex-wrap items-center gap-2">
-                <StatusBadge status={c.license_status} />
-                {c.verified && (
-                  <span
-                    className="text-xs font-bold px-2 py-1 rounded-full"
-                    style={{ background: tierLabelColour.bg, color: tierLabelColour.text }}
-                  >
-                    {'✓ Verified'}
-                  </span>
-                )}
-                {c.profile_tier_label && (
-                  <span
-                    className="text-xs px-2 py-1 rounded-full"
-                    style={{ background: 'var(--color-light-gray)', color: 'var(--color-sage)' }}
-                  >
-                    {c.profile_tier_label}
-                  </span>
-                )}
-              </div>
             </div>
 
-            <div className="flex flex-col items-center gap-2">
-              <img
-                src={`/api/qr/${c.slug}?size=120&ref=profile`}
-                alt={`QR code for ${c.display_name}`}
-                width={120}
-                height={120}
-                className="rounded"
-              />
-              <span className="text-xs" style={{ color: 'var(--color-sage)' }}>Scan to save contact</span>
-              <a href={`/api/vcard/${c.slug}`} className="text-xs underline" style={{ color: 'var(--color-bronze)' }}>Save Contact</a>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
+              <span style={{
+                padding: '4px 12px', borderRadius: '20px', fontSize: '0.78rem', fontWeight: 600,
+                background: statusColor + '18', color: statusColor, border: `1px solid ${statusColor}40`
+              }}>
+                {c.license_status ? c.license_status.charAt(0).toUpperCase() + c.license_status.slice(1) : 'Unknown'}
+              </span>
+              {c.verified && (
+                <span style={{ fontSize: '0.75rem', color: 'var(--color-navy)', background: '#e8f0fb', padding: '3px 10px', borderRadius: '20px' }}>
+                  ✓ Verified
+                </span>
+              )}
+              {c.emergency_available && (
+                <span style={{ fontSize: '0.75rem', color: '#c0392b', background: '#fde8e8', padding: '3px 10px', borderRadius: '20px', fontWeight: 600 }}>
+                  🚨 Emergency Available
+                </span>
+              )}
             </div>
           </div>
-        </div>
 
-        <div
-          className="rounded-xl p-6 mb-6"
-          style={{ background: 'var(--color-white)', border: '1px solid var(--color-light-gray)' }}
-        >
-          <h2
-            className="text-base font-bold mb-4"
-            style={{ fontFamily: 'Georgia, serif', color: 'var(--color-navy)' }}
-          >
-            Licence Details
-          </h2>
-          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3 text-sm">
-            {c.license_number && (
-              <>
-                <dt style={{ color: 'var(--color-sage)' }}>Licence Number</dt>
-                <dd className="font-mono font-medium">{c.license_number}</dd>
-              </>
-            )}
-            {c.license_status && (
-              <>
-                <dt style={{ color: 'var(--color-sage)' }}>Status</dt>
-                <dd><StatusBadge status={c.license_status} size="sm" /></dd>
-              </>
-            )}
+          {/* License info */}
+          <div style={{ marginTop: '20px', padding: '14px', background: 'var(--color-cream)', borderRadius: '8px', display: 'flex', flexWrap: 'wrap', gap: '20px' }}>
+            <div>
+              <p style={{ fontSize: '0.72rem', color: 'var(--color-sage)', margin: '0 0 2px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>License Number</p>
+              <p style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--color-ink)', margin: 0 }}>{c.license_number ?? '—'}</p>
+            </div>
             {c.expiry_date && (
-              <>
-                <dt style={{ color: 'var(--color-sage)' }}>Expiry Date</dt>
-                <dd>{c.expiry_date}</dd>
-              </>
+              <div>
+                <p style={{ fontSize: '0.72rem', color: 'var(--color-sage)', margin: '0 0 2px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Expiry</p>
+                <p style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--color-ink)', margin: 0 }}>{c.expiry_date}</p>
+              </div>
             )}
-            {c.trade_label && (
-              <>
-                <dt style={{ color: 'var(--color-sage)' }}>Trade</dt>
-                <dd>{c.trade_label}</dd>
-              </>
+            {c.county_name && (
+              <div>
+                <p style={{ fontSize: '0.72rem', color: 'var(--color-sage)', margin: '0 0 2px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>County</p>
+                <p style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--color-ink)', margin: 0 }}>{c.county_name}</p>
+              </div>
             )}
-            {c.city && (
-              <>
-                <dt style={{ color: 'var(--color-sage)' }}>Location</dt>
-                <dd>{[c.city, c.state, c.zip_code].filter(Boolean).join(', ')}</dd>
-              </>
-            )}
-            {c.source && (
-              <>
-                <dt style={{ color: 'var(--color-sage)' }}>Data Source</dt>
-                <dd className="text-xs" style={{ color: 'var(--color-sage)' }}>{c.source}</dd>
-              </>
-            )}
-          </dl>
+          </div>
+
+          {/* Contact */}
+          {(c.phone || c.email || c.website) && (
+            <div style={{ marginTop: '16px', display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
+              {c.phone && (
+                <a href={`tel:${c.phone}`} style={{ fontSize: '0.84rem', color: 'var(--color-bronze)', textDecoration: 'none' }}>
+                  📞 {c.phone}
+                </a>
+              )}
+              {c.email && (
+                <a href={`mailto:${c.email}`} style={{ fontSize: '0.84rem', color: 'var(--color-bronze)', textDecoration: 'none' }}>
+                  ✉ {c.email}
+                </a>
+              )}
+              {c.website && (
+                <a href={c.website} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.84rem', color: 'var(--color-bronze)', textDecoration: 'none' }}>
+                  🌐 Website
+                </a>
+              )}
+            </div>
+          )}
         </div>
 
-        {specialistFlags.length > 0 && (
-          <div
-            className="rounded-xl p-6 mb-6"
-            style={{ background: 'var(--color-white)', border: '1px solid var(--color-light-gray)' }}
-          >
-            <h2
-              className="text-base font-bold mb-3"
-              style={{ fontFamily: 'Georgia, serif', color: 'var(--color-navy)' }}
-            >
-              Specialist Capabilities
+        {/* Permit history summary */}
+        {permitCount > 0 && (
+          <div style={{ background: 'var(--color-white)', borderRadius: '14px', border: '1px solid var(--color-light-gray)', padding: '20px', marginBottom: '20px' }}>
+            <h2 style={{ fontFamily: 'Georgia, serif', color: 'var(--color-navy)', fontSize: '1rem', fontWeight: 700, margin: '0 0 12px' }}>
+              Permit History (Volusia County)
             </h2>
-            <div className="flex flex-wrap gap-2">
-              {specialistFlags.map(flag => (
-                <span
-                  key={flag}
-                  className="text-xs px-2.5 py-1 rounded-full font-medium"
-                  style={{ background: '#e8f0fb', color: 'var(--color-navy)' }}
-                >
-                  {flag}
-                </span>
-              ))}
+            <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap' }}>
+              <div>
+                <p style={{ fontSize: '0.72rem', color: 'var(--color-sage)', margin: '0 0 2px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Permits Found</p>
+                <p style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--color-navy)', margin: 0 }}>{permitCount}</p>
+              </div>
+              {totalValue > 0 && (
+                <div>
+                  <p style={{ fontSize: '0.72rem', color: 'var(--color-sage)', margin: '0 0 2px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Job Value</p>
+                  <p style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--color-navy)', margin: 0 }}>
+                    ${totalValue.toLocaleString()}
+                  </p>
+                </div>
+              )}
             </div>
-          </div>
-        )}
-
-        {emergencyFlags.length > 0 && (
-          <div
-            className="rounded-xl p-6 mb-6"
-            style={{ background: '#fdf2f2', border: '1px solid #f5c6c6' }}
-          >
-            <h2
-              className="text-base font-bold mb-3"
-              style={{ fontFamily: 'Georgia, serif', color: '#8e1c0e' }}
-            >
-              Emergency Services
-            </h2>
-            <div className="flex flex-wrap gap-2 mb-2">
-              {emergencyFlags.map(flag => (
-                <span
-                  key={flag}
-                  className="text-xs px-2.5 py-1 rounded-full font-medium"
-                  style={{ background: '#fdecea', color: '#c0392b' }}
-                >
-                  {flag}
-                </span>
-              ))}
-            </div>
-            {c.emergency_response_hours && (
-              <p className="text-xs mt-2" style={{ color: '#c0392b' }}>
-                Response hours: {c.emergency_response_hours}
-              </p>
-            )}
-          </div>
-        )}
-
-        {!c.claimed && (
-          <div
-            className="rounded-xl p-6 mb-6 text-center"
-            style={{ background: 'var(--color-light-gray)', border: '1px dashed var(--color-bronze)' }}
-          >
-            <p
-              className="font-semibold mb-1"
-              style={{ fontFamily: 'Georgia, serif', color: 'var(--color-navy)' }}
-            >
-              Is this your business?
+            <p style={{ fontSize: '0.75rem', color: 'var(--color-sage)', margin: '12px 0 0' }}>
+              * Permit records are matched by business name and are unverified. Contractors can verify their permit history by claiming this profile.
             </p>
-            <p className="text-sm mb-4" style={{ color: 'var(--color-sage)' }}>
-              Claim your profile to add contact details, photos, and a hi-res QR card.
+          </div>
+        )}
+
+        {/* Claim CTA */}
+        {!c.claimed && (
+          <div style={{ background: 'var(--color-white)', borderRadius: '14px', border: '1px solid var(--color-light-gray)', padding: '20px', marginBottom: '20px' }}>
+            <h2 style={{ fontFamily: 'Georgia, serif', color: 'var(--color-navy)', fontSize: '1rem', fontWeight: 700, margin: '0 0 6px' }}>
+              Is this your business?
+            </h2>
+            <p style={{ fontSize: '0.84rem', color: 'var(--color-sage)', margin: '0 0 14px' }}>
+              Claim this profile to update your contact details, verify your permit history, and receive project enquiries.
             </p>
             <Link
-              href={`/claim/${c.slug}`}
-              className="inline-block px-5 py-2 rounded-lg text-sm font-semibold"
-              style={{ background: 'var(--color-bronze)', color: 'var(--color-white)' }}
+              href={`/claim/${slug}`}
+              style={{
+                display: 'inline-block', padding: '10px 24px', borderRadius: '8px',
+                background: 'var(--color-bronze)', color: 'white',
+                fontSize: '0.84rem', fontWeight: 600, textDecoration: 'none',
+              }}
             >
-              Claim This Profile
+              Claim This Profile →
             </Link>
           </div>
         )}
 
-        <p className="text-xs mt-6 text-center" style={{ color: 'var(--color-sage)' }}>
-          Licence data sourced from{' '}
-          {c.source_url ? (
-            <a href={c.source_url} target="_blank" rel="noopener noreferrer" className="underline">
-              {c.source ?? 'official registry'}
-            </a>
-          ) : (
-            c.source ?? 'official registry'
-          )}
-          . Always verify current status directly with the licensing authority.{' '}
-          <Link href="/disclaimer" className="underline">Disclaimer</Link>
-        </p>
+        {c.claimed && (
+          <div style={{ background: '#f0fdf4', borderRadius: '14px', border: '1px solid #bbf7d0', padding: '16px', marginBottom: '20px' }}>
+            <p style={{ fontSize: '0.84rem', color: '#166534', margin: 0, fontWeight: 600 }}>
+              ✓ This profile has been claimed and verified by the licence holder.
+            </p>
+          </div>
+        )}
+
+        {/* QR / vCard */}
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+          <a
+            href={`/api/vcard/${slug}`}
+            style={{
+              padding: '9px 18px', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 600,
+              background: 'var(--color-navy)', color: 'white', textDecoration: 'none',
+            }}
+          >
+            ↓ Save Contact
+          </a>
+          <Link
+            href={`/api/qr/${slug}`}
+            style={{
+              padding: '9px 18px', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 600,
+              background: 'var(--color-cream)', color: 'var(--color-navy)',
+              textDecoration: 'none', border: '1px solid var(--color-light-gray)',
+            }}
+          >
+            QR Code
+          </Link>
+        </div>
+
       </div>
-    </>
+    </main>
   )
 }
