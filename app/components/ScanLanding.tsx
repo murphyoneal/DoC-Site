@@ -26,7 +26,7 @@ export default function ScanLanding({
   ref_,
 }: Props) {
   useEffect(() => {
-    fetch('/api/track/scan', {
+    fetch('/api/scan', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -41,7 +41,7 @@ export default function ScanLanding({
   }, [slug, ref_, tradeCategory, city, state])
 
   function handleSaveContact() {
-    fetch('/api/track/scan', {
+    fetch('/api/scan', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -57,7 +57,7 @@ export default function ScanLanding({
   }
 
   function handleVisitWebsite() {
-    fetch('/api/track/scan', {
+    fetch('/api/scan', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -69,13 +69,11 @@ export default function ScanLanding({
         state,
       }),
     }).catch(() => {})
-    if (websiteUrl) {
-      window.location.href = websiteUrl
-    }
+    if (websiteUrl) window.location.href = websiteUrl
   }
 
   function handleViewProfile() {
-    fetch('/api/track/scan', {
+    fetch('/api/scan', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -190,12 +188,12 @@ export default function ScanLanding({
           onClick={handleViewProfile}
           style={{
             width: '100%',
-            padding: '0.85rem',
+            padding: '1rem',
             borderRadius: '10px',
-            background: 'transparent',
+            background: 'white',
             color: 'var(--color-navy)',
-            fontSize: '0.9rem',
-            fontWeight: 500,
+            fontSize: '1rem',
+            fontWeight: 600,
             border: '1px solid var(--color-light-gray)',
             cursor: 'pointer',
           }}
@@ -204,12 +202,9 @@ export default function ScanLanding({
         </button>
       </div>
 
-      <p style={{ marginTop: '2rem', fontSize: '0.7rem', color: 'var(--color-sage)', textAlign: 'center' }}>
-        Licensed contractor data from official government registries.
-        <br />
-        <a href="/disclaimer" style={{ color: 'var(--color-sage)', textDecoration: 'underline' }}>
-          Disclaimer
-        </a>
+      <p style={{ fontSize: '0.72rem', color: 'var(--color-sage)', marginTop: '2rem', textAlign: 'center' }}>
+        Licensed contractor data from official government registries.<br />
+        <a href="/disclaimer" style={{ color: 'var(--color-sage)' }}>Disclaimer</a>
       </p>
     </div>
   )
