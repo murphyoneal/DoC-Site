@@ -394,7 +394,7 @@ function applyFloodOverlay(map: any, show: boolean) {
       map.addSource(SOURCE_ID, {
         type: 'raster',
         tiles: [
-          'https://hazards.fema.gov/gis/nfhl/services/public/NFHL/MapServer/WMSServer' +
+          'https://hazards.fema.gov/gis/nfhl/services/public/NFHLWMS/MapServer/WMSServer' +
           '?bbox={bbox-epsg-3857}&service=WMS&request=GetMap&version=1.1.1' +
           '&layers=28&width=256&height=256&srs=EPSG:3857' +
           '&format=image/png&transparent=true&styles='
