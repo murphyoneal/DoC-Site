@@ -1,7 +1,7 @@
-import type { BoundingBox, Contractor, ContractorMapPin } from '@/types/contractor'
+﻿import type { BoundingBox, Contractor, ContractorMapPin } from '@/types/contractor'
 
 const SB_HOST = 'eaifqorwmgayiqmbtzcg.supabase.co'
-const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVhaWZxb3J3bWdheWlxbWJ0emNnIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MjMxNjIzOCwiZXhwIjoyMDk3ODkyMjM4fQ.L23cjzASjDbuFQ1zeQt30CThOSX_aRwyWpbl7QLeO-E'
+const SB_KEY = 'sb_secret_POUAGzaloJwoWGjWL7DVcQ_b2-NIQ-z'
 const SB_HEADERS = { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
 
 function httpGet(path: string): Promise<any[]> {
