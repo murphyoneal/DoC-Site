@@ -1,8 +1,8 @@
-const https = require('https')
+﻿const https = require('https')
 
 const MAPBOX = 'REDACTED'
 const SB_HOST = 'eaifqorwmgayiqmbtzcg.supabase.co'
-const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVhaWZxb3J3bWdheWlxbWJ0emNnIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MjMxNjIzOCwiZXhwIjoyMDk3ODkyMjM4fQ.L23cjzASjDbuFQ1zeQt30CThOSX_aRwyWpbl7QLeO-E'
+const SB_KEY = 'REDACTED'
 const HEADERS = { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
 
 // Known city centres for Volusia County
@@ -94,10 +94,10 @@ async function main() {
       const dist = distanceMiles(c.lat, c.lng, centre[0], centre[1])
 
       if (dist <= 15) {
-        continue // Pin is within 15 miles of city centre — acceptable
+        continue // Pin is within 15 miles of city centre â€” acceptable
       }
 
-      // Pin is too far from stated city — re-geocode with city+state+zip only
+      // Pin is too far from stated city â€” re-geocode with city+state+zip only
       console.log('FIX ' + total + ': ' + c.display_name + ' (' + c.city + ') is ' + dist.toFixed(1) + ' miles off')
 
       const address = (c.city || '') + ', ' + (c.state || '') + ' ' + (c.zip_code || '')
