@@ -1,7 +1,7 @@
 ﻿import { NextRequest, NextResponse } from 'next/server'
 
 const SB_HOST = 'eaifqorwmgayiqmbtzcg.supabase.co'
-const SB_KEY = 'REDACTED'
+const SB_KEY = process.env.SUPABASE_SECRET_KEY!
 const SB_HEADERS = {
   'apikey': SB_KEY,
   'Authorization': 'Bearer ' + SB_KEY,

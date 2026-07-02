@@ -1,7 +1,7 @@
 ﻿import { NextRequest, NextResponse } from 'next/server'
 
 const SB_HOST = 'eaifqorwmgayiqmbtzcg.supabase.co'
-const SB_KEY = 'REDACTED'
+const SB_KEY = process.env.SUPABASE_SECRET_KEY!
 
 export async function POST(req: NextRequest) {
   try {

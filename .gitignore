@@ -23,6 +23,7 @@ yarn-debug.log*
 yarn-error.log*
 
 # Local env files — NEVER COMMIT
+.env
 .env.local
 .env.development.local
 .env.test.local
