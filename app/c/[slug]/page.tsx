@@ -3,7 +3,9 @@ import Link from 'next/link'
 import ScanTracker from '@/app/components/ScanTracker'
 
 const SB_HOST = 'eaifqorwmgayiqmbtzcg.supabase.co'
-const SB_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVhaWZxb3J3bWdheWlxbWJ0emNnIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MjMxNjIzOCwiZXhwIjoyMDk3ODkyMjM4fQ.L23cjzASjDbuFQ1zeQt30CThOSX_aRwyWpbl7QLeO-E'
+// Read from the environment — never hardcode the key. Set SUPABASE_SECRET_KEY in
+// Vercel (and .env.local for local dev). Matches lib/supabase/server.ts.
+const SB_KEY  = process.env.SUPABASE_SECRET_KEY ?? ''
 const SB_HEADERS = { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
 
 async function getContractor(slug: string) {
