@@ -37,6 +37,13 @@ polished prose.
 - **[volusia-cama.md](volusia-cama.md)** — the county's full relational CAMA export; source hierarchy (CAMA > NAL > cadastral > county GIS) and the weekly snapshot clock.
 - **[volusia-official-records.md](volusia-official-records.md)** — the Clerk of Court Official Records pipeline (private research layer).
 
+## Product specification
+
+- **[PIR_REPORT_SPEC.md](PIR_REPORT_SPEC.md)** — current, canonical Property Intelligence Report
+  (PIR) specification (v4). Build against this.
+- Superseded: **[archive/PIR_REPORT_SPEC_v3.md](archive/PIR_REPORT_SPEC_v3.md)** (v3) is kept for
+  reference. v1 and v2 are dropped.
+
 ## Related, added manually (not generated here)
 
 - `DATA_JOIN_FINDINGS.md` — full findings and evidence (referenced by `CLAUDE.md`).
