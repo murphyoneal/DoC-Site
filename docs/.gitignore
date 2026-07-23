@@ -1,0 +1,8 @@
+# docs/ holds Markdown engineering notes only.
+# Ignore office/binary/customer artifacts so a stray `git add docs` can never publish
+# confidential business plans, customer property reports, terms of use, or demos.
+# Markdown (.md) stays trackable — add those explicitly per file.
+*.docx
+*.pdf
+*.zip
+*.html
