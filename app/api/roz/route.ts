@@ -74,6 +74,7 @@ const SYSTEM = [
   'SCOPE (alpha): full function. All 67 counties, every layer, cross-parcel and cohort queries allowed. No caps.',
   'You answer ONLY from the record returned by the tools. Never invent parcel data; if the record does not contain something, say so and point to who would.',
   'ADDRESS LOOKUP: find_parcel already normalises the address and falls back to shorter forms. If it returns a match_note (the match was loosened, or the county was defaulted), tell the user plainly. If it returns NO results even after fallback, say the address was not found in that county\'s records and offer to try another county or spelling — NEVER "this property may not exist". A single failed exact match is a lookup miss, not evidence the property is not real; that false negative is as wrong as a fabricated clear.',
+  'COVERAGE: this alpha\'s parcel records are VOLUSIA COUNTY (co_no 74) ONLY. If an address resolves to another county (e.g. Sanford is in Seminole), say explicitly that that county is not yet loaded and you cannot speak to it — do not return an empty answer as if the property had no data. Absence of loaded data for a county is a coverage statement, and you must make it out loud.',
   'GWCA / groundwater restriction: the Ch. 62-524 restriction applies to NEW potable wells, so a property on municipal/public water is unaffected in practice — always carry that caveat with the finding; a bare "this parcel is in a contamination area" overstates it. But if the parcel relies on a private well, the contamination is material.',
   'HONESTY CONTRACT — every field in the record carries field_status, as_of, source, resolution_level, and (for spatial layers) relation:',
   '- field_status: "present" → state the value WITH its as_of date. "not_computed" / "null_at_source" / "layer_not_loaded" / "county_not_covered" → WITHHELD. Never render an absence as a clear, a "none", a green checkmark, or false. A checked negative and an uncomputed field are different facts.',
@@ -113,7 +114,8 @@ async function runTool(name: string, input: any, admin: ReturnType<typeof getSup
       if (i >= 2 && number) got = got.filter(x => JSON.stringify(x).includes(number)) // street-name-only: keep the right number
       if (got.length) { rows = got; usedForm = forms[i]; loosened = i > 0; break }
     }
-    const note = [loosened ? `match loosened to "${usedForm}" (exact address not found)` : '', countyNote].filter(Boolean).join('; ')
+    const coverageNote = (rows.length === 0 && cnty !== 74) ? `county ${cnty} is not loaded in this alpha (Volusia / co_no 74 only) — say so, do not imply the property has no data` : ''
+    const note = [loosened ? `match loosened to "${usedForm}" (exact address not found)` : '', countyNote, coverageNote].filter(Boolean).join('; ')
     return { text: JSON.stringify({ results: rows, match_note: note || null }), county: cnty, pid: null }
   }
   if (name === 'get_property_record') {
@@ -165,7 +167,9 @@ export async function POST(req: NextRequest) {
 
   // Grounded, correctable definitions in context (roz_glossary) — consistent, not recalled.
   let glossaryRows: { term: string; aliases: string[] | null; definition: string; florida_nuance: string | null; authority: string | null }[] = []
-  try { const { data } = await admin.from('roz_glossary').select('term,aliases,definition,florida_nuance,authority'); glossaryRows = data ?? [] } catch { /* glossary is best-effort */ }
+  // ORDER BY term so the injected glossary text is byte-stable across requests — otherwise the
+  // cached system prefix changes every call and prompt caching never hits (item 12).
+  try { const { data } = await admin.from('roz_glossary').select('term,aliases,definition,florida_nuance,authority').order('term'); glossaryRows = data ?? [] } catch { /* glossary is best-effort */ }
   const glossaryText = glossaryRows.length
     ? '\n\nGLOSSARY — general-knowledge definitions. State these WITHOUT a payload field (they are not property claims), then say separately what the record shows. Prefer this wording over recall:\n'
       + glossaryRows.map(g => `- ${g.term}: ${g.definition}${g.florida_nuance ? ' [FL: ' + g.florida_nuance + ']' : ''}${g.authority ? ' [' + g.authority + ']' : ''}`).join('\n')
@@ -232,6 +236,7 @@ export async function POST(req: NextRequest) {
       p_query_type: trace.some(t => t.tool.startsWith('search')) ? 'cross_property' : trace.length ? 'structured' : 'natural_language',
       p_parcel_id: targetParcel, p_county: String(targetCounty), p_latency_ms: Date.now() - t0, p_success: success,
       p_error: errorMsg, p_ip: ip, p_user_agent: req.headers.get('user-agent'), p_session_id: sessionId, p_model_calls: calls,
+      p_cache_read: cacheRead, p_cache_creation: cacheCreate, // item 12 — measure caching instead of logging 0
     })
     queryLogId = (data as string) ?? null
   } catch { /* logging is best-effort; never fail the response on it */ }
