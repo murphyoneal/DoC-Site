@@ -4,11 +4,14 @@ import { createHash } from 'crypto'
 import { getSupabaseAdmin } from '@/lib/supabase/server'
 import { getSessionUser } from '@/lib/supabase/ssr-server'
 
-const MODEL = 'claude-opus-4-8'
+const MODEL = 'claude-sonnet-5'
 const ROZ_VERSION = '0.1.0-alpha' // roz_version_register current; stamped per exchange
 
-// Opus 4.8 rates (USD/token) — cost computed at request time, stored as a literal.
-const RATE_IN = 5.0 / 1e6, RATE_OUT = 25.0 / 1e6
+// Sonnet 5 rates (USD/token) — cost computed at request time, stored as a literal.
+// This task reads a precomputed payload and reports it; Opus reasoning isn't needed.
+// Prompt caching bills cache WRITES at 1.25x input and cache READS at 0.1x.
+const RATE_IN = 3.0 / 1e6, RATE_OUT = 15.0 / 1e6
+const CACHE_WRITE_MULT = 1.25, CACHE_READ_MULT = 0.1
 
 // DOR county code map. Reads of county_registry are denied to the app role, so the
 // name→co_no crosswalk is static (DOR is stable). Roz defaults to Volusia.
@@ -39,7 +42,9 @@ const TOOLS: Anthropic.Tool[] = [
   { name: 'search_properties', description: 'Cross-parcel search by fixed filters (value range, land use, city) in any county. For portfolio/cohort questions.',
     input_schema: { type: 'object', properties: { county: { type: 'string' }, min_value: { type: 'number' }, max_value: { type: 'number' }, land_use: { type: 'string' }, city: { type: 'string' }, limit: { type: 'number' } }, required: [] } },
   { name: 'search_properties_stats', description: 'Aggregate stats (count, avg, min, max value) across properties matching filters in a county.',
-    input_schema: { type: 'object', properties: { county: { type: 'string' }, min_value: { type: 'number' }, max_value: { type: 'number' }, land_use: { type: 'string' }, city: { type: 'string' } }, required: [] } },
+    input_schema: { type: 'object', properties: { county: { type: 'string' }, min_value: { type: 'number' }, max_value: { type: 'number' }, land_use: { type: 'string' }, city: { type: 'string' } }, required: [] },
+    // Cache breakpoint on the last tool → the whole (system + tools) prefix is cached and reused every call.
+    cache_control: { type: 'ephemeral' } },
 ]
 
 const SYSTEM = [
@@ -49,6 +54,7 @@ const SYSTEM = [
   'You answer ONLY from the record returned by the tools. Never invent parcel data; if the record does not contain something, say so and point to who would.',
   'HONESTY CONTRACT — every field in the record carries field_status, as_of, source, resolution_level, and (for spatial layers) relation:',
   '- field_status: "present" → state the value WITH its as_of date. "not_computed" / "null_at_source" / "layer_not_loaded" / "county_not_covered" → WITHHELD. Never render an absence as a clear, a "none", a green checkmark, or false. A checked negative and an uncomputed field are different facts.',
+  '- field_status: "assumed" → the value came from a rule with NO cited authority (distinct from a measured or computed value). State it EXPLICITLY as an assumption, naming that it has no documented basis — or omit it. Never present it as a flat fact. (e.g. a flight-path flag with no FAA Part 77 surface computed is an assumption, not a measurement.)',
   '- resolution_level: a county or tract statistic is NOT a fact about this house — present it as area context. A zone polygon that contains the parcel IS a fact about the parcel (statutory force).',
   '- relation: "contains" means it is on/over the parcel; "within_distance"/"adjacent" means nearby — always state the distance, never a bare radius count.',
   'GRAMMAR: every environmental or encumbrance statement takes an AGENCY as its subject, never the property. Say "FDEP\'s Institutional Controls Registry records a restriction against this parcel (retrieved [date])", not "this parcel is restricted". The first is a verifiable claim about a record; the second is an unsupportable claim about the world.',
@@ -103,14 +109,22 @@ export async function POST(req: NextRequest) {
   const messages: Anthropic.MessageParam[] = incoming.map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content }))
   const trace: { tool: string; county: number }[] = []
   const payloadParts: string[] = []
-  let reply = '', inTok = 0, outTok = 0, calls = 0, targetParcel: string | null = null, targetCounty = 74
+  let reply = '', inTok = 0, outTok = 0, cacheRead = 0, cacheCreate = 0, calls = 0, cacheMarks = 0
+  let targetParcel: string | null = null, targetCounty = 74
   let success = true, errorMsg: string | null = null
   const t0 = Date.now()
 
   try {
     for (let guard = 0; guard < 8; guard++) {
-      const resp = await anthropic.messages.create({ model: MODEL, max_tokens: 8192, thinking: { type: 'adaptive' }, system: SYSTEM, tools: TOOLS, messages })
-      calls++; inTok += resp.usage?.input_tokens ?? 0; outTok += resp.usage?.output_tokens ?? 0
+      const resp = await anthropic.messages.create({
+        model: MODEL, max_tokens: 8192, thinking: { type: 'adaptive' }, tools: TOOLS, messages,
+        // Cache breakpoint on the system prompt (stable honesty contract, re-read every call).
+        system: [{ type: 'text', text: SYSTEM, cache_control: { type: 'ephemeral' } }],
+      })
+      calls++
+      const u = resp.usage
+      inTok += u?.input_tokens ?? 0; outTok += u?.output_tokens ?? 0
+      cacheRead += u?.cache_read_input_tokens ?? 0; cacheCreate += u?.cache_creation_input_tokens ?? 0
       if (resp.stop_reason === 'refusal') { reply = 'I can’t help with that request.'; break }
       messages.push({ role: 'assistant', content: resp.content })
       const toolUses = resp.content.filter((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use')
@@ -124,7 +138,12 @@ export async function POST(req: NextRequest) {
         payloadParts.push(outcome.text)
         if (outcome.pid) targetParcel = outcome.pid
         targetCounty = outcome.county
-        results.push({ type: 'tool_result', tool_use_id: tu.id, content: outcome.text })
+        // Cache large payloads (the parcel findings block) so follow-up turns about the same
+        // property re-read them from cache at 0.1x. Cap at 2 so total breakpoints (system+tools+2) ≤ 4.
+        const cacheable = outcome.text.length > 2000 && cacheMarks < 2
+        if (cacheable) cacheMarks++
+        results.push({ type: 'tool_result', tool_use_id: tu.id,
+          content: cacheable ? [{ type: 'text', text: outcome.text, cache_control: { type: 'ephemeral' } }] : outcome.text })
       }
       messages.push({ role: 'user', content: results })
     }
@@ -135,12 +154,15 @@ export async function POST(req: NextRequest) {
 
   // payload_hash = the record Roz actually saw (for later verifiability of an opinion)
   const payloadHash = createHash('sha256').update(payloadParts.join('\n')).digest('hex')
-  const cost = Number((inTok * RATE_IN + outTok * RATE_OUT).toFixed(6))
+  // Cache-aware cost: uncached input at 1x, cache writes 1.25x, cache reads 0.1x, output 1x.
+  const cost = Number((inTok * RATE_IN + cacheCreate * RATE_IN * CACHE_WRITE_MULT
+    + cacheRead * RATE_IN * CACHE_READ_MULT + outTok * RATE_OUT).toFixed(6))
+  const totalInput = inTok + cacheCreate + cacheRead // total input the model saw (for comparability across exchanges)
   let queryLogId: string | null = null
   try {
     const { data } = await admin.rpc('roz_log_query', {
       p_account_id: user.id, p_user_query: lastUserQuery, p_response_text: reply, p_roz_version: ROZ_VERSION,
-      p_payload_hash: payloadHash, p_model: MODEL, p_input_tokens: inTok, p_output_tokens: outTok, p_cost: cost,
+      p_payload_hash: payloadHash, p_model: MODEL, p_input_tokens: totalInput, p_output_tokens: outTok, p_cost: cost,
       p_query_type: trace.some(t => t.tool.startsWith('search')) ? 'cross_property' : trace.length ? 'structured' : 'natural_language',
       p_parcel_id: targetParcel, p_county: String(targetCounty), p_latency_ms: Date.now() - t0, p_success: success,
       p_error: errorMsg, p_ip: ip, p_user_agent: req.headers.get('user-agent'), p_session_id: sessionId, p_model_calls: calls,

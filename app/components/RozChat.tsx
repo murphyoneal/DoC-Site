@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 interface Msg {
   role: 'user' | 'assistant'
@@ -103,6 +105,25 @@ export default function RozChat({ userEmail }: { userEmail: string }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', maxWidth: 820, margin: '0 auto', width: '100%' }}>
+      <style>{`
+        .roz-md > :first-child { margin-top: 0; }
+        .roz-md > :last-child { margin-bottom: 0; }
+        .roz-md h1, .roz-md h2, .roz-md h3 { font-size: 15px; font-weight: 700; color: var(--color-navy); margin: 12px 0 4px; }
+        .roz-md p { margin: 6px 0; }
+        .roz-md ul, .roz-md ol { margin: 6px 0; padding-left: 20px; }
+        .roz-md li { margin: 2px 0; }
+        .roz-md li > p { margin: 0; }
+        .roz-md strong { font-weight: 700; }
+        .roz-md a { color: var(--color-navy); text-decoration: underline; }
+        .roz-md code { background: rgba(0,0,0,0.05); padding: 1px 5px; border-radius: 4px; font-size: 12.5px; }
+        .roz-md pre { background: rgba(0,0,0,0.05); padding: 10px; border-radius: 8px; overflow-x: auto; }
+        .roz-md pre code { background: none; padding: 0; }
+        .roz-md blockquote { margin: 6px 0; padding-left: 10px; border-left: 3px solid var(--color-light-gray); color: var(--color-sage); }
+        .roz-md table { border-collapse: collapse; margin: 8px 0; font-size: 13px; display: block; overflow-x: auto; max-width: 100%; }
+        .roz-md th, .roz-md td { border: 1px solid var(--color-light-gray); padding: 4px 9px; text-align: left; vertical-align: top; }
+        .roz-md th { background: rgba(0,0,0,0.03); font-weight: 700; }
+        .roz-md hr { border: none; border-top: 1px solid var(--color-light-gray); margin: 10px 0; }
+      `}</style>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderBottom: '1px solid var(--color-light-gray)' }}>
         <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--color-navy)' }}>Roz</span>
         <span style={{ fontSize: 11, color: 'var(--color-sage)' }}>{userEmail}</span>
@@ -116,12 +137,19 @@ export default function RozChat({ userEmail }: { userEmail: string }) {
         )}
         {messages.map((m, i) => (
           <div key={i} style={{ alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '90%', width: m.role === 'assistant' ? '100%' : 'auto' }}>
-            <div style={{
-              padding: '10px 12px', borderRadius: 12, fontSize: 14, lineHeight: 1.55, whiteSpace: 'pre-wrap',
-              background: m.role === 'user' ? 'var(--color-navy)' : 'var(--color-white)',
-              color: m.role === 'user' ? '#fff' : 'var(--color-ink)',
-              border: m.role === 'user' ? 'none' : '1px solid var(--color-light-gray)',
-            }}>{m.content}</div>
+            {m.role === 'assistant' ? (
+              <div className="roz-md" style={{
+                padding: '10px 14px', borderRadius: 12, fontSize: 14, lineHeight: 1.55,
+                background: 'var(--color-white)', color: 'var(--color-ink)', border: '1px solid var(--color-light-gray)',
+              }}>
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.content}</ReactMarkdown>
+              </div>
+            ) : (
+              <div style={{
+                padding: '10px 12px', borderRadius: 12, fontSize: 14, lineHeight: 1.55, whiteSpace: 'pre-wrap',
+                background: 'var(--color-navy)', color: '#fff',
+              }}>{m.content}</div>
+            )}
             {m.role === 'assistant' && <FeedbackBox queryLogId={m.queryLogId} parcelId={m.parcelId} shownAt={m.shownAt} />}
           </div>
         ))}
