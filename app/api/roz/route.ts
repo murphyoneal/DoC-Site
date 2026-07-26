@@ -183,73 +183,107 @@ export async function POST(req: NextRequest) {
   let targetParcel: string | null = null, targetCounty = 74
   let success = true, errorMsg: string | null = null
   const t0 = Date.now()
+  const encoder = new TextEncoder()
 
-  try {
-    for (let guard = 0; guard < 8; guard++) {
-      const resp = await anthropic.messages.create({
-        model: MODEL, max_tokens: 8192, thinking: { type: 'adaptive' }, tools: TOOLS, messages,
-        // Cache breakpoint on the system prompt (stable honesty contract + glossary, re-read every call).
-        system: [{ type: 'text', text: systemText, cache_control: { type: 'ephemeral' } }],
-      })
-      calls++
-      const u = resp.usage
-      inTok += u?.input_tokens ?? 0; outTok += u?.output_tokens ?? 0
-      cacheRead += u?.cache_read_input_tokens ?? 0; cacheCreate += u?.cache_creation_input_tokens ?? 0
-      if (resp.stop_reason === 'refusal') { reply = 'I can’t help with that request.'; break }
-      messages.push({ role: 'assistant', content: resp.content })
-      const toolUses = resp.content.filter((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use')
-      if (resp.stop_reason === 'end_turn' || toolUses.length === 0) {
-        reply = resp.content.filter((b): b is Anthropic.TextBlock => b.type === 'text').map(b => b.text).join('\n').trim(); break
-      }
-      const results: Anthropic.ToolResultBlockParam[] = []
-      for (const tu of toolUses) {
-        const outcome = await runTool(tu.name, (tu.input ?? {}) as any, admin)
-        trace.push({ tool: tu.name, county: outcome.county })
-        payloadParts.push(outcome.text)
-        if (outcome.pid) targetParcel = outcome.pid
-        targetCounty = outcome.county
-        // Cache large payloads (the parcel findings block) so follow-up turns about the same
-        // property re-read them from cache at 0.1x. Cap at 2 so total breakpoints (system+tools+2) ≤ 4.
-        const cacheable = outcome.text.length > 2000 && cacheMarks < 2
-        if (cacheable) cacheMarks++
-        results.push({ type: 'tool_result', tool_use_id: tu.id,
-          content: cacheable ? [{ type: 'text', text: outcome.text, cache_control: { type: 'ephemeral' } }] : outcome.text })
-      }
-      messages.push({ role: 'user', content: results })
-    }
-  } catch (err) {
-    success = false; errorMsg = (err instanceof Error ? err.message : String(err)).slice(0, 500)
-    reply = reply || 'Roz hit an error handling that. Please try again.'
+  // Friendly labels for the tool-progress line the client shows during the loop. The 36s average is
+  // mostly the tool round-trips before the answer starts, so naming what Roz is doing is the real
+  // perceived-quality win — the final answer then streams token-by-token (item 13).
+  const TOOL_LABEL: Record<string, string> = {
+    find_parcel: 'Looking up the parcel', get_property_record: 'Pulling the full property record',
+    get_nearby_amenities: 'Finding nearby amenities', search_properties: 'Searching properties',
+    search_properties_stats: 'Aggregating property stats', search_encumbered_parcels: 'Checking recorded encumbrances',
+    find_contractors: 'Finding licensed contractors',
   }
 
-  // payload_hash = the record Roz actually saw (for later verifiability of an opinion)
-  const payloadHash = createHash('sha256').update(payloadParts.join('\n')).digest('hex')
-  // Cache-aware cost: uncached input at 1x, cache writes 1.25x, cache reads 0.1x, output 1x.
-  const cost = Number((inTok * RATE_IN + cacheCreate * RATE_IN * CACHE_WRITE_MULT
-    + cacheRead * RATE_IN * CACHE_READ_MULT + outTok * RATE_OUT).toFixed(6))
-  const totalInput = inTok + cacheCreate + cacheRead // total input the model saw (for comparability across exchanges)
-  let queryLogId: string | null = null
-  try {
-    const { data } = await admin.rpc('roz_log_query', {
-      p_account_id: user.id, p_user_query: lastUserQuery, p_response_text: reply, p_roz_version: ROZ_VERSION,
-      p_payload_hash: payloadHash, p_model: MODEL, p_input_tokens: totalInput, p_output_tokens: outTok, p_cost: cost,
-      p_query_type: trace.some(t => t.tool.startsWith('search')) ? 'cross_property' : trace.length ? 'structured' : 'natural_language',
-      p_parcel_id: targetParcel, p_county: String(targetCounty), p_latency_ms: Date.now() - t0, p_success: success,
-      p_error: errorMsg, p_ip: ip, p_user_agent: req.headers.get('user-agent'), p_session_id: sessionId, p_model_calls: calls,
-      p_cache_read: cacheRead, p_cache_creation: cacheCreate, // item 12 — measure caching instead of logging 0
-    })
-    queryLogId = (data as string) ?? null
-  } catch { /* logging is best-effort; never fail the response on it */ }
+  // NDJSON event stream: {type:'status',label} tool running · {type:'delta',text} answer token ·
+  // {type:'reset'} discard partial (a tool turn emitted interstitial prose) · {type:'done',...} final.
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      const send = (o: unknown) => { try { controller.enqueue(encoder.encode(JSON.stringify(o) + '\n')) } catch { /* client disconnected */ } }
+      try {
+        for (let guard = 0; guard < 8; guard++) {
+          let turnText = ''
+          const s = anthropic.messages.stream({
+            model: MODEL, max_tokens: 8192, thinking: { type: 'adaptive' }, tools: TOOLS, messages,
+            // Cache breakpoint on the system prompt (stable honesty contract + glossary, re-read every call).
+            system: [{ type: 'text', text: systemText, cache_control: { type: 'ephemeral' } }],
+          })
+          // Stream answer tokens live. If the turn turns out to call a tool, we send a reset so the
+          // client drops the interstitial prose (rare — the prompt answers from tools).
+          s.on('text', (delta: string) => { turnText += delta; send({ type: 'delta', text: delta }) })
+          const resp = await s.finalMessage()
+          calls++
+          const u = resp.usage
+          inTok += u?.input_tokens ?? 0; outTok += u?.output_tokens ?? 0
+          cacheRead += u?.cache_read_input_tokens ?? 0; cacheCreate += u?.cache_creation_input_tokens ?? 0
+          if (resp.stop_reason === 'refusal') { if (turnText) send({ type: 'reset' }); reply = 'I can’t help with that request.'; send({ type: 'delta', text: reply }); break }
+          messages.push({ role: 'assistant', content: resp.content })
+          const toolUses = resp.content.filter((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use')
+          if (resp.stop_reason === 'end_turn' || toolUses.length === 0) {
+            reply = resp.content.filter((b): b is Anthropic.TextBlock => b.type === 'text').map(b => b.text).join('\n').trim()
+            // Correct the client if the assembled text differs from what streamed (multi-block joins).
+            if (turnText.trim() !== reply) { send({ type: 'reset' }); send({ type: 'delta', text: reply }) }
+            break
+          }
+          // Tool turn: discard any interstitial prose we streamed, show a status line instead.
+          if (turnText.trim()) send({ type: 'reset' })
+          const results: Anthropic.ToolResultBlockParam[] = []
+          for (const tu of toolUses) {
+            send({ type: 'status', label: TOOL_LABEL[tu.name] ?? 'Working' })
+            const outcome = await runTool(tu.name, (tu.input ?? {}) as any, admin)
+            trace.push({ tool: tu.name, county: outcome.county })
+            payloadParts.push(outcome.text)
+            if (outcome.pid) targetParcel = outcome.pid
+            targetCounty = outcome.county
+            // Cache large payloads (the parcel findings block) so follow-up turns about the same
+            // property re-read them from cache at 0.1x. Cap at 2 so total breakpoints (system+tools+2) ≤ 4.
+            const cacheable = outcome.text.length > 2000 && cacheMarks < 2
+            if (cacheable) cacheMarks++
+            results.push({ type: 'tool_result', tool_use_id: tu.id,
+              content: cacheable ? [{ type: 'text', text: outcome.text, cache_control: { type: 'ephemeral' } }] : outcome.text })
+          }
+          messages.push({ role: 'user', content: results })
+        }
+      } catch (err) {
+        success = false; errorMsg = (err instanceof Error ? err.message : String(err)).slice(0, 500)
+        if (!reply) { reply = 'Roz hit an error handling that. Please try again.'; send({ type: 'reset' }); send({ type: 'delta', text: reply }) }
+      }
 
-  // Which glossary terms did she ask about — free product research on which labels need plain language.
-  if (queryLogId && lastUserQuery && glossaryRows.length) {
-    const ql = lastUserQuery.toLowerCase()
-    const hits = glossaryRows.filter(g => [g.term, ...(g.aliases ?? [])]
-      .some(n => n && n.length > 2 && ql.includes(n.toLowerCase()))).map(g => g.term)
-    if (hits.length) {
-      try { await admin.from('roz_glossary_hit').insert(hits.map(term => ({ query_log_id: queryLogId, term }))) } catch { /* best-effort */ }
-    }
-  }
+      // payload_hash = the record Roz actually saw (for later verifiability of an opinion)
+      const payloadHash = createHash('sha256').update(payloadParts.join('\n')).digest('hex')
+      // Cache-aware cost: uncached input at 1x, cache writes 1.25x, cache reads 0.1x, output 1x.
+      const cost = Number((inTok * RATE_IN + cacheCreate * RATE_IN * CACHE_WRITE_MULT
+        + cacheRead * RATE_IN * CACHE_READ_MULT + outTok * RATE_OUT).toFixed(6))
+      const totalInput = inTok + cacheCreate + cacheRead // total input the model saw (for comparability)
+      let queryLogId: string | null = null
+      try {
+        const { data } = await admin.rpc('roz_log_query', {
+          p_account_id: user.id, p_user_query: lastUserQuery, p_response_text: reply, p_roz_version: ROZ_VERSION,
+          p_payload_hash: payloadHash, p_model: MODEL, p_input_tokens: totalInput, p_output_tokens: outTok, p_cost: cost,
+          p_query_type: trace.some(t => t.tool.startsWith('search')) ? 'cross_property' : trace.length ? 'structured' : 'natural_language',
+          p_parcel_id: targetParcel, p_county: String(targetCounty), p_latency_ms: Date.now() - t0, p_success: success,
+          p_error: errorMsg, p_ip: ip, p_user_agent: req.headers.get('user-agent'), p_session_id: sessionId, p_model_calls: calls,
+          p_cache_read: cacheRead, p_cache_creation: cacheCreate, // item 12 — measure caching instead of logging 0
+        })
+        queryLogId = (data as string) ?? null
+      } catch { /* logging is best-effort; never fail the response on it */ }
 
-  return NextResponse.json({ reply: reply || '(no response)', queryLogId, trace })
+      // Which glossary terms did she ask about — free product research on which labels need plain language.
+      if (queryLogId && lastUserQuery && glossaryRows.length) {
+        const ql = lastUserQuery.toLowerCase()
+        const hits = glossaryRows.filter(g => [g.term, ...(g.aliases ?? [])]
+          .some(n => n && n.length > 2 && ql.includes(n.toLowerCase()))).map(g => g.term)
+        if (hits.length) {
+          try { await admin.from('roz_glossary_hit').insert(hits.map(term => ({ query_log_id: queryLogId, term }))) } catch { /* best-effort */ }
+        }
+      }
+
+      send({ type: 'done', queryLogId, trace, parcelId: targetParcel, reply: reply || '(no response)' })
+      controller.close()
+    },
+  })
+
+  return new Response(stream, {
+    headers: { 'Content-Type': 'application/x-ndjson; charset=utf-8', 'Cache-Control': 'no-cache, no-transform', 'X-Accel-Buffering': 'no' },
+  })
 }

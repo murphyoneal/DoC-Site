@@ -44,6 +44,8 @@ interface Msg {
   queryLogId?: string | null
   parcelId?: string | null
   shownAt?: number
+  status?: string | null // tool-progress line shown while the answer is still streaming
+  done?: boolean         // stream finished — reveal the feedback box only then
 }
 
 // Feedback under one answer. Open text box FIRST and always visible; enums optional
@@ -120,12 +122,19 @@ export default function RozChat({ userEmail }: { userEmail: string }) {
   )
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages, loading])
 
+  // Patch the trailing (streaming) assistant message in place as NDJSON events arrive.
+  function patchLast(patch: Partial<Msg>) {
+    setMessages(m => { if (!m.length) return m; const c = [...m]; c[c.length - 1] = { ...c[c.length - 1], ...patch }; return c })
+  }
+
   async function send() {
     const text = input.trim()
     if (!text || loading) return
     setError(null)
     const history = [...messages, { role: 'user' as const, content: text }]
-    setMessages(history); setInput(''); setLoading(true)
+    // Add the user turn AND an empty assistant placeholder we stream into.
+    setMessages([...history, { role: 'assistant', content: '', status: null, done: false }])
+    setInput(''); setLoading(true)
     try {
       const res = await fetch('/api/roz', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -134,15 +143,37 @@ export default function RozChat({ userEmail }: { userEmail: string }) {
       // Item 56 — session expired mid-conversation: /api/roz 401s once the cookie can't refresh.
       // Tell her plainly and send her to sign in again rather than surfacing a bare "Not authenticated".
       if (res.status === 401) {
+        setMessages(history) // drop the placeholder
         setError('Your session has expired — taking you back to sign in…')
         setLoading(false)
         setTimeout(() => { window.location.href = '/login?next=%2Froz&expired=1' }, 1600)
         return
       }
-      const j = await res.json()
-      if (!res.ok) { setError(j.error ?? 'Request failed'); setLoading(false); return }
-      setMessages(m => [...m, { role: 'assistant', content: j.reply, queryLogId: j.queryLogId, parcelId: j.trace?.find((t: any) => t)?.parcelId ?? null, shownAt: Date.now() }])
-    } catch { setError('Network error.') } finally { setLoading(false) }
+      if (!res.ok || !res.body) {
+        const j = await res.json().catch(() => ({}))
+        setMessages(history); setError(j.error ?? 'Request failed'); setLoading(false); return
+      }
+      // Stream NDJSON events: status / delta / reset / done.
+      const reader = res.body.getReader(); const dec = new TextDecoder()
+      let buf = '', asst = ''
+      for (;;) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buf += dec.decode(value, { stream: true })
+        let nl: number
+        while ((nl = buf.indexOf('\n')) >= 0) {
+          const line = buf.slice(0, nl); buf = buf.slice(nl + 1)
+          if (!line.trim()) continue
+          let ev: any; try { ev = JSON.parse(line) } catch { continue }
+          if (ev.type === 'delta') { asst += ev.text; patchLast({ content: asst, status: null }) }
+          else if (ev.type === 'reset') { asst = ''; patchLast({ content: '', status: null }) }
+          else if (ev.type === 'status') { patchLast({ status: ev.label }) }
+          else if (ev.type === 'done') {
+            patchLast({ content: ev.reply ?? asst, queryLogId: ev.queryLogId ?? null, parcelId: ev.parcelId ?? null, status: null, done: true, shownAt: Date.now() })
+          }
+        }
+      }
+    } catch { setMessages(history); setError('Network error.') } finally { setLoading(false) }
   }
 
   return (
@@ -165,6 +196,8 @@ export default function RozChat({ userEmail }: { userEmail: string }) {
         .roz-md th, .roz-md td { border: 1px solid var(--color-light-gray); padding: 4px 9px; text-align: left; vertical-align: top; }
         .roz-md th { background: rgba(0,0,0,0.03); font-weight: 700; }
         .roz-md hr { border: none; border-top: 1px solid var(--color-light-gray); margin: 10px 0; }
+        .roz-dots::after { content: '…'; animation: roz-blink 1.3s ease-in-out infinite; }
+        @keyframes roz-blink { 0%, 100% { opacity: 0.25; } 50% { opacity: 1; } }
       `}</style>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderBottom: '1px solid var(--color-light-gray)' }}>
         <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--color-navy)' }}>Roz</span>
@@ -184,7 +217,9 @@ export default function RozChat({ userEmail }: { userEmail: string }) {
                 padding: '10px 14px', borderRadius: 12, fontSize: 14, lineHeight: 1.55,
                 background: 'var(--color-white)', color: 'var(--color-ink)', border: '1px solid var(--color-light-gray)',
               }}>
-                <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ a: MdLink }}>{m.content}</ReactMarkdown>
+                {m.content
+                  ? <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ a: MdLink }}>{m.content}</ReactMarkdown>
+                  : <span style={{ color: 'var(--color-sage)' }}>{m.status ?? 'Roz is thinking'}<span className="roz-dots" /></span>}
               </div>
             ) : (
               <div style={{
@@ -192,10 +227,9 @@ export default function RozChat({ userEmail }: { userEmail: string }) {
                 background: 'var(--color-navy)', color: '#fff',
               }}>{m.content}</div>
             )}
-            {m.role === 'assistant' && <FeedbackBox queryLogId={m.queryLogId} parcelId={m.parcelId} shownAt={m.shownAt} />}
+            {m.role === 'assistant' && m.done && <FeedbackBox queryLogId={m.queryLogId} parcelId={m.parcelId} shownAt={m.shownAt} />}
           </div>
         ))}
-        {loading && <div style={{ alignSelf: 'flex-start', fontSize: 13, color: 'var(--color-sage)' }}>Roz is thinking…</div>}
         {error && <div style={{ alignSelf: 'center', fontSize: 13, color: '#8a2a1f', background: '#fdecea', padding: '6px 12px', borderRadius: 8 }}>{error}</div>}
         <div ref={endRef} />
       </div>
