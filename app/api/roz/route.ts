@@ -35,7 +35,7 @@ function coNo(name?: string): number {
 const TOOLS: Anthropic.Tool[] = [
   { name: 'find_parcel', description: 'Look up a property by street address to get its parcel_id and county. Call FIRST for any address.',
     input_schema: { type: 'object', properties: { address: { type: 'string' }, county: { type: 'string', description: "County name; defaults to Volusia" } }, required: ['address'] } },
-  { name: 'get_property_record', description: 'The full precomputed record for ONE parcel: property, values, tax, permits, transactions, environmental findings (each field carries field_status / as_of / source / resolution_level / relation). Needs parcel_id.',
+  { name: 'get_property_record', description: 'The full precomputed record for ONE parcel: property, values, tax, permits, transactions, environmental findings, and planned_works (development / environmental / stormwater government projects, each with relation — contains/intersects means the project footprint is ON the parcel, adjacent/within_distance is area context). Every field carries field_status / as_of / source / resolution_level / relation. Needs parcel_id.',
     input_schema: { type: 'object', properties: { parcel_id: { type: 'string' }, county: { type: 'string' } }, required: ['parcel_id'] } },
   { name: 'get_nearby_amenities', description: 'Nearest civic/safety amenities (hospital, fire, school, police) with distance and bearing for a parcel.',
     input_schema: { type: 'object', properties: { parcel_id: { type: 'string' }, county: { type: 'string' } }, required: ['parcel_id'] } },
@@ -57,6 +57,7 @@ const SYSTEM = [
   '- field_status: "assumed" → the value came from a rule with NO cited authority (distinct from a measured or computed value). State it EXPLICITLY as an assumption, naming that it has no documented basis — or omit it. Never present it as a flat fact. (e.g. a flight-path flag with no FAA Part 77 surface computed is an assumption, not a measurement.)',
   '- resolution_level: a county or tract statistic is NOT a fact about this house — present it as area context. A zone polygon that contains the parcel IS a fact about the parcel (statutory force).',
   '- relation: "contains" means it is on/over the parcel; "within_distance"/"adjacent" means nearby — always state the distance, never a bare radius count.',
+  '- planned_works are proposed/active GOVERNMENT projects (a county project record IS a record). relation "contains"/"intersects" = the project footprint is ON this parcel (directly affects it — a taking; parcel-level); "adjacent"/"within_distance" = a nearby project (area context, NOT a fact about this parcel). These fill a real gap: works planned for the next two years are not on a property record until a recorded easement, and nobody — seller or agent — has assembled them. Surface a parcel-level project prominently; frame nearby ones as area context with the distance.',
   'GRAMMAR: every environmental or encumbrance statement takes an AGENCY as its subject, never the property. Say "FDEP\'s Institutional Controls Registry records a restriction against this parcel (retrieved [date])", not "this parcel is restricted". The first is a verifiable claim about a record; the second is an unsupportable claim about the world.',
   'Never assert past the record. Date every assertion. Where two sources disagree, name the conflict and both sources and do not pick a winner.',
   'A legally binding restriction (LA_Restriction) with no recorded source must be withheld — an unsourced restriction is an assertion, not a record.',
@@ -70,11 +71,12 @@ async function runTool(name: string, input: any, admin: ReturnType<typeof getSup
     return { text: error ? `find_parcel error: ${error.message}` : JSON.stringify(data ?? []), county, pid }
   }
   if (name === 'get_property_record') {
-    const [pir, env] = await Promise.all([
+    const [pir, env, pw] = await Promise.all([
       admin.rpc('get_pir_report', { p_co_no: county, p_parcel_id: pid }),
       admin.rpc('get_parcel_env_findings', { p_co_no: county, p_parcel_id: pid }),
+      admin.rpc('get_parcel_planned_works', { p_co_no: county, p_parcel_id: pid }),
     ])
-    return { text: JSON.stringify({ report: pir.data ?? pir.error?.message, environmental: env.data ?? env.error?.message }), county, pid }
+    return { text: JSON.stringify({ report: pir.data ?? pir.error?.message, environmental: env.data ?? env.error?.message, planned_works: pw.data ?? pw.error?.message }), county, pid }
   }
   if (name === 'get_nearby_amenities') {
     const { data, error } = await admin.rpc('get_nearby_amenities', { p_co_no: county, p_parcel_id: pid })
