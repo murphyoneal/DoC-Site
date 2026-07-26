@@ -60,7 +60,8 @@ const SYSTEM = [
   '- planned_works are proposed/active GOVERNMENT projects (a county project record IS a record). relation "contains"/"intersects" = the project footprint is ON this parcel (directly affects it — a taking; parcel-level); "adjacent"/"within_distance" = a nearby project (area context, NOT a fact about this parcel). These fill a real gap: works planned for the next two years are not on a property record until a recorded easement, and nobody — seller or agent — has assembled them. Surface a parcel-level project prominently; frame nearby ones as area context with the distance.',
   'GRAMMAR: every environmental or encumbrance statement takes an AGENCY as its subject, never the property. Say "FDEP\'s Institutional Controls Registry records a restriction against this parcel (retrieved [date])", not "this parcel is restricted". The first is a verifiable claim about a record; the second is an unsupportable claim about the world.',
   'Never assert past the record. Date every assertion. Where two sources disagree, name the conflict and both sources and do not pick a winner.',
-  'ANYTHING NOT IN THE PAYLOAD IS NOT STATED. You may report that two records exist and note whether they are consistent or in tension — you may NOT draw your own conclusion from them. No "almost certainly", no "the practical exposure is real regardless", no inferring a fact the record does not carry. Every sentence must trace to a field. If an assumed field (e.g. in_flight_path) is present, you may not then reason past it to a determination in the same breath — flagging it an assumption and then concluding anyway is the exact failure. When an obvious connection matters, name the two records and let the reader draw it; a conclusion you add has no field_status and is indistinguishable from invention.',
+  'NO OWN DETERMINATIONS ABOUT THIS PROPERTY. A CLAIM ABOUT THIS PARCEL must trace to a payload field. You may report that two records exist and note whether they are consistent or in tension — you may NOT draw your own conclusion from them. No "almost certainly", no "the practical exposure is real regardless", no inferring a property fact the record does not carry. If an assumed field (e.g. in_flight_path) is present, you may not reason past it to a determination in the same breath. When an obvious connection matters, name the two records and let the reader draw it; a conclusion you add has no field_status and is indistinguishable from invention.',
+  'DEFINITIONS ARE DIFFERENT FROM CLAIMS. Explaining what a term, code, or agency MEANS is general knowledge and needs no field — use the glossary below, and prefer its wording. You may explain what something means, then state SEPARATELY what the record says about it: "A lis pendens is a recorded notice of pending litigation — not itself a foreclosure (definition). The record shows one recorded against this parcel on [date] (finding)." If a buyer asks why you said "not evaluated" or "assumed" or why a county figure is not a property fact, explain it plainly — being unable to explain your own honesty vocabulary reads as evasion, not rigor. The one line you never cross: a definition must not smuggle in a determination about THIS property that the record does not carry.',
   'A legally binding restriction (LA_Restriction) with no recorded source must be withheld — an unsourced restriction is an assertion, not a record.',
 ].join('\n')
 
@@ -109,6 +110,16 @@ export async function POST(req: NextRequest) {
 
   const admin = getSupabaseAdmin()
   const anthropic = new Anthropic()
+
+  // Grounded, correctable definitions in context (roz_glossary) — consistent, not recalled.
+  let glossaryRows: { term: string; aliases: string[] | null; definition: string; florida_nuance: string | null; authority: string | null }[] = []
+  try { const { data } = await admin.from('roz_glossary').select('term,aliases,definition,florida_nuance,authority'); glossaryRows = data ?? [] } catch { /* glossary is best-effort */ }
+  const glossaryText = glossaryRows.length
+    ? '\n\nGLOSSARY — general-knowledge definitions. State these WITHOUT a payload field (they are not property claims), then say separately what the record shows. Prefer this wording over recall:\n'
+      + glossaryRows.map(g => `- ${g.term}: ${g.definition}${g.florida_nuance ? ' [FL: ' + g.florida_nuance + ']' : ''}${g.authority ? ' [' + g.authority + ']' : ''}`).join('\n')
+    : ''
+  const systemText = SYSTEM + glossaryText
+
   const messages: Anthropic.MessageParam[] = incoming.map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content }))
   const trace: { tool: string; county: number }[] = []
   const payloadParts: string[] = []
@@ -121,8 +132,8 @@ export async function POST(req: NextRequest) {
     for (let guard = 0; guard < 8; guard++) {
       const resp = await anthropic.messages.create({
         model: MODEL, max_tokens: 8192, thinking: { type: 'adaptive' }, tools: TOOLS, messages,
-        // Cache breakpoint on the system prompt (stable honesty contract, re-read every call).
-        system: [{ type: 'text', text: SYSTEM, cache_control: { type: 'ephemeral' } }],
+        // Cache breakpoint on the system prompt (stable honesty contract + glossary, re-read every call).
+        system: [{ type: 'text', text: systemText, cache_control: { type: 'ephemeral' } }],
       })
       calls++
       const u = resp.usage
@@ -172,6 +183,16 @@ export async function POST(req: NextRequest) {
     })
     queryLogId = (data as string) ?? null
   } catch { /* logging is best-effort; never fail the response on it */ }
+
+  // Which glossary terms did she ask about — free product research on which labels need plain language.
+  if (queryLogId && lastUserQuery && glossaryRows.length) {
+    const ql = lastUserQuery.toLowerCase()
+    const hits = glossaryRows.filter(g => [g.term, ...(g.aliases ?? [])]
+      .some(n => n && n.length > 2 && ql.includes(n.toLowerCase()))).map(g => g.term)
+    if (hits.length) {
+      try { await admin.from('roz_glossary_hit').insert(hits.map(term => ({ query_log_id: queryLogId, term }))) } catch { /* best-effort */ }
+    }
+  }
 
   return NextResponse.json({ reply: reply || '(no response)', queryLogId, trace })
 }
