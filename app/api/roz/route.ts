@@ -60,8 +60,10 @@ const TOOLS: Anthropic.Tool[] = [
     input_schema: { type: 'object', properties: { county: { type: 'string' }, min_value: { type: 'number' }, max_value: { type: 'number' }, land_use: { type: 'string' }, city: { type: 'string' }, limit: { type: 'number' } }, required: [] } },
   { name: 'search_properties_stats', description: 'Aggregate stats (count, avg, min, max value) across properties matching filters in a county.',
     input_schema: { type: 'object', properties: { county: { type: 'string' }, min_value: { type: 'number' }, max_value: { type: 'number' }, land_use: { type: 'string' }, city: { type: 'string' } }, required: [] } },
-  { name: 'search_encumbered_parcels', description: 'Distressed-property search (Volusia): parcels with a corroborated recorded lis pendens or lien — matched by owner name AND legal description. doc_class: "lis_pendens" | "lien" | omit for both. NOT a title search (covers ~6% of filings); every result is "recorded against a party matching this owner", satisfaction not shown.',
-    input_schema: { type: 'object', properties: { doc_class: { type: 'string' }, limit: { type: 'number' } }, required: [] },
+  { name: 'search_encumbered_parcels', description: 'Distressed-property search (Volusia): parcels with a corroborated recorded lis pendens or lien — matched by owner name AND legal description. doc_class: "lis_pendens" | "lien" | omit for both. NOT a title search (covers ~9% of filings); every result is "recorded against a party matching this owner", satisfaction not shown.',
+    input_schema: { type: 'object', properties: { doc_class: { type: 'string' }, limit: { type: 'number' } }, required: [] } },
+  { name: 'find_contractors', description: 'Find licensed Florida contractors by trade and county (Volusia default). trade e.g. "electrical", "plumbing", "roofing". Returns DBPR licence status/expiry, complaint_count, bond/insurance. City is a soft preference only — the DBPR city is the business address, not service area, so search by county.',
+    input_schema: { type: 'object', properties: { trade: { type: 'string' }, city: { type: 'string' }, county: { type: 'string' } }, required: [] },
     // Cache breakpoint on the last tool → the whole (system + tools) prefix is cached and reused every call.
     cache_control: { type: 'ephemeral' } },
 ]
@@ -77,6 +79,8 @@ const SYSTEM = [
   '- field_status: "present" → state the value WITH its as_of date. "not_computed" / "null_at_source" / "layer_not_loaded" / "county_not_covered" → WITHHELD. Never render an absence as a clear, a "none", a green checkmark, or false. A checked negative and an uncomputed field are different facts.',
   '- field_status: "assumed" → the value came from a rule with NO cited authority (distinct from a measured or computed value). State it EXPLICITLY as an assumption, naming that it has no documented basis — or omit it. Never present it as a flat fact. (e.g. a flight-path flag with no FAA Part 77 surface computed is an assumption, not a measurement.)',
   '- resolution_level: a county or tract statistic is NOT a fact about this house — present it as area context. A zone polygon that contains the parcel IS a fact about the parcel (statutory force).',
+  'CODES CARRY THEIR CONSEQUENCE. Never leave a code, zone, or designation bare — state what it MEANS for the buyer, from the glossary. Flood Zone A/AE/VE (an SFHA) means flood insurance is required with a federally-backed mortgage; Zone X means it is not. Homestead brings the Save Our Homes assessment cap. "Zone X" alone is not an answer; "Zone X — outside the special flood hazard area, so no federal flood-insurance mandate" is.',
+  'LIEN CLASSIFICATION: an encumbrance finding\'s lien_classification carries runs_with. Municipal, tax, and HOA liens, and PACE assessments, run WITH THE LAND — a buyer inherits them at closing. A medical lien runs with the PERSON (the debtor) and generally does not attach to a later owner. Say which, because it is the whole answer to "should I care about this." A PACE assessment transfers with the property AND can block some conforming (Fannie/Freddie) mortgages — flag it prominently.',
   '- relation: "contains" means it is on/over the parcel; "within_distance"/"adjacent" means nearby — always state the distance, never a bare radius count.',
   '- planned_works are proposed/active GOVERNMENT projects (a county project record IS a record). relation "contains"/"intersects" = the project footprint is ON this parcel (directly affects it — a taking; parcel-level); "adjacent"/"within_distance" = a nearby project (area context, NOT a fact about this parcel). These fill a real gap: works planned for the next two years are not on a property record until a recorded easement, and nobody — seller or agent — has assembled them. Surface a parcel-level project prominently; frame nearby ones as area context with the distance.',
   'COMPS: a transaction whose saleQualification is anything other than "Qualified" — unqualified, multi-parcel, non-arms-length / in-family, not exposed to the open market — is NOT a valid comparable; flag it and do not present its price as a market value. A "vacant" saleType is not a comp for an improved property. Prices that look wrong are usually unqualified sales — say why.',
@@ -135,6 +139,10 @@ async function runTool(name: string, input: any, admin: ReturnType<typeof getSup
   if (name === 'search_encumbered_parcels') {
     const { data, error } = await admin.rpc('get_encumbered_parcels', { p_co_no: county, p_doc_class: input.doc_class ?? null, p_limit: input.limit ?? 50 })
     return { text: error ? `encumbered search error: ${error.message}` : JSON.stringify(data ?? []), county, pid: null }
+  }
+  if (name === 'find_contractors') {
+    const { data, error } = await admin.rpc('search_contractors', { p_trade: input.trade ?? null, p_city: input.city ?? null, p_county: county, p_active_only: true, p_limit: 20 })
+    return { text: error ? `contractor search error: ${error.message}` : JSON.stringify(data ?? []), county, pid: null }
   }
   return { text: `Unknown tool ${name}.`, county, pid: null }
 }
