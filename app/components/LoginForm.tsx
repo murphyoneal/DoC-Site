@@ -8,6 +8,7 @@ export default function LoginForm() {
   const router = useRouter()
   const params = useSearchParams()
   const next = params.get('next') || '/roz'
+  const expired = params.get('expired') === '1'
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -28,6 +29,7 @@ export default function LoginForm() {
     <form onSubmit={submit} style={{ width: 320, display: 'flex', flexDirection: 'column', gap: 12,
       padding: 24, border: '1px solid var(--color-light-gray)', borderRadius: 14, background: 'var(--color-white)' }}>
       <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--color-navy)' }}>Roz — sign in</div>
+      {expired && <div style={{ fontSize: 13, color: '#8a5a1f', background: '#fdf3e0', padding: '6px 10px', borderRadius: 8 }}>Your session expired. Please sign in again.</div>}
       <input type="email" required placeholder="Email" value={email} onChange={e => setEmail(e.target.value)}
         autoComplete="email" style={inp} />
       <input type="password" required placeholder="Password" value={password} onChange={e => setPassword(e.target.value)}
