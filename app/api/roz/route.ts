@@ -167,6 +167,13 @@ export async function POST(req: NextRequest) {
   const admin = getSupabaseAdmin()
   const anthropic = new Anthropic()
 
+  // Tier gate (items 58/61). entitlement is the source of truth: Pro → Roz across all counties;
+  // Basic → no Roz (daily briefing + reports only). Default (unprovisioned) is Basic.
+  const access = ((await admin.rpc('roz_account_access', { p_user_id: user.id })).data as
+    { tier?: string; roz_enabled?: boolean; statewide?: boolean; allowed_co_no?: number | null } | null)
+    ?? { tier: 'basic', roz_enabled: false }
+  const tier = String(access.tier ?? 'basic')
+
   // Grounded, correctable definitions in context (roz_glossary) — consistent, not recalled.
   let glossaryRows: { term: string; aliases: string[] | null; definition: string; florida_nuance: string | null; authority: string | null }[] = []
   // ORDER BY term so the injected glossary text is byte-stable across requests — otherwise the
@@ -203,6 +210,11 @@ export async function POST(req: NextRequest) {
     async start(controller) {
       const send = (o: unknown) => { try { controller.enqueue(encoder.encode(JSON.stringify(o) + '\n')) } catch { /* client disconnected */ } }
       try {
+        if (!access.roz_enabled) {
+          // Basic tier: Roz is Pro-only. Answer plainly and don't spend a model call.
+          reply = 'Roz is a **Pro** feature. Your plan is **Basic**, which includes the daily briefing and property reports — but not the Roz assistant. Upgrade to Pro to ask Roz anything across all 67 Florida counties.'
+          send({ type: 'delta', text: reply })
+        } else {
         for (let guard = 0; guard < 8; guard++) {
           let turnText = ''
           const s = anthropic.messages.stream({
@@ -246,6 +258,7 @@ export async function POST(req: NextRequest) {
           }
           messages.push({ role: 'user', content: results })
         }
+        } // end else (Pro tier — Roz ran)
       } catch (err) {
         success = false; errorMsg = (err instanceof Error ? err.message : String(err)).slice(0, 500)
         if (!reply) { reply = 'Roz hit an error handling that. Please try again.'; send({ type: 'reset' }); send({ type: 'delta', text: reply }) }
@@ -266,6 +279,7 @@ export async function POST(req: NextRequest) {
           p_parcel_id: targetParcel, p_county: String(targetCounty), p_latency_ms: Date.now() - t0, p_success: success,
           p_error: errorMsg, p_ip: ip, p_user_agent: req.headers.get('user-agent'), p_session_id: sessionId, p_model_calls: calls,
           p_cache_read: cacheRead, p_cache_creation: cacheCreate, // item 12 — measure caching instead of logging 0
+          p_tier: tier, // items 58/61 — was null on every exchange
         })
         queryLogId = (data as string) ?? null
       } catch { /* logging is best-effort; never fail the response on it */ }
