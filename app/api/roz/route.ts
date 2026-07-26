@@ -31,6 +31,23 @@ function coNo(name?: string): number {
   if (!name) return 74
   return DOR[name.trim().toLowerCase().replace(/ county$/i, '')] ?? 74
 }
+const VOLUSIA_CITIES = new Set(['port orange', 'daytona beach', 'daytona', 'deland', 'de land', 'deltona', 'new smyrna beach',
+  'new smyrna', 'ormond beach', 'ormond', 'edgewater', 'debary', 'de bary', 'orange city', 'lake helen', 'pierson',
+  'oak hill', 'ponce inlet', 'holly hill', 'south daytona', 'osteen', 'seville', 'glenwood', 'cassadaga', 'samsula'])
+
+// Address → progressively shorter query forms. Strip city/state/ZIP and commas; a single failed
+// exact match must fall back before reporting "not found" (a false negative dressed as honesty).
+function addressForms(raw: string): { forms: string[]; number: string | null; city: string | null } {
+  const parts = raw.split(',').map(s => s.trim()).filter(Boolean)
+  const city = parts.length >= 3 ? parts[1] : (parts.length === 2 && !/^(fl|florida)\b/i.test(parts[1]) ? parts[1] : null)
+  let street = parts.length > 1 ? parts[0] : raw.replace(/\s+(FL|FLORIDA)\b.*$/i, '').replace(/\s+\d{5}(-\d{4})?\s*$/, '')
+  street = street.replace(/,/g, ' ').replace(/\s+/g, ' ').trim()
+  const num = (street.match(/^\d+/) || [null])[0]
+  const nameOnly = num ? street.replace(/^\d+\s*/, '').trim() : street
+  const forms = [street, num && nameOnly ? `${num} ${nameOnly.split(' ')[0]}` : null, nameOnly || null]
+    .filter((v, i, a): v is string => !!v && a.indexOf(v) === i)
+  return { forms, number: num, city }
+}
 
 const TOOLS: Anthropic.Tool[] = [
   { name: 'find_parcel', description: 'Look up a property by street address to get its parcel_id and county. Call FIRST for any address.',
@@ -54,6 +71,8 @@ const SYSTEM = [
   'You know buildings and you know people. Absorb the complexity of the record and present clarity — do not narrate your own difficulty or hand over a pile of caveats. Tell the user what they need to hear, including when it is unwelcome, and including "I don\'t know, and here is who does."',
   'SCOPE (alpha): full function. All 67 counties, every layer, cross-parcel and cohort queries allowed. No caps.',
   'You answer ONLY from the record returned by the tools. Never invent parcel data; if the record does not contain something, say so and point to who would.',
+  'ADDRESS LOOKUP: find_parcel already normalises the address and falls back to shorter forms. If it returns a match_note (the match was loosened, or the county was defaulted), tell the user plainly. If it returns NO results even after fallback, say the address was not found in that county\'s records and offer to try another county or spelling — NEVER "this property may not exist". A single failed exact match is a lookup miss, not evidence the property is not real; that false negative is as wrong as a fabricated clear.',
+  'GWCA / groundwater restriction: the Ch. 62-524 restriction applies to NEW potable wells, so a property on municipal/public water is unaffected in practice — always carry that caveat with the finding; a bare "this parcel is in a contamination area" overstates it. But if the parcel relies on a private well, the contamination is material.',
   'HONESTY CONTRACT — every field in the record carries field_status, as_of, source, resolution_level, and (for spatial layers) relation:',
   '- field_status: "present" → state the value WITH its as_of date. "not_computed" / "null_at_source" / "layer_not_loaded" / "county_not_covered" → WITHHELD. Never render an absence as a clear, a "none", a green checkmark, or false. A checked negative and an uncomputed field are different facts.',
   '- field_status: "assumed" → the value came from a rule with NO cited authority (distinct from a measured or computed value). State it EXPLICITLY as an assumption, naming that it has no documented basis — or omit it. Never present it as a flat fact. (e.g. a flight-path flag with no FAA Part 77 surface computed is an assumption, not a measurement.)',
@@ -75,8 +94,23 @@ async function runTool(name: string, input: any, admin: ReturnType<typeof getSup
   const county = coNo(input.county)
   const pid = input.parcel_id != null ? String(input.parcel_id) : null
   if (name === 'find_parcel') {
-    const { data, error } = await admin.rpc('find_parcels', { p_co_no: county, p_query: String(input.address ?? ''), p_limit: 8 })
-    return { text: error ? `find_parcel error: ${error.message}` : JSON.stringify(data ?? []), county, pid }
+    const raw = String(input.address ?? '')
+    const { forms, number, city } = addressForms(raw)
+    // county: explicit > inferred from a recognised Volusia city > default 74 (said out loud)
+    let cnty = county, countyNote = ''
+    if (!input.county) {
+      if (city && VOLUSIA_CITIES.has(city.toLowerCase())) cnty = 74
+      else { cnty = 74; countyNote = 'county not inferable from the address — defaulted to Volusia (74) for the alpha' }
+    }
+    let rows: any[] = [], usedForm = forms[0] ?? raw, loosened = false
+    for (let i = 0; i < forms.length; i++) {
+      const r = await admin.rpc('find_parcels', { p_co_no: cnty, p_query: forms[i], p_limit: 8 })
+      let got = (r.data ?? []) as any[]
+      if (i >= 2 && number) got = got.filter(x => JSON.stringify(x).includes(number)) // street-name-only: keep the right number
+      if (got.length) { rows = got; usedForm = forms[i]; loosened = i > 0; break }
+    }
+    const note = [loosened ? `match loosened to "${usedForm}" (exact address not found)` : '', countyNote].filter(Boolean).join('; ')
+    return { text: JSON.stringify({ results: rows, match_note: note || null }), county: cnty, pid: null }
   }
   if (name === 'get_property_record') {
     const [pir, env, pw] = await Promise.all([
