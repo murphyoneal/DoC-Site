@@ -4,6 +4,40 @@ import { useState, useRef, useEffect } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
+// Outbound links: new tab (a user-clicked tab is never popup-blocked, and it preserves her
+// conversation), rel="noopener noreferrer" so the opened page can't navigate the parent window,
+// type-aware labels (a .tif plat scan downloads to an image viewer — say so, or it looks broken),
+// and click telemetry (which documents get opened is the same signal as feed reads).
+function docType(url: string): { type: string; publisher: string } {
+  const u = url.toLowerCase()
+  if (u.includes('maps5.vcgov.org') || u.includes('/plats/')) return { type: 'plat', publisher: 'Volusia Clerk (plat scan)' }
+  if (u.includes('connectlivepermits.org')) return { type: 'permit', publisher: 'Volusia ConnectLive (permit file)' }
+  if (u.includes('vcpa.vcgov.org')) return { type: 'county_viewer', publisher: 'Volusia County Property Appraiser' }
+  if (u.includes('clerk.org') || u.includes('realtaxdeed') || u.includes('lienhub')) return { type: 'official_record', publisher: 'Volusia Clerk / Tax Collector' }
+  if (u.includes('fldep') || u.includes('floridadep') || u.includes('arcgis')) return { type: 'fdep_layer', publisher: 'FDEP / GIS' }
+  return { type: 'other', publisher: '' }
+}
+function isTiff(url: string) { return /\.tiff?$/i.test(url.replace(/\s+$/, '')) }
+
+function MdLink({ href, children }: { href?: string; children?: React.ReactNode }) {
+  const url = (href ?? '').trim() // plat_link values carry trailing spaces/tabs — trim before use
+  const { type } = docType(url)
+  return (
+    <a href={url} target="_blank" rel="noopener noreferrer" onClick={e => {
+      const a = e.currentTarget
+      const wrap = a.closest('.roz-md') as HTMLElement | null
+      const rank = wrap ? Array.from(wrap.querySelectorAll('a')).indexOf(a) + 1 : 1
+      try {
+        fetch('/api/roz/doc-click', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ queryLogId: wrap?.dataset.qid || null, parcelId: wrap?.dataset.parcel || null,
+            url, label: a.textContent || '', docType: type, rank }) })
+      } catch { /* telemetry is best-effort */ }
+    }}>
+      {children}{isTiff(url) ? <span style={{ color: 'var(--color-sage)', fontSize: 12 }}> (TIFF — downloads, opens in an image viewer)</span> : null}
+    </a>
+  )
+}
+
 interface Msg {
   role: 'user' | 'assistant'
   content: string
@@ -138,11 +172,11 @@ export default function RozChat({ userEmail }: { userEmail: string }) {
         {messages.map((m, i) => (
           <div key={i} style={{ alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '90%', width: m.role === 'assistant' ? '100%' : 'auto' }}>
             {m.role === 'assistant' ? (
-              <div className="roz-md" style={{
+              <div className="roz-md" data-qid={m.queryLogId ?? ''} data-parcel={m.parcelId ?? ''} style={{
                 padding: '10px 14px', borderRadius: 12, fontSize: 14, lineHeight: 1.55,
                 background: 'var(--color-white)', color: 'var(--color-ink)', border: '1px solid var(--color-light-gray)',
               }}>
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.content}</ReactMarkdown>
+                <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ a: MdLink }}>{m.content}</ReactMarkdown>
               </div>
             ) : (
               <div style={{
