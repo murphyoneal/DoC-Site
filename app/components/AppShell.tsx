@@ -26,7 +26,7 @@ export default function AppShell({ userEmail, children }: { userEmail: string; c
       <nav style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 14px',
         borderBottom: '1px solid var(--color-light-gray)', background: 'var(--color-white)' }}>
         <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--color-navy)' }}>Department of Property</span>
-        <div style={{ display: 'flex', gap: 4 }}>{link('/roz', 'Roz')}{link('/roz/account', 'Account')}</div>
+        <div style={{ display: 'flex', gap: 4 }}>{link('/roz', 'Roz')}{link('/agent', 'My properties')}{link('/roz/account', 'Account')}</div>
         <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--color-sage)' }}>{userEmail}</span>
         <button onClick={signOut} style={{ fontSize: 12, padding: '5px 12px', borderRadius: 8, cursor: 'pointer',
           border: '1px solid var(--color-light-gray)', background: 'var(--color-white)', color: 'var(--color-ink)' }}>Sign out</button>

@@ -29,10 +29,10 @@ export async function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname
 
   if (!user) {
-    if (path.startsWith('/api/roz')) {
+    if (path.startsWith('/api/roz') || path.startsWith('/api/agent')) {
       return NextResponse.json({ error: 'Not authenticated.' }, { status: 401 })
     }
-    if (path.startsWith('/roz')) {
+    if (path.startsWith('/roz') || path.startsWith('/agent')) {
       const url = request.nextUrl.clone()
       url.pathname = '/login'
       url.searchParams.set('next', path)
@@ -43,7 +43,8 @@ export async function proxy(request: NextRequest) {
   return response
 }
 
-// Only the Roz surface is gated; everything else (public site, B2B assistant) is untouched.
+// The authenticated agent surface (Roz + the agent claim/verify tools) is gated; everything else
+// (public site, B2B assistant) is untouched.
 export const config = {
-  matcher: ['/roz/:path*', '/api/roz/:path*'],
+  matcher: ['/roz/:path*', '/api/roz/:path*', '/agent/:path*', '/api/agent/:path*'],
 }

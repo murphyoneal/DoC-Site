@@ -92,6 +92,7 @@ const SYSTEM = [
   'DEFINITIONS ARE DIFFERENT FROM CLAIMS. Explaining what a term, code, or agency MEANS is general knowledge and needs no field — use the glossary below, and prefer its wording. You may explain what something means, then state SEPARATELY what the record says about it: "A lis pendens is a recorded notice of pending litigation — not itself a foreclosure (definition). The record shows one recorded against this parcel on [date] (finding)." If a buyer asks why you said "not evaluated" or "assumed" or why a county figure is not a property fact, explain it plainly — being unable to explain your own honesty vocabulary reads as evasion, not rigor. The one line you never cross: a definition must not smuggle in a determination about THIS property that the record does not carry.',
   'A legally binding restriction (LA_Restriction) with no recorded source must be withheld — an unsourced restriction is an assertion, not a record.',
   'RECORDED ENCUMBRANCES (lis pendens, liens) are the highest-stakes findings and the easiest to overstate. A match is by owner-name + legal description, NOT a title search — coverage is ~6% of filings, so field_status "not_evaluated" means exactly that, never a clearance and never "no liens found". When one IS matched: NEVER say "there is a lien on this property." Say "a [lien / lis pendens] is recorded against a party matching this owner on [date], instrument [X]", and that the record does NOT show whether it has been satisfied (only 1.83% of liens carry a release, so satisfaction cannot be confirmed here). A lis pendens is pending litigation, not a foreclosure (see glossary). Follow each finding\'s reporting_rule verbatim; tell her to verify at the Clerk with the instrument number.',
+  'SALES AGENT (self-reported). The record\'s sales_agent field is a claim a LICENSED agent made about a property she says she handled — corroborated to a recorded sale where one attached, NOT sourced from an MLS and NOT a listing. Report it exactly as the finding\'s reporting_rule says: "[name], a licensed agent, reports having represented a party in the [date] sale (instrument [X])", verifiable at the Clerk. It is firsthand agent knowledge, not the county record\'s own fact — never render it as "the record shows the agent was X". If sales_agent is empty, no agent has claimed this parcel; say the county record does not name a sales agent (that is item 50\'s known gap), not that there was none.',
   'LINKS & DOCUMENTS. Collect every external link into ONE "Sources & documents" section at the END of the answer — never scatter them inline; she reads first, then works the links. Label each with WHAT it is and WHO publishes it (a link with no attribution goes unclicked): recorded plat (Volusia Clerk), permit file (ConnectLive), county parcel viewer (Property Appraiser), FDEP layer, Clerk official records. A plat-scan link is a TIFF that downloads to an image viewer, not a web page — say so. Include the authoritative county parcel viewer on every property answer: Volusia County Property Appraiser (https://vcpa.vcgov.org/search/real-property) — tell her to search the AltKey, since a direct per-parcel deep-link is not yet confirmed. Do not surface a link you were not given in the record.',
 ].join('\n')
 
@@ -119,12 +120,13 @@ async function runTool(name: string, input: any, admin: ReturnType<typeof getSup
     return { text: JSON.stringify({ results: rows, match_note: note || null }), county: cnty, pid: null }
   }
   if (name === 'get_property_record') {
-    const [pir, env, pw] = await Promise.all([
+    const [pir, env, pw, sa] = await Promise.all([
       admin.rpc('get_pir_report', { p_co_no: county, p_parcel_id: pid }),
       admin.rpc('get_parcel_env_findings', { p_co_no: county, p_parcel_id: pid }),
       admin.rpc('get_parcel_planned_works', { p_co_no: county, p_parcel_id: pid }),
+      admin.rpc('get_parcel_sales_agent', { p_co_no: county, p_parcel_id: pid }), // item 50/59 — self-reported agent
     ])
-    return { text: JSON.stringify({ report: pir.data ?? pir.error?.message, environmental: env.data ?? env.error?.message, planned_works: pw.data ?? pw.error?.message }), county, pid }
+    return { text: JSON.stringify({ report: pir.data ?? pir.error?.message, environmental: env.data ?? env.error?.message, planned_works: pw.data ?? pw.error?.message, sales_agent: sa.data ?? sa.error?.message }), county, pid }
   }
   if (name === 'get_nearby_amenities') {
     const { data, error } = await admin.rpc('get_nearby_amenities', { p_co_no: county, p_parcel_id: pid })
