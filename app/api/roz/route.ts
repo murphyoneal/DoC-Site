@@ -42,7 +42,9 @@ const TOOLS: Anthropic.Tool[] = [
   { name: 'search_properties', description: 'Cross-parcel search by fixed filters (value range, land use, city) in any county. For portfolio/cohort questions.',
     input_schema: { type: 'object', properties: { county: { type: 'string' }, min_value: { type: 'number' }, max_value: { type: 'number' }, land_use: { type: 'string' }, city: { type: 'string' }, limit: { type: 'number' } }, required: [] } },
   { name: 'search_properties_stats', description: 'Aggregate stats (count, avg, min, max value) across properties matching filters in a county.',
-    input_schema: { type: 'object', properties: { county: { type: 'string' }, min_value: { type: 'number' }, max_value: { type: 'number' }, land_use: { type: 'string' }, city: { type: 'string' } }, required: [] },
+    input_schema: { type: 'object', properties: { county: { type: 'string' }, min_value: { type: 'number' }, max_value: { type: 'number' }, land_use: { type: 'string' }, city: { type: 'string' } }, required: [] } },
+  { name: 'search_encumbered_parcels', description: 'Distressed-property search (Volusia): parcels with a corroborated recorded lis pendens or lien — matched by owner name AND legal description. doc_class: "lis_pendens" | "lien" | omit for both. NOT a title search (covers ~6% of filings); every result is "recorded against a party matching this owner", satisfaction not shown.',
+    input_schema: { type: 'object', properties: { doc_class: { type: 'string' }, limit: { type: 'number' } }, required: [] },
     // Cache breakpoint on the last tool → the whole (system + tools) prefix is cached and reused every call.
     cache_control: { type: 'ephemeral' } },
 ]
@@ -63,6 +65,7 @@ const SYSTEM = [
   'NO OWN DETERMINATIONS ABOUT THIS PROPERTY. A CLAIM ABOUT THIS PARCEL must trace to a payload field. You may report that two records exist and note whether they are consistent or in tension — you may NOT draw your own conclusion from them. No "almost certainly", no "the practical exposure is real regardless", no inferring a property fact the record does not carry. If an assumed field (e.g. in_flight_path) is present, you may not reason past it to a determination in the same breath. When an obvious connection matters, name the two records and let the reader draw it; a conclusion you add has no field_status and is indistinguishable from invention.',
   'DEFINITIONS ARE DIFFERENT FROM CLAIMS. Explaining what a term, code, or agency MEANS is general knowledge and needs no field — use the glossary below, and prefer its wording. You may explain what something means, then state SEPARATELY what the record says about it: "A lis pendens is a recorded notice of pending litigation — not itself a foreclosure (definition). The record shows one recorded against this parcel on [date] (finding)." If a buyer asks why you said "not evaluated" or "assumed" or why a county figure is not a property fact, explain it plainly — being unable to explain your own honesty vocabulary reads as evasion, not rigor. The one line you never cross: a definition must not smuggle in a determination about THIS property that the record does not carry.',
   'A legally binding restriction (LA_Restriction) with no recorded source must be withheld — an unsourced restriction is an assertion, not a record.',
+  'RECORDED ENCUMBRANCES (lis pendens, liens) are the highest-stakes findings and the easiest to overstate. A match is by owner-name + legal description, NOT a title search — coverage is ~6% of filings, so field_status "not_evaluated" means exactly that, never a clearance and never "no liens found". When one IS matched: NEVER say "there is a lien on this property." Say "a [lien / lis pendens] is recorded against a party matching this owner on [date], instrument [X]", and that the record does NOT show whether it has been satisfied (only 1.83% of liens carry a release, so satisfaction cannot be confirmed here). A lis pendens is pending litigation, not a foreclosure (see glossary). Follow each finding\'s reporting_rule verbatim; tell her to verify at the Clerk with the instrument number.',
   'LINKS & DOCUMENTS. Collect every external link into ONE "Sources & documents" section at the END of the answer — never scatter them inline; she reads first, then works the links. Label each with WHAT it is and WHO publishes it (a link with no attribution goes unclicked): recorded plat (Volusia Clerk), permit file (ConnectLive), county parcel viewer (Property Appraiser), FDEP layer, Clerk official records. A plat-scan link is a TIFF that downloads to an image viewer, not a web page — say so. Include the authoritative county parcel viewer on every property answer: Volusia County Property Appraiser (https://vcpa.vcgov.org/search/real-property) — tell her to search the AltKey, since a direct per-parcel deep-link is not yet confirmed. Do not surface a link you were not given in the record.',
 ].join('\n')
 
@@ -92,6 +95,10 @@ async function runTool(name: string, input: any, admin: ReturnType<typeof getSup
   if (name === 'search_properties_stats') {
     const { data, error } = await admin.rpc('search_properties_stats', { p_co_no: county, p_min_value: input.min_value ?? null, p_max_value: input.max_value ?? null, p_dor_uc: input.land_use ?? null, p_city: input.city ?? null })
     return { text: error ? `stats error: ${error.message}` : JSON.stringify(data ?? {}), county, pid: null }
+  }
+  if (name === 'search_encumbered_parcels') {
+    const { data, error } = await admin.rpc('get_encumbered_parcels', { p_co_no: county, p_doc_class: input.doc_class ?? null, p_limit: input.limit ?? 50 })
+    return { text: error ? `encumbered search error: ${error.message}` : JSON.stringify(data ?? []), county, pid: null }
   }
   return { text: `Unknown tool ${name}.`, county, pid: null }
 }
