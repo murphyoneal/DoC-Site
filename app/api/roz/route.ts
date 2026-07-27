@@ -224,7 +224,12 @@ export async function POST(req: NextRequest) {
   const webLookupText = webEnabled
     ? '\n\nWEB LOOKUP (query aid ONLY — never a finding): You have a web_search tool restricted to an allowlist of government and property sources. Use it SOLELY to derive better QUERIES — alternate address forms, official place names, subdivision aliases, identifier formats — when a record lookup misses. Rules: (1) every finding MUST cite a RECORD (a tool payload field), never a web page; (2) after a web clue you MUST call the record tools and report only what the RECORD returns; (3) disclose the clue as the reason for the search ("searched under [alias] because [clue]; the record shows [finding]"); (4) if the web yields a name but no record confirms it, you have nothing to report — say the lookup did not resolve. Worked pattern: "DELTONA LK UN 32" → search the alias "Deltona Lakes Unit Sixty-Four", then query the record.'
     : ''
-  const systemText = SYSTEM + glossaryText + webLookupText
+  // Generated dataset inventory — Roz's self-description must not drift (she denied NRHP while it was
+  // wired). Derived from table_inventory (wired layers) + derived_field_status + the frontier fns, so
+  // wiring a layer updates her "what I carry" automatically. Stable across requests → stays cacheable.
+  let capabilityText = ''
+  try { const { data } = await admin.rpc('roz_capability_statement'); if (typeof data === 'string' && data) capabilityText = '\n\n' + data } catch { /* best-effort */ }
+  const systemText = SYSTEM + capabilityText + glossaryText + webLookupText
   // web_search is an Anthropic server tool (executed API-side); it never enters runTool. Cast avoids a
   // hard build dependency on the SDK's tool-union typing for the dated server-tool variant.
   const allTools: unknown[] = webEnabled
