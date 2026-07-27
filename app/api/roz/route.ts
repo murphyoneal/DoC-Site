@@ -75,7 +75,7 @@ function addressForms(raw: string): { forms: string[]; number: string | null; ci
 }
 
 const TOOLS: Anthropic.Tool[] = [
-  { name: 'find_parcel', description: 'Look up a property by street address to get its parcel_id and county. Call FIRST for any address.',
+  { name: 'find_parcel', description: 'Look up a property by street address to get its parcel_id and county. Call FIRST for any address with a house number. Handles directional position and route aliases (2184 US Hwy 17 N finds 2184 N US HWY 17; New Daytona Rd finds International Speedway Blvd) and returns the FULL ranked candidate set (government-owned + higher-value first), not just the first hit. With NO house number it also does a government facility/owner match (e.g. "Port Orange Wastewater Treatment Plant"). Each result carries match_via (address/alias/facility), is_government and own_name. For a bare street/block/subdivision/owner use area_findings; for a named place/site use named_site.',
     input_schema: { type: 'object', properties: { address: { type: 'string' }, county: { type: 'string', description: "County name; defaults to Volusia" } }, required: ['address'] } },
   { name: 'get_property_record', description: 'The full precomputed record for ONE parcel: property, values, tax, permits, transactions, environmental findings, and planned_works (development / environmental / stormwater government projects, each with relation — contains/intersects means the project footprint is ON the parcel, adjacent/within_distance is area context). Every field carries field_status / as_of / source / resolution_level / relation. Needs parcel_id.',
     input_schema: { type: 'object', properties: { parcel_id: { type: 'string' }, county: { type: 'string' } }, required: ['parcel_id'] } },
@@ -135,24 +135,30 @@ async function runTool(name: string, input: any, admin: ReturnType<typeof getSup
   const pid = input.parcel_id != null ? String(input.parcel_id) : null
   if (name === 'find_parcel') {
     const raw = String(input.address ?? '')
-    const { forms, number, city } = addressForms(raw)
+    const { forms, city } = addressForms(raw)
     // county: explicit > inferred from a recognised Volusia city > default 74 (said out loud)
     let cnty = county, countyNote = ''
     if (!input.county) {
       if (city && VOLUSIA_CITIES.has(city.toLowerCase())) cnty = 74
       else { cnty = 74; countyNote = 'county not inferable from the address — defaulted to Volusia (74) for the alpha' }
     }
-    let rows: any[] = [], usedForm = forms[0] ?? raw, loosened = false
-    for (let i = 0; i < forms.length; i++) {
-      const r = await admin.rpc('find_parcels', { p_co_no: cnty, p_query: forms[i], p_limit: 8 })
-      let got = (r.data ?? []) as any[]
-      // A form with no leading house number (the core-name fallback) is broad — constrain it to the
-      // house number so "Nova" doesn't return every Nova address.
-      if (number && !/^\d/.test(forms[i])) got = got.filter(x => String(x.phy_addr1 ?? '').includes(number))
-      if (got.length) { rows = got; usedForm = forms[i]; loosened = i > 0; break }
-    }
+    // resolve_parcel_query does the whole job server-side: token-AND with soft directionals (so
+    // "2184 US Hwy 17 N" reaches "2184 N US HWY 17"), route_alias expansion (New Daytona Rd ->
+    // International Speedway Blvd), a government-first facility/owner match (City Center Sports Complex
+    // -> 1000 CITY CENTER BLVD), and it returns the FULL set ranked (government-owned + higher-value
+    // first) rather than the first alphabetical hit. forms[0] is the street portion with any
+    // comma-separated city already stripped.
+    const q = forms[0] ?? raw
+    const { data, error } = await admin.rpc('resolve_parcel_query', { p_co_no: cnty, p_query: q, p_limit: 25 })
+    const rows = (error ? [] : (data ?? [])) as any[]
+    const via = rows.length ? rows[0].match_via : null
+    const viaNote =
+      via === 'alias' ? 'resolved via a route alias (e.g. US 92 = International Speedway Blvd = New Daytona Rd) — this is not the street name you typed; say which name the record uses'
+      : via === 'facility' ? 'no exact address match — these are GOVERNMENT-OWNED candidates ranked by name-match then value; the county record has no facility-name field, so present them as candidates and let the user confirm which is the facility, never assert one IS it'
+      : (rows.length > 1 && via === 'address') ? 'multiple address matches — the full set is returned ranked (government-owned and higher-value first); present them, do not silently pick the first'
+      : ''
     const coverageNote = (rows.length === 0 && cnty !== 74) ? `county ${cnty} is not loaded in this alpha (Volusia / co_no 74 only) — say so, do not imply the property has no data` : ''
-    const note = [loosened ? `match loosened to "${usedForm}" (exact address not found)` : '', countyNote, coverageNote].filter(Boolean).join('; ')
+    const note = [viaNote, countyNote, coverageNote, error ? `resolver error: ${error.message}` : ''].filter(Boolean).join('; ')
     return { text: JSON.stringify({ results: rows, match_note: note || null }), county: cnty, pid: null }
   }
   if (name === 'get_property_record') {
