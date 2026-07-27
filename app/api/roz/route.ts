@@ -35,17 +35,42 @@ const VOLUSIA_CITIES = new Set(['port orange', 'daytona beach', 'daytona', 'dela
   'new smyrna', 'ormond beach', 'ormond', 'edgewater', 'debary', 'de bary', 'orange city', 'lake helen', 'pierson',
   'oak hill', 'ponce inlet', 'holly hill', 'south daytona', 'osteen', 'seville', 'glenwood', 'cassadaga', 'samsula'])
 
-// Address → progressively shorter query forms. Strip city/state/ZIP and commas; a single failed
-// exact match must fall back before reporting "not found" (a false negative dressed as honesty).
+// Directional and street-type tokens. The county (VCPA) stores directionals on ~17% of addresses
+// and omits them on the rest, so users routinely include one the record lacks (3821 S Nova Rd vs
+// the stored 3821 NOVA RD). We try WITH first (respecting the 17%), then strip as a fallback.
+const DIRECTIONALS = new Set(['N', 'S', 'E', 'W', 'NE', 'NW', 'SE', 'SW',
+  'NORTH', 'SOUTH', 'EAST', 'WEST', 'NORTHEAST', 'NORTHWEST', 'SOUTHEAST', 'SOUTHWEST'])
+const STREET_TYPES = new Set(['RD', 'ROAD', 'ST', 'STREET', 'AVE', 'AVENUE', 'BLVD', 'BOULEVARD',
+  'CT', 'COURT', 'DR', 'DRIVE', 'LN', 'LANE', 'PL', 'PLACE', 'TER', 'TERRACE', 'CIR', 'CIRCLE', 'HWY', 'HIGHWAY'])
+const canon = (t: string) => t.toUpperCase().replace(/\./g, '')
+
+// Address → fallback query forms. The STREET NAME is the identifying token and is held in every form;
+// only the directional and the street type are relaxed. We never reduce to "number + directional"
+// (the old bug: 3821 S Nova Rd → "3821 S", which substring-matched three unrelated S-streets).
 function addressForms(raw: string): { forms: string[]; number: string | null; city: string | null } {
   const parts = raw.split(',').map(s => s.trim()).filter(Boolean)
   const city = parts.length >= 3 ? parts[1] : (parts.length === 2 && !/^(fl|florida)\b/i.test(parts[1]) ? parts[1] : null)
   let street = parts.length > 1 ? parts[0] : raw.replace(/\s+(FL|FLORIDA)\b.*$/i, '').replace(/\s+\d{5}(-\d{4})?\s*$/, '')
   street = street.replace(/,/g, ' ').replace(/\s+/g, ' ').trim()
-  const num = (street.match(/^\d+/) || [null])[0]
-  const nameOnly = num ? street.replace(/^\d+\s*/, '').trim() : street
-  const forms = [street, num && nameOnly ? `${num} ${nameOnly.split(' ')[0]}` : null, nameOnly || null]
-    .filter((v, i, a): v is string => !!v && a.indexOf(v) === i)
+
+  const toks = street.split(' ').filter(Boolean)
+  const num = /^\d/.test(toks[0] ?? '') ? toks[0] : null
+  const body = num ? toks.slice(1) : toks.slice() // tokens after the house number = the street name (+dir/type)
+
+  // Strip a leading and/or trailing directional, and a trailing street type — but never empty the name.
+  const dropLeadDir = (a: string[]) => (a.length > 1 && DIRECTIONALS.has(canon(a[0]))) ? a.slice(1) : a
+  const dropTrailDir = (a: string[]) => (a.length > 1 && DIRECTIONALS.has(canon(a[a.length - 1]))) ? a.slice(0, -1) : a
+  const dropType = (a: string[]) => (a.length > 1 && STREET_TYPES.has(canon(a[a.length - 1]))) ? a.slice(0, -1) : a
+  const noDir = dropTrailDir(dropLeadDir(body))
+
+  // Most-specific → least, holding the name throughout. Number prepended where present.
+  const withNum = (a: string[]) => (num ? [num, ...a] : a).join(' ')
+  const variants = [body, noDir, dropType(body), dropType(noDir)]
+  const forms: string[] = []
+  for (const v of variants) { if (!v.length) continue; const f = withNum(v); if (!forms.includes(f)) forms.push(f) }
+  // Last resort: the core street name with NO number (broad; the caller re-applies the number as a filter).
+  const core = dropType(noDir).join(' ')
+  if (core && !forms.includes(core)) forms.push(core)
   return { forms, number: num, city }
 }
 
@@ -113,7 +138,9 @@ async function runTool(name: string, input: any, admin: ReturnType<typeof getSup
     for (let i = 0; i < forms.length; i++) {
       const r = await admin.rpc('find_parcels', { p_co_no: cnty, p_query: forms[i], p_limit: 8 })
       let got = (r.data ?? []) as any[]
-      if (i >= 2 && number) got = got.filter(x => JSON.stringify(x).includes(number)) // street-name-only: keep the right number
+      // A form with no leading house number (the core-name fallback) is broad — constrain it to the
+      // house number so "Nova" doesn't return every Nova address.
+      if (number && !/^\d/.test(forms[i])) got = got.filter(x => String(x.phy_addr1 ?? '').includes(number))
       if (got.length) { rows = got; usedForm = forms[i]; loosened = i > 0; break }
     }
     const coverageNote = (rows.length === 0 && cnty !== 74) ? `county ${cnty} is not loaded in this alpha (Volusia / co_no 74 only) — say so, do not imply the property has no data` : ''
