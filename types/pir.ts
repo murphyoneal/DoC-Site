@@ -207,6 +207,21 @@ export interface PirReport {
   economic: PirEconomic
   environmentSources: Record<string, string> | null
   climateSources: Record<string, string> | null
+  salesAgent?: PirSalesAgent[] | null
+}
+
+// A self-reported sales-agent claim (item 50/59). Firsthand agent knowledge corroborated to a
+// recorded sale — NOT the county record's own fact, NOT an MLS listing. Render with that framing.
+export interface PirSalesAgent {
+  value: string | null            // agent / business name
+  license_number?: string | null
+  claimed_role?: string | null
+  as_of?: string | null           // when the claim was made
+  sale_date?: string | null
+  sale_price?: number | null
+  sale_instrument?: string | null
+  sale_instr_no?: string | null
+  reporting_rule?: string | null
 }
 
 // ── MAP GEOJSON ─────────────────────────────────────────────────────────────────

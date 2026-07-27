@@ -50,6 +50,7 @@ function Section({ title, children, note }: { title: string; children: React.Rea
 function Sheet({ page, total, title, r, children }: { page: number; total: number; title: string; r: PirReport; children: React.ReactNode }) {
   const addr = r.property.address ?? '—'
   const cityLine = [titleCase(r.property.city), 'FL', r.property.zip].filter(Boolean).join(', ')
+  const agent = r.salesAgent?.[0] ?? null
   return (
     <section className="pir-sheet">
       <header className="pir-head">
@@ -59,7 +60,7 @@ function Sheet({ page, total, title, r, children }: { page: number; total: numbe
         </div>
         <div style={{ textAlign: 'right' }}>
           <div className="ref">Parcel {r.meta.parcelId} · {r.meta.countyName} County</div>
-          <div className="ref">No agent listed</div>
+          <div className="ref">{agent?.value ? `${titleCase(agent.value)} (self-reported)` : 'No agent listed'}</div>
         </div>
       </header>
       <div className="pir-body">
@@ -223,11 +224,26 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
           {schoolBadges.length ? <CompassBadgeGrid badges={schoolBadges} /> : <div className="pir-note">No school assignment on file for this parcel.</div>}
         </Section>
 
-        <Section title="Listing & agent">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 13, color: 'var(--color-ink)' }}>This listing is unclaimed.</span>
-            <span className="no-print" style={{ background: 'var(--color-bronze)', color: '#fff', padding: '6px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600 }}>Claim this listing →</span>
-          </div>
+        <Section title="Listing & agent"
+          note={r.salesAgent?.[0]
+            ? 'Self-reported by a licensed agent from firsthand knowledge, corroborated to a recorded sale where one attached — not from an MLS and not the county record’s own fact. Verify at the Clerk with the instrument number.'
+            : undefined}>
+          {r.salesAgent?.[0] ? (() => {
+            const a = r.salesAgent![0]
+            return (
+              <div className="pir-grid">
+                <Fact l="Sales agent (self-reported)" v={titleCase(a.value) || '—'} />
+                <Fact l="FL licence" v={a.license_number ?? '—'} />
+                <Fact l="Represented a party in" v={a.sale_date ? `${fmtDate(a.sale_date)} sale${a.sale_price != null ? ` · ${usd(a.sale_price)}` : ''}` : '—'} />
+                <Fact l="Recorded instrument" v={[a.sale_instrument, a.sale_instr_no].filter(Boolean).join(' ') || '—'} />
+              </div>
+            )
+          })() : (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 13, color: 'var(--color-ink)' }}>The county record does not name a sales agent, and no licensed agent has claimed this property.</span>
+              <span className="no-print" style={{ background: 'var(--color-bronze)', color: '#fff', padding: '6px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600 }}>Claim this listing →</span>
+            </div>
+          )}
         </Section>
       </Sheet>
 
