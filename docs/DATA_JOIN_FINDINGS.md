@@ -222,7 +222,7 @@ Verified: VCPA Real Property Search returns **two owner rows** for one AltKey. E
 |---|---|---|
 | Duplicate parcel keys | Manatee | 97,323 dupes (29% of 338,349) — joins fan out |
 | HTML in identifier field | Hardee | `parcel_id` contains an `<a href>` tag |
-| SRID 0 (no spatial reference) | 54 layers statewide | incl. `sjrwmd_wells` — **cannot be spatially joined until reprojected** |
+| ~~SRID 0 (no spatial reference)~~ **CORRECTED — metadata artifact, not a blocker** | `geometry_columns.srid=0` on ~50–200 tables, but `ST_SRID(geom)`=4326 on the rows | all joinable today incl. `sjrwmd_wells`; nothing to reproject — see TABLE_INDEX_AND_CLASSIFICATION.md §4.1 |
 | NULL geometry | Baker | 33 parcels with no location |
 | No owner/address columns | Baker, Broward, Palm Beach, Volusia, Wakulla | Owner data must come from DOR or county CAMA |
 | Owner but no address | DeSoto, Gadsden, Hamilton | |
@@ -271,7 +271,7 @@ Measured 2026-07-26 with ~19 findings and 165 restriction layers wired: **36 s a
 3. **"No coverage" vs. "not in a zone"** — addressed by the `field_status` enum (2026-07-26): `present | null_at_source | layer_not_loaded | county_not_covered | stale | conflicting_sources | not_computed | assumed`.
 4. **Prong 3** — 9 non-ArcGIS sources still lack declared natural keys.
 5. **Volusia OR duplicate check** — 1,267,929 rows never scanned for duplicates. Note: the pull covers only four doctypes — JUDGMENT/ORDER, LIEN, LIS PENDENS, RESTRICTIONS. Deeds and satisfactions were never searched.
-6. **SRID 0 layers** — 54 statewide, need reprojection before they can be joined at all.
+6. ~~**SRID 0 layers** — 54 statewide, need reprojection.~~ **RESOLVED AS FALSE** — `geometry_columns.srid=0` is a metadata artifact; `ST_SRID` on the rows is 4326. All joinable today, no reprojection. See TABLE_INDEX_AND_CLASSIFICATION.md §4.1.
 7. **Weekly snapshot archive** — cannot be backfilled. Every uncaptured week is change history permanently lost.
 8. **`parcels_staging`** — 10.7M rows, ~21 GB, proven a strict key-subset of `fl_cadastral_dor_statewide`. Repoint and drop.
 

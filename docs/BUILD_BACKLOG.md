@@ -89,7 +89,7 @@ Lienor name classifies the lien and the distribution is known: municipal ~20,000
 
 ## 🟠 P2 — data integrity
 
-**15. 54 SRID-0 layers.** Cannot be spatially joined at all. Includes `sjrwmd_wells`, which is why `well_gwca_flag` (2,803) and `well_icr_flag` (566) can't attach to parcels.
+**15. SRID-0 blocker — FALSE, not resolved. Nothing to reproject.** ~~54 SRID-0 layers cannot be spatially joined.~~ `geometry_columns.srid` reports 0 as a metadata artifact, but `ST_SRID(geom)` on the actual rows returns **4326**. All 1,006 geometry tables are joinable today (1,005 usable; only `school_attendance_zones` is dead, all-null geometry). `sjrwmd_wells`, `well_gwca_flag` (2,803) and `well_icr_flag` (566) already attach to parcels. The claim was never true — it was carried through the session and used to defer the wells work. Evidence: docs/TABLE_INDEX_AND_CLASSIFICATION.md §4.1. **No other backlog item carries an SRID-0 dependency (checked).**
 
 **16. `parcels_staging` — 10,739,881 rows, ~21 GB, still there.** Proven a strict key-subset of `fl_cadastral_dor_statewide`. Repoint the app, drop it, recover a quarter of the database.
 
