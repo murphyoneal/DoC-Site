@@ -212,7 +212,24 @@ export async function POST(req: NextRequest) {
     ? '\n\nGLOSSARY — general-knowledge definitions. State these WITHOUT a payload field (they are not property claims), then say separately what the record shows. Prefer this wording over recall:\n'
       + glossaryRows.map(g => `- ${g.term}: ${g.definition}${g.florida_nuance ? ' [FL: ' + g.florida_nuance + ']' : ''}${g.authority ? ' [' + g.authority + ']' : ''}`).join('\n')
     : ''
-  const systemText = SYSTEM + glossaryText
+  // Web lookup AID (item 71): an allowlist of government/property domains, used ONLY to derive query
+  // variants (address forms, official place names, subdivision aliases, identifier formats). It never
+  // produces a finding. Gated behind ROZ_WEB_LOOKUP=1 until web search is confirmed enabled on the
+  // account — default off is today's exact behaviour (zero risk to live Roz).
+  let webDomains: string[] = []
+  if (process.env.ROZ_WEB_LOOKUP === '1') {
+    try { const { data } = await admin.from('roz_web_lookup_allowlist').select('domain').eq('active', true).order('domain'); webDomains = (data ?? []).map((r: { domain: string }) => r.domain) } catch { /* best-effort */ }
+  }
+  const webEnabled = webDomains.length > 0
+  const webLookupText = webEnabled
+    ? '\n\nWEB LOOKUP (query aid ONLY — never a finding): You have a web_search tool restricted to an allowlist of government and property sources. Use it SOLELY to derive better QUERIES — alternate address forms, official place names, subdivision aliases, identifier formats — when a record lookup misses. Rules: (1) every finding MUST cite a RECORD (a tool payload field), never a web page; (2) after a web clue you MUST call the record tools and report only what the RECORD returns; (3) disclose the clue as the reason for the search ("searched under [alias] because [clue]; the record shows [finding]"); (4) if the web yields a name but no record confirms it, you have nothing to report — say the lookup did not resolve. Worked pattern: "DELTONA LK UN 32" → search the alias "Deltona Lakes Unit Sixty-Four", then query the record.'
+    : ''
+  const systemText = SYSTEM + glossaryText + webLookupText
+  // web_search is an Anthropic server tool (executed API-side); it never enters runTool. Cast avoids a
+  // hard build dependency on the SDK's tool-union typing for the dated server-tool variant.
+  const allTools: unknown[] = webEnabled
+    ? [...TOOLS, { type: 'web_search_20260209', name: 'web_search', max_uses: 3, allowed_domains: webDomains }]
+    : TOOLS
 
   const messages: Anthropic.MessageParam[] = incoming.map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content }))
   const trace: { tool: string; county: number }[] = []
@@ -247,7 +264,7 @@ export async function POST(req: NextRequest) {
         for (let guard = 0; guard < 8; guard++) {
           let turnText = ''
           const s = anthropic.messages.stream({
-            model: MODEL, max_tokens: 8192, thinking: { type: 'adaptive' }, tools: TOOLS, messages,
+            model: MODEL, max_tokens: 8192, thinking: { type: 'adaptive' }, tools: allTools as Anthropic.ToolUnion[], messages,
             // Cache breakpoint on the system prompt (stable honesty contract + glossary, re-read every call).
             system: [{ type: 'text', text: systemText, cache_control: { type: 'ephemeral' } }],
           })
