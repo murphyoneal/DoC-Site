@@ -3,6 +3,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { createHash } from 'crypto'
 import { getSupabaseAdmin } from '@/lib/supabase/server'
 import { getSessionUser } from '@/lib/supabase/ssr-server'
+import { formatDistanceBand } from '@/lib/units'
 
 const MODEL = 'claude-sonnet-5'
 const ROZ_VERSION = '0.1.0-alpha' // roz_version_register current; stamped per exchange
@@ -113,6 +114,7 @@ const SYSTEM = [
   'CODES CARRY THEIR CONSEQUENCE. Never leave a code, zone, or designation bare — state what it MEANS for the buyer, from the glossary. Flood Zone A/AE/VE (an SFHA) means flood insurance is required with a federally-backed mortgage; Zone X means it is not. Homestead brings the Save Our Homes assessment cap. "Zone X" alone is not an answer; "Zone X — outside the special flood hazard area, so no federal flood-insurance mandate" is.',
   'LIEN CLASSIFICATION: an encumbrance finding\'s lien_classification carries runs_with. Municipal, tax, and HOA liens, and PACE assessments, run WITH THE LAND — a buyer inherits them at closing. A medical lien runs with the PERSON (the debtor) and generally does not attach to a later owner. Say which, because it is the whole answer to "should I care about this." A PACE assessment transfers with the property AND can block some conforming (Fannie/Freddie) mortgages — flag it prominently.',
   '- relation: "contains" means it is on/over the parcel; "within_distance"/"adjacent" means nearby — always state the distance, never a bare radius count.',
+  'US UNITS. Distances in the record are metric (meters) — kept as the audit trail (the query itself, e.g. st_dwithin, is in meters). For the READER, every distance already carries a sibling *_us value converted to feet/miles (e.g. nearest_m 363 → nearest_m_us "about 1,200 ft"). NARRATE THE *_us VALUE and never state a raw meters number to the user. The *_us value is BANDED ("about 1,200 ft") because the source geocoding carries error — never restore false precision by re-deriving feet yourself. A radius baked into a field NAME (pollution_notice_500m, superfund_sites_3km) is a metric-native query threshold: state it as "within 500 m (about 1,640 ft)" — do NOT silently re-cut it to a round US number like "¼ mile", which would misstate what was queried.',
   '- planned_works are proposed/active GOVERNMENT projects (a county project record IS a record). relation "contains"/"intersects" = the project footprint is ON this parcel (directly affects it — a taking; parcel-level); "adjacent"/"within_distance" = a nearby project (area context, NOT a fact about this parcel). These fill a real gap: works planned for the next two years are not on a property record until a recorded easement, and nobody — seller or agent — has assembled them. Surface a parcel-level project prominently; frame nearby ones as area context with the distance.',
   'COMPS: a transaction whose saleQualification is anything other than "Qualified" — unqualified, multi-parcel, non-arms-length / in-family, not exposed to the open market — is NOT a valid comparable; flag it and do not present its price as a market value. A "vacant" saleType is not a comp for an improved property. Prices that look wrong are usually unqualified sales — say why.',
   'ROOF LIFESPAN cites, it does not conclude: state the recorded roof material and permit date against the NAHB/NRCA standard ("roof cover recorded as concrete tile; NAHB estimates tile at 50+ years"), never "the roof is overdue". Where the roof material is unrecorded the field is not_evaluated — give the range (~20yr asphalt to 50+ tile/slate), never the shortest-lived default.',
@@ -129,6 +131,27 @@ const SYSTEM = [
   'LINKS & DOCUMENTS. Collect every external link into ONE "Sources & documents" section at the END of the answer — never scatter them inline; she reads first, then works the links. Label each with WHAT it is and WHO publishes it (a link with no attribution goes unclicked): recorded plat (Volusia Clerk), permit file (ConnectLive), county parcel viewer (Property Appraiser), FDEP layer, Clerk official records. A plat-scan link is a TIFF that downloads to an image viewer, not a web page — say so. Include the authoritative county parcel viewer on every property answer: Volusia County Property Appraiser (https://vcpa.vcgov.org/search/real-property) — tell her to search the AltKey, since a direct per-parcel deep-link is not yet confirmed. Do not surface a link you were not given in the record.',
   'PLAT SCAN. The property record\'s plat.scanLink (under "plat") IS the recorded plat drawing — a real link you HOLD. Whenever it is present, surface it in Sources & documents as "Recorded plat (Volusia Clerk) — TIFF scan, opens in an image viewer", and cite the subdivision name / map book & page from the same plat object. If the user asks for drawings, the plat, a survey, or "the map", and plat.scanLink is present, GIVE that link — do NOT instead send her to search the Clerk or the VCPA viewer manually when you are already holding the scan URL. Only fall back to "search the Clerk" when plat.scanLink is absent.',
 ].join('\n')
+
+// US display units for the model, ADD-not-replace. Distances in the record are metric — their
+// unit is the query's own (st_dwithin uses meters) and is the audit trail back to the finding,
+// so the canonical *_m / *M value is kept untouched. Alongside each we add a <key>_us sibling
+// with a BANDED ft/mi string the model narrates. Skips elevation/BFE (they carry their own _ft).
+function addUsDisplay<T>(v: T): T {
+  if (Array.isArray(v)) return v.map(addUsDisplay) as unknown as T
+  if (v && typeof v === 'object') {
+    const out: Record<string, unknown> = {}
+    for (const [k, val] of Object.entries(v as Record<string, unknown>)) {
+      out[k] = addUsDisplay(val)
+      const isMeters = (/_m$/.test(k) || /[a-z]M$/.test(k)) && !/elev|bfe/i.test(k)
+      if (isMeters && typeof val === 'number' && isFinite(val)) {
+        const disp = formatDistanceBand(val)
+        if (disp) out[`${k}_us`] = disp
+      }
+    }
+    return out as T
+  }
+  return v
+}
 
 async function runTool(name: string, input: any, admin: ReturnType<typeof getSupabaseAdmin>) {
   const county = coNo(input.county)
@@ -168,11 +191,11 @@ async function runTool(name: string, input: any, admin: ReturnType<typeof getSup
       admin.rpc('get_parcel_planned_works', { p_co_no: county, p_parcel_id: pid }),
       admin.rpc('get_parcel_sales_agent', { p_co_no: county, p_parcel_id: pid }), // item 50/59 — self-reported agent
     ])
-    return { text: JSON.stringify({ report: pir.data ?? pir.error?.message, environmental: env.data ?? env.error?.message, planned_works: pw.data ?? pw.error?.message, sales_agent: sa.data ?? sa.error?.message }), county, pid }
+    return { text: JSON.stringify(addUsDisplay({ report: pir.data ?? pir.error?.message, environmental: env.data ?? env.error?.message, planned_works: pw.data ?? pw.error?.message, sales_agent: sa.data ?? sa.error?.message })), county, pid }
   }
   if (name === 'get_nearby_amenities') {
     const { data, error } = await admin.rpc('get_nearby_amenities', { p_co_no: county, p_parcel_id: pid })
-    return { text: error ? `amenities error: ${error.message}` : JSON.stringify(data ?? []), county, pid }
+    return { text: error ? `amenities error: ${error.message}` : JSON.stringify(addUsDisplay(data ?? [])), county, pid }
   }
   if (name === 'search_properties') {
     const { data, error } = await admin.rpc('search_properties', { p_co_no: county, p_min_value: input.min_value ?? null, p_max_value: input.max_value ?? null, p_dor_uc: input.land_use ?? null, p_city: input.city ?? null, p_limit: input.limit ?? 25 })
@@ -192,11 +215,11 @@ async function runTool(name: string, input: any, admin: ReturnType<typeof getSup
   }
   if (name === 'area_findings') {
     const { data, error } = await admin.rpc('get_area_findings', { p_unit: String(input.unit ?? ''), p_value: String(input.value ?? ''), p_city: input.city ?? null })
-    return { text: error ? `area findings error: ${error.message}` : JSON.stringify(data ?? {}), county, pid: null }
+    return { text: error ? `area findings error: ${error.message}` : JSON.stringify(addUsDisplay(data ?? {})), county, pid: null }
   }
   if (name === 'named_site') {
     const { data, error } = await admin.rpc('get_named_site', { p_value: String(input.name ?? ''), p_city: input.city ?? null })
-    return { text: error ? `named site error: ${error.message}` : JSON.stringify(data ?? {}), county, pid: null }
+    return { text: error ? `named site error: ${error.message}` : JSON.stringify(addUsDisplay(data ?? {})), county, pid: null }
   }
   return { text: `Unknown tool ${name}.`, county, pid: null }
 }
@@ -243,7 +266,15 @@ export async function POST(req: NextRequest) {
   }
   const webEnabled = webDomains.length > 0
   const webLookupText = webEnabled
-    ? '\n\nWEB LOOKUP (query aid ONLY — never a finding): You have a web_search tool restricted to an allowlist of government and property sources. Use it SOLELY to derive better QUERIES — alternate address forms, official place names, subdivision aliases, identifier formats — when a record lookup misses. Rules: (1) every finding MUST cite a RECORD (a tool payload field), never a web page; (2) after a web clue you MUST call the record tools and report only what the RECORD returns; (3) disclose the clue as the reason for the search ("searched under [alias] because [clue]; the record shows [finding]"); (4) if the web yields a name but no record confirms it, you have nothing to report — say the lookup did not resolve. Worked pattern: "DELTONA LK UN 32" → search the alias "Deltona Lakes Unit Sixty-Four", then query the record.'
+    ? '\n\nWEB RESULTS — a THIRD class of assertion, walled from findings. Your web_search tool runs over an allowlist. Web content is NEITHER a public record NOR a definition: it is what a WEBSITE claims. It has two uses.\n'
+      + 'A. QUERY AID: derive better record queries — alternate address forms, official place names, subdivision aliases, identifier formats. A clue only; a FINDING still cites a record (a tool payload field), never a web page. Worked pattern: "DELTONA LK UN 32" -> search the alias "Deltona Lakes Unit Sixty-Four", then query the record.\n'
+      + 'B. WEB CLASS you may SURFACE and CITE, but ONLY under this grammar:\n'
+      + '- SUBJECT IS THE SITE. "Zillow\'s listing shows 8,277 sq ft (retrieved [when])" — NEVER "the property is 8,277 sq ft", NEVER "it is listed for $X". A website statement takes the WEBSITE as its subject, exactly as an agency statement takes the agency.\n'
+      + '- LABEL IT. Web claims go under the heading "On the web"; record findings under "Public record" (NOT "the record" — we read the record, we are not it). Never fold a web number into a record statement.\n'
+      + '- RETRIEVED + PERISHABLE. Stamp every web claim with when it was retrieved and treat it as perishable — a listing price or status can change within the hour. Never state a listing as a durable fact.\n'
+      + '- THE RECORD ADJUDICATES THE WEB, NEVER THE REVERSE. You may compare them, but the public record wins every disagreement. Do NOT "correct" a county figure with a listing figure.\n'
+      + 'FOUR OUTCOMES for a web claim against the record: (1) AGREES (listing built 2017 = county built 2017) -> corroboration, say so. (2) DISAGREES (listing 8,277 sq ft vs county 8,001) -> FLAG, record wins: "the listing claims X; the public record shows Y — reconcile with the seller / cite the source." (3) NO RECORD COUNTERPART (wine cellar, theater) -> unverifiable marketing; present as a listing claim only, never a fact. (4) NO LISTING FOUND -> "no active listing found on [sites], as of [retrieved]" and STOP; this is NOT "not for sale". Distinguish, never collapse: (a) off-market, (b) the address did not match (a lookup miss), (c) a listing exists but was unretrievable.\n'
+      + 'DUAL USE. The same web-vs-record comparison serves a BUYER checking a property (listing claims vs record, plus the risks the brochure omits) AND a LISTING AGENT pre-flighting their OWN draft before posting (does every claim survive the public record?). The deliverable is the discrepancy list; the public record is the anchor in both directions.'
     : ''
   // Generated dataset inventory — Roz's self-description must not drift (she denied NRHP while it was
   // wired). Derived from table_inventory (wired layers) + derived_field_status + the frontier fns, so
