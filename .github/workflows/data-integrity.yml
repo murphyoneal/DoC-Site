@@ -1,0 +1,32 @@
+name: data-integrity
+
+# Tier 1 — no database, no secrets. Runs free on every push/PR and protects two things that
+# are otherwise only "confirmed" in someone's memory:
+#   1. the Data Tree harness gate itself is intact (proves it still goes RED for each break);
+#   2. no client bundle calls a function the browser can't execute after the anon revoke.
+#
+# Tier 2 (the DB-backed live predicates in docs/data-tree/verify.mjs) is deliberately NOT wired
+# here yet. It needs a DATABASE_URL secret, and the right credential is a read-only role
+# (consumer_report_readonly) whose password is still a placeholder — NOT the write-capable
+# `postgres` role. Add the tier-2 job only after that role is set up and every predicate in
+# checks.mjs is confirmed to run under it.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  gate-selfcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Harness negative-control — the gate must demonstrably go red
+        run: node docs/data-tree/verify.test.mjs
+
+      - name: No client bundle calls a revoked (server-only) RPC
+        run: node scripts/check-client-rpc.mjs
