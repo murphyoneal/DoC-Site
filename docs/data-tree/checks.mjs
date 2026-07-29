@@ -111,6 +111,27 @@ export const predicates = [
              AS ok`,
   },
   {
+    id: 'no-county-literal-in-report-path',
+    claim: 'OPEN (tracks register #14) — no report-path function may hardcode a county: a co_no ' +
+      'compared to a numeric literal, or a quoted county-name string. Two of three live incidents were ' +
+      'a Volusia literal presented as universal (fema county_name match, "Volusia only" prose, ' +
+      'areaRepetitiveLoss %volusia%). RED now: 5 resolvers (wind/surge/water/airport/marine) hardcode ' +
+      'their coverage co_no — convert to a coverage lookup. Coverage-resolution fns are the exception.',
+    // Scoped to VALUE literals (co_no = <digit>, or a quoted county name matched against county_registry)
+    // — NOT the legitimate volusia_* TABLE identifiers, which are unquoted and don't match. \m/\M are
+    // word boundaries so county_no / dor_county_no don't false-match co_no.
+    sql: `SELECT NOT EXISTS (
+            SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+            WHERE n.nspname='public'
+              AND p.proname = ANY(ARRAY['get_pir_report','get_site_intelligence','get_parcel_flood_zone',
+                'get_parcel_wind_design','get_parcel_storm_surge','get_parcel_water_service','get_parcel_airport_proximity',
+                'get_parcel_marine_improvements','get_parcel_tax_deed_status','get_parcel_env_findings',
+                'get_parcel_env_findings_core','get_parcel_containment_findings','get_parcel_planned_works','resolve_parcel_geometry'])
+              AND ( p.prosrc ~ '\\m(p_)?co_no\\M\\s*=\\s*\\d'
+                    OR EXISTS (SELECT 1 FROM county_registry cr WHERE p.prosrc ~* ('''[%]?' || cr.county_name || '[%]?''')) )
+          ) AS ok`,
+  },
+  {
     id: 'pnp-pre-statute-count',
     claim: 'FDEP PNP has exactly 6 genuine pre-s.403.077 records (eff. 2017-07-01) — matches the RPC caveat',
     // Tests the caveat's actual CLAIM ("only 6 predate it"), not a loose proportion. A ≥99%
