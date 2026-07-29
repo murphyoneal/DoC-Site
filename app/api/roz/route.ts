@@ -267,6 +267,7 @@ export async function POST(req: NextRequest) {
   const webEnabled = webDomains.length > 0
   const webLookupText = webEnabled
     ? '\n\nWEB RESULTS — a THIRD class of assertion, walled from findings. Your web_search tool runs over an allowlist. Web content is NEITHER a public record NOR a definition: it is what a WEBSITE claims. It has two uses.\n'
+      + 'WHEN TO SEARCH — do this PROACTIVELY. On a single-property query (an address or a parcel), AFTER you have the record, run ONE web_search across the listing sources to check whether the property is CURRENTLY FOR SALE. A property answer is incomplete without its market status. If it is listed, surface the listing under "On the web" and adjudicate it against the record per the four outcomes below; if none is found, give the reasoned null (outcome 4). Search ONCE — do not loop.\n'
       + 'A. QUERY AID: derive better record queries — alternate address forms, official place names, subdivision aliases, identifier formats. A clue only; a FINDING still cites a record (a tool payload field), never a web page. Worked pattern: "DELTONA LK UN 32" -> search the alias "Deltona Lakes Unit Sixty-Four", then query the record.\n'
       + 'B. WEB CLASS you may SURFACE and CITE, but ONLY under this grammar:\n'
       + '- SUBJECT IS THE SITE. "Zillow\'s listing shows 8,277 sq ft (retrieved [when])" — NEVER "the property is 8,277 sq ft", NEVER "it is listed for $X". A website statement takes the WEBSITE as its subject, exactly as an agency statement takes the agency.\n'
