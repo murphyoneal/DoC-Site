@@ -3,7 +3,6 @@ import Link from 'next/link'
 import { pirSocket } from '@/lib/sockets/pir'
 import { CompassBadgeGrid, type CompassBadgeData } from '@/app/components/AmenityCompass'
 import PropertyReportMap from '@/app/components/PropertyReportMap'
-import WindDial from '@/app/components/WindDial'
 import PrintButton from '@/app/components/PrintButton'
 import { FLOOD_STYLE, ZONING_STYLE } from '@/lib/pir-colors'
 import type { PirReport, PirEconOverlay } from '@/types/pir'
@@ -147,7 +146,6 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
     ['Ownership / sale history', r.transactions.count > 0],
     ['Elevation & land', r.land.elevationFt != null],
     ['Water & flood', r.flood.zone != null],
-    ['Climate & wind', !!r.wind.prevailingDirection],
     ['Zoning & future land use', !!r.zoning.zoneCode],
     ['Economic overlays', Object.values(r.economic ?? {}).some(v => v != null)],
     ['Census / demographics', r.census.population != null],
@@ -306,19 +304,16 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
               <Legend entries={floodLegend} />
               <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <Fact l="Parcel flood zone" v={<>{r.flood.zone ?? '—'} {r.flood.inHazardArea === false ? riskChip('Not in SFHA', true) : r.flood.inHazardArea ? riskChip('In hazard area', false) : null}</>} />
-                <Fact l="Flood events (area, 10 yr)" v={num(r.flood.floodEvents10yr)} />
                 <Fact l="Area repetitive loss" v={r.flood.areaRepetitiveLoss ? `${num(r.flood.areaRepetitiveLoss.properties)} props · ${num(r.flood.areaRepetitiveLoss.totalLosses)} losses` : '—'} />
               </div>
             </div>
           </div>
         </Section>
 
-        {/* Air block removed 2026-07-29 — every property_environmental (v_env) air field was a
-            single fabricated value statewide (anchor §9). The wind dial is real hazard data. */}
-        <Section title="Wind"
-          note="Prevailing direction, average and gust speed, and the Florida Building Code design wind speed for the area.">
-          <WindDial wind={r.wind} />
-        </Section>
+        {/* Air + Wind removed 2026-07-29 — every property_environmental (v_env) air field AND
+            every property_hazard_risk (v_haz) wind field was a single fabricated value statewide,
+            including the FBC design wind speed (130/zone II everywhere). Both stripped from
+            get_pir_report; see anchor §9. */}
 
         {/* radon / sinkhole / water service / lead service line removed 2026-07-29 — fabricated
             v_env constants (single value across all 313,578 rows), not per-parcel facts. Only
@@ -329,7 +324,6 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
             <Fact l="Ground elevation" v={r.land.elevationFt != null ? `${r.land.elevationFt} ft` : '—'} />
             <Fact l="Sewer / septic" v={<span style={{ color: 'var(--color-sage)' }}>Not evaluated — no parcel-level sewer/septic determination in the record</span>} />
             <Fact l="Protected species" v={r.land.gopherTortoiseInside ? riskChip('Within gopher tortoise habitat overlay', false) : r.land.gopherTortoiseNearestM != null ? `Nearest habitat ${mi(r.land.gopherTortoiseNearestM)}` : 'None mapped nearby'} />
-            <Fact l="Sun / solar" v={r.climate.solarKwhM2Day != null ? `${r.climate.solarKwhM2Day} kWh/m²/day · ${r.climate.solarPeakHours} peak hrs` : '—'} />
           </div>
         </Section>
 
@@ -374,7 +368,6 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
             <Tile l="Median household income" v={usd(r.census.medianHouseholdIncome)} />
             <Tile l="Housing units" v={num(r.census.housingUnits)} />
           </div>
-          <div style={{ marginTop: 14 }}><WindDial wind={r.wind} /></div>
         </Section>
       </Sheet>
 

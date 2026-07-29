@@ -63,19 +63,28 @@ export const predicates = [
     sql: `SELECT count(*) = 78 AS ok FROM volusia_cama_condo_bldg WHERE "CNDCMPLX" = '022301'`,
   },
   {
-    id: 'property-environmental-not-fabricated',
-    claim: 'OPEN DEFECT — expected RED until property_environmental is remediated or dropped: its risk ' +
-      'fields are single-valued across all 313,578 rows (sinkhole_risk / radon_zone / lead_service_line_risk / ' +
-      'source_attribution). get_pir_report no longer surfaces them (fix 2026-07-29) but the TABLE still fabricates',
-    // A whole-class guard, not one field — the constant fabrication that a one-field grep would
-    // have missed. Currently FALSE (a real negative control, not another green); flips to TRUE
-    // the day the table carries real per-parcel data or is dropped. See anchor §9.
+    id: 'report-source-tables-not-fabricated',
+    claim: 'OPEN DEFECT — expected RED until property_environmental AND property_hazard_risk are ' +
+      'remediated or dropped: their fields are single-valued across all 313,578 rows. env: ' +
+      'sinkhole_risk / radon_zone / lead_service_line_risk / source_attribution. haz: ' +
+      'fl_wind_design_speed_mph (=130) / fl_wind_speed_zone (=II) — a fabricated FBC/insurance ' +
+      'figure understated toward "safer". Both stripped from get_pir_report (2026-07-29); the TABLES still fabricate',
+    // Whole-class guard across BOTH fabricated report-source tables (not one field, not one table —
+    // the v_haz block was fully fabricated too). Currently FALSE — a real negative control; flips
+    // TRUE only when both tables carry real per-parcel data or are dropped. See anchor §9. The fully
+    // generalized "every rendered column of every source table" form is the go-forward (anchor §8.7).
     sql: `SELECT NOT EXISTS (
             SELECT 1 FROM (
               SELECT count(DISTINCT sinkhole_risk) a, count(DISTINCT radon_zone) b,
                      count(DISTINCT lead_service_line_risk) c, count(DISTINCT source_attribution) d
               FROM property_environmental
-            ) t WHERE least(a,b,c,d) <= 1
+            ) e WHERE least(a,b,c,d) <= 1
+            UNION ALL
+            SELECT 1 FROM (
+              SELECT count(DISTINCT fl_wind_design_speed_mph) a, count(DISTINCT fl_wind_speed_zone) b,
+                     count(DISTINCT hurricane_direct_hits) c, count(DISTINCT source_attribution) d
+              FROM property_hazard_risk
+            ) h WHERE least(a,b,c,d) <= 1
           ) AS ok`,
   },
   {

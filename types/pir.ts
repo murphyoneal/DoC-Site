@@ -122,10 +122,8 @@ export interface PirCountedList<T> { count: number; items: T[] }
 // PirAir removed 2026-07-29: every property_environmental (v_env) air field was a single
 // value across all 313,578 rows (fabricated). Stripped from get_pir_report — see anchor §9.
 
-export interface PirWind {
-  prevailingDirection?: string; avgSpeedMph?: number; maxGustMph?: number
-  designSpeedMph?: number; windSpeedZone?: string
-}
+// PirWind removed 2026-07-29: every property_hazard_risk (v_haz) wind field was a single value
+// statewide, incl. the FBC design wind speed (130 / zone II everywhere) — fabricated (anchor §9).
 
 // radon / sinkhole / water / lead / algae removed 2026-07-29 (fabricated v_env constants).
 // Only elevation (v_si) and the gopher-tortoise overlay (real spatial) remain.
@@ -146,20 +144,12 @@ export interface PirFlood {
   zone: string | null
   available: boolean | null
   inHazardArea: boolean | null
-  countyZone: string | null
-  stormSurgeZone: string | null
-  floodEvents10yr: number | null
+  // countyZone / stormSurgeZone / floodEvents10yr removed 2026-07-29 (fabricated v_haz).
   areaRepetitiveLoss: { properties: number | null; totalLosses: number | null } | null
 }
 
-export interface PirClimate {
-  precipAnnualIn?: number; precipMax24hrIn?: number
-  tempAnnualF?: number; tempMaxRecordF?: number; tempMinRecordF?: number; humidityPct?: number
-  solarKwhM2Day?: number; solarPeakHours?: number; solarPotentialKwhYr?: number
-  lightningDensity?: number; hurricaneDirectHits?: number; lastHurricaneCategory?: number
-  tornadoEvents10yr?: number; hailEvents10yr?: number
-  wildfireRiskClass?: string; extremeHeatDaysAnnual?: number
-}
+// PirClimate removed 2026-07-29: every property_hazard_risk (v_haz) climate field was a single
+// value statewide (fabricated). Stripped from get_pir_report — see anchor §9.
 
 export interface PirCensus {
   blockGroup: string | null
@@ -193,15 +183,12 @@ export interface PirReport {
   schools: PirSchool[]
   permits: PirCountedList<PirPermit>
   transactions: PirCountedList<PirTransaction>
-  wind: PirWind
   land: PirLand
   water: PirWater
   flood: PirFlood
-  climate: PirClimate
   census: PirCensus
   zoning: PirZoning
   economic: PirEconomic
-  climateSources: Record<string, string> | null
   salesAgent?: PirSalesAgent[] | null
 }
 
