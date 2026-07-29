@@ -4,7 +4,7 @@
 // returns a flat list of {id, gate, ok, msg}. This separation is what lets verify.test.mjs
 // drive it with a stub and prove it goes RED — the negative control the gate itself needs.
 
-export async function runChecks({ query, html, checks }) {
+export async function runChecks({ query, html, state, checks }) {
   const results = [];
   const add = (id, gate, ok, msg) => results.push({ id, gate, ok, msg });
 
@@ -109,6 +109,37 @@ export async function runChecks({ query, html, checks }) {
       add(`closure:${head}:rows-present`, 'closure', malformed.length === 0,
         malformed.length === 0 ? `all children carry a row figure` : `children with a count but no row figure: ${malformed.join(' | ')}`);
     }
+  }
+
+  // ── Census closure on the machine-owned state.json. Guards the §1a block against a summary
+  // figure absorbing a category (the "1,225 wired" error) and stale render vs live. Live counts
+  // are recomputed here, independent of the generator, so a redefined "wired" goes RED.
+  if (checks.censusClosure && state) {
+    const cc = checks.censusClosure;
+    let liveClassified = NaN, liveWired = NaN;
+    try { liveClassified = Number((await query(cc.liveClassifiedSql)).rows[0].n); }
+    catch (e) { add('census:live-classified', 'closure', false, `live classified errored: ${e.message}`); }
+    try { liveWired = Number((await query(cc.liveWiredSql)).rows[0].n); }
+    catch (e) { add('census:live-wired', 'closure', false, `live wired errored: ${e.message}`); }
+
+    const wired = Number(state.wired), sys = Number(state.system_tables),
+          np = Number(state.non_parcel_domain), orph = Number(state.genuine_orphans),
+          classified = Number(state.classified);
+
+    const partition = wired + sys + np + orph === classified;
+    add('census:buckets-partition-classified', 'closure', partition,
+      partition ? `wired+system+non_parcel+orphan ${wired}+${sys}+${np}+${orph} == classified ${classified}`
+        : `buckets ${wired}+${sys}+${np}+${orph} = ${wired + sys + np + orph} ≠ classified ${classified} — a category is absorbed or dropped`);
+
+    const wiredOk = wired === liveWired;
+    add('census:wired==live', 'closure', wiredOk,
+      wiredOk ? `state wired ${wired} == live parcel-reaching ${liveWired}`
+        : `state wired ${wired} ≠ live parcel-reaching ${liveWired} — generator definition drifted (J0/J13 absorbed?)`);
+
+    const classOk = classified === liveClassified;
+    add('census:classified==live', 'closure', classOk,
+      classOk ? `state classified ${classified} == live nr_master ${liveClassified}`
+        : `state classified ${classified} ≠ live nr_master ${liveClassified} — state.json is stale, regenerate`);
   }
 
   return results;

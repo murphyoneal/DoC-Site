@@ -1,12 +1,14 @@
 {
-  "generated_at": "2026-07-28",
+  "generated_at": "2026-07-29",
   "project": "eaifqorwmgayiqmbtzcg",
   "inventory_total": 2018,
-  "populated": 1226,
-  "empty": 792,
-  "wires_in": 1225,
-  "parcel_linked": 1224,
+  "classified": 1226,
+  "wired": 1208,
+  "system_tables": 16,
   "non_parcel_domain": 1,
   "genuine_orphans": 1,
+  "unclassified": 792,
+  "never_analyzed": 805,
+  "non_parcel_list": "agent_license_status",
   "orphan_list": "sjc_plat_index (2709 rows)"
 }

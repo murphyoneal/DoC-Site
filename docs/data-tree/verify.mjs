@@ -28,8 +28,11 @@ async function main() {
 
   const query = (sql) => client.query(sql);
   const html = readFileSync(join(here, checks.closure.file), 'utf8');
+  // Machine-owned census snapshot. A missing/malformed file throws → caught by main().catch →
+  // FAIL, never a silent skip of the census closure.
+  const state = JSON.parse(readFileSync(join(here, checks.censusClosure.stateFile), 'utf8'));
 
-  const results = await runChecks({ query, html, checks });
+  const results = await runChecks({ query, html, state, checks });
   await client.end();
 
   let gate = '';

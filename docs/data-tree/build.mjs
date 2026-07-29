@@ -33,18 +33,28 @@ await client.query('SET statement_timeout = 0');
 
 const { rows: [r] } = await client.query(`
   SELECT
-    (SELECT count(*) FROM table_inventory)::int                                     AS inventory_total,
-    (SELECT count(*) FROM table_inventory WHERE row_count > 0)::int                 AS populated,
-    (SELECT count(*) FROM table_inventory WHERE coalesce(row_count,0) = 0)::int     AS empty,
-    (SELECT count(*) FROM nr_jointype WHERE join_type <> 'J14_genuine_orphan')::int AS wires_in,
-    (SELECT count(*) FROM nr_jointype WHERE join_type =  'J13_non_parcel_domain')::int AS non_parcel,
-    (SELECT count(*) FROM nr_jointype WHERE join_type =  'J14_genuine_orphan')::int AS orphans,
+    (SELECT count(*) FROM table_inventory)::int                                        AS inventory_total,
+    (SELECT count(*) FROM nr_master)::int                                              AS classified,
+    -- "wired" = reaches a parcel. J0 (system), J13 (non-parcel domain) and J14 (orphan)
+    -- do NOT reach a parcel and must be EXCLUDED. Defining wired as "everything but J14"
+    -- silently counted J0+J13 as wiring (anchor §9). The census:* closure guards this.
+    (SELECT count(*) FROM nr_jointype
+       WHERE join_type NOT IN ('J0_system','J13_non_parcel_domain','J14_genuine_orphan'))::int AS wired,
+    (SELECT count(*) FROM nr_jointype WHERE join_type = 'J0_system')::int             AS system_tables,
+    (SELECT count(*) FROM nr_jointype WHERE join_type = 'J13_non_parcel_domain')::int AS non_parcel,
+    (SELECT count(*) FROM nr_jointype WHERE join_type = 'J14_genuine_orphan')::int    AS orphans,
+    -- reltuples = -1 is the "never ANALYZEd" sentinel, NOT a row count. Report it as a
+    -- stats gap; never derive "empty" from it (anchor §9 — the 792-empty metadata lie).
+    (SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+       WHERE n.nspname = 'public' AND c.relkind = 'r' AND c.reltuples = -1)::int      AS never_analyzed,
+    (SELECT coalesce(string_agg(table_name, ', '), '—')
+       FROM nr_jointype WHERE join_type = 'J13_non_parcel_domain')                    AS non_parcel_list,
     (SELECT coalesce(string_agg(table_name || ' (' || row_count || ' rows)', ', '), '—')
-       FROM nr_jointype WHERE join_type = 'J14_genuine_orphan')                     AS orphan_list
+       FROM nr_jointype WHERE join_type = 'J14_genuine_orphan')                       AS orphan_list
 `);
 await client.end();
 
-const parcelLinked = r.wires_in - r.non_parcel;
+const unclassified = r.inventory_total - r.classified;
 const day = new Date().toISOString().slice(0, 10);
 
 const block = [
@@ -53,12 +63,13 @@ const block = [
   `| measure | count |`,
   `|---|---|`,
   `| Tables in inventory | ${fmt(r.inventory_total)} |`,
-  `| Populated (classified in \`nr_master\`) | ${fmt(r.populated)} |`,
-  `| Empty — awaiting data | ${fmt(r.empty)} |`,
-  `| **Wire into the system** | **${fmt(r.wires_in)}** |`,
-  `| — parcel-linked | ${fmt(parcelLinked)} |`,
-  `| — non-parcel domain | ${fmt(r.non_parcel)} |`,
-  `| **Genuine orphans** | **${fmt(r.orphans)}** — ${r.orphan_list} |`,
+  `| Classified in \`nr_master\` | ${fmt(r.classified)} |`,
+  `| **Reach a parcel (wired)** | **${fmt(r.wired)}** |`,
+  `| — not wired · J0 system | ${fmt(r.system_tables)} |`,
+  `| — not wired · J13 non-parcel domain (\`${r.non_parcel_list}\`) | ${fmt(r.non_parcel)} |`,
+  `| — not wired · J14 genuine orphan (${r.orphan_list}) | ${fmt(r.orphans)} |`,
+  `| Unclassified in inventory — row_count unverified | ${fmt(unclassified)} |`,
+  `| Never analyzed — no planner stats (\`reltuples = −1\`) | ${fmt(r.never_analyzed)} |`,
 ].join('\n');
 
 const BEGIN = '<!-- DATA-TREE:BEGIN -->';
@@ -81,12 +92,14 @@ writeFileSync(
       generated_at: new Date().toISOString(),
       project: 'eaifqorwmgayiqmbtzcg',
       inventory_total: r.inventory_total,
-      populated: r.populated,
-      empty: r.empty,
-      wires_in: r.wires_in,
-      parcel_linked: parcelLinked,
+      classified: r.classified,
+      wired: r.wired,
+      system_tables: r.system_tables,
       non_parcel_domain: r.non_parcel,
       genuine_orphans: r.orphans,
+      unclassified,
+      never_analyzed: r.never_analyzed,
+      non_parcel_list: r.non_parcel_list,
       orphan_list: r.orphan_list,
     },
     null,
@@ -95,5 +108,6 @@ writeFileSync(
 );
 
 console.log(
-  `data-tree updated ${day}: ${fmt(r.wires_in)} wire in, ${fmt(r.orphans)} orphan(s), ${fmt(r.empty)} empty awaiting data.`
+  `data-tree updated ${day}: ${fmt(r.wired)} reach a parcel, ${fmt(r.orphans)} orphan(s); ` +
+  `${fmt(unclassified)} unclassified (row_count unverified), ${fmt(r.never_analyzed)} never analyzed.`
 );

@@ -129,3 +129,21 @@ export const closure = {
   sumBranches: ['Attachment', 'Classes'],
   requiredBranchHeads: ['Identity', 'Attachment', 'Relation keys', 'Classes', 'Defects & fixes'],
 };
+
+// Census closure — guards the generated §1a block of DATA_TREE_ANCHOR.md against the exact
+// class of error a status report once shipped: a summary figure ("wired") silently absorbing
+// J0/J13, and a "792 empty" read off the reltuples=-1 never-analyzed sentinel (anchor §9).
+// The runner reads the machine-owned state.json (a clean JSON parse — no fragile markdown
+// scraping) and checks it against counts recomputed HERE, independently of build.mjs:
+//   1. wired + system + non_parcel + orphan == classified   (the four buckets partition nr_master)
+//   2. state.wired      == live parcel-reaching count        (definition can't drift back to "all but J14")
+//   3. state.classified == live nr_master count              (state isn't stale)
+// liveWiredSql is deliberately the reaching-a-parcel definition; if build.mjs ever redefines
+// "wired" the two disagree and the gate goes red. Non-brittle: no count is hardcoded — the
+// live side moves with the data, so adding tables keeps it green as long as the render tracks.
+export const censusClosure = {
+  stateFile: 'state.json',
+  liveClassifiedSql: `SELECT count(*)::int AS n FROM nr_master`,
+  liveWiredSql: `SELECT count(*)::int AS n FROM nr_jointype
+                 WHERE join_type NOT IN ('J0_system','J13_non_parcel_domain','J14_genuine_orphan')`,
+};

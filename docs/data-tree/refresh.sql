@@ -5,33 +5,41 @@
 --   <!-- DATA-TREE:BEGIN --> / <!-- DATA-TREE:END -->
 -- markers in docs/DATA_TREE_ANCHOR.md. (Or run build.mjs to do the paste for you.)
 --
--- "Wires in" = every populated table with a resolvable join route.
+-- "Wired"    = reaches a parcel: every route EXCEPT J0 (system), J13 (non-parcel) and J14 (orphan).
 -- "Orphan"   = J14: no key/spatial/area path exists at all.
--- The numbers are LIVE — an orphan resolved or a table loaded changes them.
+-- "Never analyzed" = reltuples = -1 (a planner-stats gap). It is NOT "empty" (see anchor §9).
+-- The numbers are LIVE — an orphan resolved, a table loaded, or an ANALYZE run changes them.
 
 SET statement_timeout = 0;
 
 WITH s AS (
   SELECT
     (SELECT count(*) FROM table_inventory)                                                  AS inventory_total,
-    (SELECT count(*) FROM table_inventory WHERE row_count > 0)                               AS populated,
-    (SELECT count(*) FROM table_inventory WHERE coalesce(row_count,0) = 0)                   AS empty,
-    (SELECT count(*) FROM nr_jointype WHERE join_type <> 'J14_genuine_orphan')               AS wires_in,
-    (SELECT count(*) FROM nr_jointype WHERE join_type =  'J13_non_parcel_domain')            AS non_parcel,
-    (SELECT count(*) FROM nr_jointype WHERE join_type =  'J14_genuine_orphan')               AS orphans,
+    (SELECT count(*) FROM nr_master)                                                        AS classified,
+    (SELECT count(*) FROM nr_jointype
+       WHERE join_type NOT IN ('J0_system','J13_non_parcel_domain','J14_genuine_orphan'))   AS wired,
+    (SELECT count(*) FROM nr_jointype WHERE join_type = 'J0_system')                        AS system_tables,
+    (SELECT count(*) FROM nr_jointype WHERE join_type = 'J13_non_parcel_domain')            AS non_parcel,
+    (SELECT count(*) FROM nr_jointype WHERE join_type = 'J14_genuine_orphan')               AS orphans,
+    (SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+       WHERE n.nspname = 'public' AND c.relkind = 'r' AND c.reltuples = -1)                 AS never_analyzed,
+    (SELECT coalesce(string_agg(table_name, ', '), '—')
+       FROM nr_jointype WHERE join_type = 'J13_non_parcel_domain')                          AS non_parcel_list,
     (SELECT coalesce(string_agg(table_name || ' (' || row_count || ' rows)', ', '), '—')
-       FROM nr_jointype WHERE join_type = 'J14_genuine_orphan')                              AS orphan_list
+       FROM nr_jointype WHERE join_type = 'J14_genuine_orphan')                             AS orphan_list
 )
 SELECT format(
 E'| measure | count |\n'
  '|---|---|\n'
  '| Tables in inventory | %s |\n'
- '| Populated (classified in nr_master) | %s |\n'
- '| Empty — awaiting data | %s |\n'
- '| **Wire into the system** | **%s** |\n'
- '| — parcel-linked | %s |\n'
- '| — non-parcel domain | %s |\n'
- '| **Genuine orphans** | **%s** — %s |',
-  inventory_total, populated, empty, wires_in, wires_in - non_parcel, non_parcel, orphans, orphan_list
+ '| Classified in nr_master | %s |\n'
+ '| **Reach a parcel (wired)** | **%s** |\n'
+ '| — not wired · J0 system | %s |\n'
+ '| — not wired · J13 non-parcel domain (%s) | %s |\n'
+ '| — not wired · J14 genuine orphan (%s) | %s |\n'
+ '| Unclassified in inventory — row_count unverified | %s |\n'
+ '| Never analyzed — no planner stats (reltuples = -1) | %s |',
+  inventory_total, classified, wired, system_tables, non_parcel_list, non_parcel,
+  orphan_list, orphans, inventory_total - classified, never_analyzed
 ) AS census_block
 FROM s;

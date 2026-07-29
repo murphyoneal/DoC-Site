@@ -69,23 +69,29 @@ Regenerate with `node docs/data-tree/build.mjs` (or `docs/data-tree/refresh.sql`
 tables are added. Everything between the markers is machine-owned; the prose around it is not.
 
 <!-- DATA-TREE:BEGIN -->
-*Generated 2026-07-28 from project eaifqorwmgayiqmbtzcg. Do not hand-edit — run `node docs/data-tree/build.mjs`.*
+*Generated 2026-07-29 from project eaifqorwmgayiqmbtzcg. Do not hand-edit — run `node docs/data-tree/build.mjs`.*
 
 | measure | count |
 |---|---|
 | Tables in inventory | 2,018 |
-| Populated (classified in `nr_master`) | 1,226 |
-| Empty — awaiting data | 792 |
-| **Wire into the system** | **1,225** |
-| — parcel-linked | 1,224 |
-| — non-parcel domain | 1 |
-| **Genuine orphans** | **1** — sjc_plat_index (2709 rows) |
+| Classified in `nr_master` | 1,226 |
+| **Reach a parcel (wired)** | **1,208** |
+| — not wired · J0 system | 16 |
+| — not wired · J13 non-parcel domain (`agent_license_status`) | 1 |
+| — not wired · J14 genuine orphan (`sjc_plat_index`, 2,709 rows) | 1 |
+| Unclassified in inventory — row_count unverified | 792 |
+| Never analyzed — no planner stats (`reltuples = −1`) | 805 |
 <!-- DATA-TREE:END -->
 
-**In words:** of the 1,226 populated tables, **1,225 wire in and one is a genuine orphan**
-(`sjc_plat_index` — and even it has a text-search route, just no key/spatial join). The 792
-empty tables carry no rows yet; as they load they get classified and, historically, wire in
-at ~1,225/1,226. This block is live — an orphan resolving or a table loading moves it.
+**In words:** of the 1,226 classified tables, **1,208 reach a parcel and 18 do not** — 16 J0
+system/internal tables, one J13 non-parcel domain (`agent_license_status`, DBPR licences —
+correctly parcel-less), and one J14 genuine orphan (`sjc_plat_index`, a text index by design).
+1,208 + 16 + 1 + 1 = 1,226; those four rows partition `nr_master`, and the harness enforces
+that sum against live counts (the `census:*` checks). The 792 unclassified inventory rows are
+**not confirmed empty**: `table_inventory.row_count` is read from `reltuples`, which is `−1`
+(never analyzed) on 805 public tables — a 30-table sample of them found 25 populated. They need
+`ANALYZE` + re-inventory before any is called empty. This block is live — an orphan resolving,
+a table loading, or an `ANALYZE` run moves it.
 
 ---
 
@@ -373,6 +379,7 @@ Recorded so corrections are traceable, not buried. The survey failures also live
 | diagram "sums exactly to 1,226" | 7 class rows = 1,167; 7 routes = 1,209 | DB closes to 1,226; the tree **omitted** `(unclassified)` 41·2.09M + `SYSTEM` 18 (classes) and `J0` 16 + `J13` 1·493,556 (routes) — the residual is the honest part | visible-sum arithmetic |
 | "Miami skips 287,661" as an intrinsic cost | 287,661 | one deep parcel's `rows removed by filter`; scan-position dependent (0…585,220), not a county property | couldn't source it to any count |
 | parcel lookup "3× / ~1 s" | 3 call sites | issued by **13 functions**, ≥5 per report/env answer; and a relayed benchmark used co_no 64 (Putnam, 97,305) mislabeled as Volusia (74, 306,889) | `pg_proc` scan + `county_registry` |
+| census "1,225 wire in / 792 empty" `[status report, 2026-07-29]` | 1,225 wired, 792 empty | **1,208 wired** — J0 (16) + J13 (1) + J14 (1) don't reach a parcel and were rounded into the success figure; **0 empty** — "792" was `reltuples ≤ 0`, but `−1` is the *never-analyzed* sentinel (805 tables), not a row count (a 30-table sample was 25 populated) | cross-session audit. Root cause: `build.mjs`/`refresh.sql`/`state.json` defined wired as *everything but J14* and read counts from `reltuples`. Fixed all three generators + added the `census:*` closure so it can't recur |
 
 **The pattern in every row:** a plausible number that wasn't derived from what it claimed to
 be. The defence is this document's contract — a query beside every fact, and a negative

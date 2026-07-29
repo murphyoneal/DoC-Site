@@ -31,8 +31,15 @@ const baseChecks = (over = {}) => ({
   closure: { file: 'diagram.html', liveTotalSql: 'SELECT count(*)::int AS n FROM nr_master',
              sumBranches: ['Attachment', 'Classes'],
              requiredBranchHeads: ['Identity', 'Attachment', 'Relation keys', 'Classes', 'Defects & fixes'] },
+  censusClosure: { stateFile: 'state.json',
+             liveClassifiedSql: 'SELECT count(*)::int AS n FROM nr_master',
+             liveWiredSql: "SELECT count(*)::int AS n FROM nr_jointype WHERE join_type NOT IN ('J0_system','J13_non_parcel_domain','J14_genuine_orphan')" },
   ...over,
 });
+
+// Clean census snapshot: the four buckets partition nr_master (1208+16+1+1=1226) and
+// wired matches the live parcel-reaching count. Overridable per scenario.
+const baseState = (over = {}) => ({ classified: 1226, wired: 1208, system_tables: 16, non_parcel_domain: 1, genuine_orphans: 1, ...over });
 
 // Well-formed rendered tree: children sum to the parent count, which equals the live total.
 const goodHtml = `
@@ -52,6 +59,7 @@ function makeQuery(cfg = {}) {
   return async (sql) => {
     if (/^\s*(BEGIN|ROLLBACK|COMMIT)/i.test(sql)) return { rows: [] };
     if (/pg_stat_xact_user_tables/.test(sql)) { snap++; return { rows: [{ n: cfg.xactCount ?? 8 }], fields: [{ name: 'n' }] }; }
+    if (/nr_jointype/.test(sql)) return { rows: [{ n: cfg.liveWired ?? 1208 }], fields: [{ name: 'n' }] };  // census liveWiredSql
     if (/count\(\*\)::int AS n FROM nr_master/.test(sql)) return { rows: [{ n: cfg.liveTotal ?? 1226 }], fields: [{ name: 'n' }] };
     if (/^EXPLAIN/i.test(sql)) return { rows: [{ 'QUERY PLAN': cfg.planText ?? 'Index Scan using idx_hydrology_waterbodies_geog' }] };
     if (/get_pir_report|get_parcel_env_findings/.test(sql)) return { rows: [{}] };            // action, no scan here
@@ -60,7 +68,7 @@ function makeQuery(cfg = {}) {
   };
 }
 
-const run = (cfg = {}, over = {}, html = goodHtml) => runChecks({ query: makeQuery(cfg), html, checks: baseChecks(over) });
+const run = (cfg = {}, over = {}, html = goodHtml, state = baseState()) => runChecks({ query: makeQuery(cfg), html, state, checks: baseChecks(over) });
 const idFailed = (rs, id) => rs.find((r) => r.id === id && !r.ok);
 
 // ── The clean case must be GREEN (or every red below proves nothing) ─────────
@@ -124,6 +132,20 @@ await test('render drifts from live total → parent≠live red', async () => {
   assert.equal(exitCodeFor(rs), 1);
 });
 
+// ── Census closure: the exact class a status report shipped (wired absorbed J0/J13) ──────────
+await test('census wired absorbs J0/J13 → partition + wired-vs-live red', async () => {
+  const rs = await run({}, {}, goodHtml, baseState({ wired: 1225 })); // "everything but J14" — the bug
+  assert.ok(idFailed(rs, 'census:buckets-partition-classified'), 'absorbing a category must break the partition');
+  assert.ok(idFailed(rs, 'census:wired==live'), 'and must disagree with the live parcel-reaching count');
+  assert.equal(exitCodeFor(rs), 1);
+});
+
+await test('census state stale vs live classified → red', async () => {
+  const rs = await run({ liveTotal: 1300 }, {}, goodHtml, baseState()); // DB grew, state.json not regenerated
+  assert.ok(idFailed(rs, 'census:classified==live'), 'stale state must fail against live nr_master');
+  assert.equal(exitCodeFor(rs), 1);
+});
+
 // ── Execution failures, not just answer failures (the two gaps) ──────────────
 await test('query throws (DB failure at query time) → red, not skipped', async () => {
   const throwing = async () => { throw new Error('connection refused'); };
@@ -139,6 +161,7 @@ await test('real spec is complete — no check silently dropped', () => {
   assert.equal(realChecks.plans.length, manifest.plans, 'plan count changed');
   assert.equal(realChecks.deltas.length, manifest.deltas, 'delta count changed');
   assert.ok(realChecks.closure?.sumBranches?.length > 0, 'closure config missing');
+  assert.ok(realChecks.censusClosure?.liveWiredSql && realChecks.censusClosure?.liveClassifiedSql, 'censusClosure config missing');
   const all = [...realChecks.predicates, ...realChecks.plans, ...realChecks.deltas];
   const ids = all.map((c) => c.id);
   assert.equal(new Set(ids).size, ids.length, 'duplicate check id');
