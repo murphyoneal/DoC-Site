@@ -76,6 +76,28 @@ export const predicates = [
              AND to_regclass('public.property_hazard_risk')   IS NULL AS ok`,
   },
   {
+    id: 'report-sources-provenance-ratchet',
+    claim: 'RATCHET: report-source tables (read by get_pir_report / get_site_intelligence) lacking a ' +
+      'recorded source_url in table_inventory must not exceed the baseline (27 of 32 as of 2026-07-29). ' +
+      'Green today; RED the instant an unsourced table is wired into the report path. 27/32 unsourced ' +
+      'is a real defect — you cannot say where a paid report\'s data came from — not noise. Lower the ' +
+      'baseline by 1 each time a source is recorded (the ratchet only tightens).',
+    // Provenance is the PRIMARY integrity gate: it fails closed even on plausibly-varied fabrication,
+    // which cardinality cannot. A RATCHET, not a permanent red — so the build isn't muted; it fails
+    // only on regressions. The derivation reads the functions' prosrc, so a newly-wired unsourced
+    // table is caught automatically without updating any manifest. Cardinality is the intended
+    // backstop but only when scoped to RENDERED columns — a table-level scan is 102 legit constants
+    // (state='FL', TAXYR, null expand_* cols): the cry-wolf case. See anchor §8.7.
+    // ⇩ BASELINE — only ever decrease it, and only alongside a real source_url backfill.
+    sql: `WITH report_fns(fn) AS (VALUES ('get_pir_report'),('get_site_intelligence')),
+          refs AS (SELECT DISTINCT lower(m[1]) AS tbl
+            FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+            JOIN report_fns rf ON rf.fn=p.proname AND n.nspname='public'
+            CROSS JOIN LATERAL regexp_matches(p.prosrc,'(?:from|join)\\s+([a-z_][a-z0-9_]+)','gi') m)
+          SELECT (SELECT count(*) FROM refs r JOIN table_inventory ti ON ti.table_name=r.tbl
+                    WHERE ti.source_url IS NULL OR ti.source_url='none') <= 27 AS ok`,
+  },
+  {
     id: 'pnp-pre-statute-count',
     claim: 'FDEP PNP has exactly 6 genuine pre-s.403.077 records (eff. 2017-07-01) — matches the RPC caveat',
     // Tests the caveat's actual CLAIM ("only 6 predate it"), not a loose proportion. A ≥99%
