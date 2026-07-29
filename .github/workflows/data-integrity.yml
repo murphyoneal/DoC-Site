@@ -5,11 +5,13 @@ name: data-integrity
 #   1. the Data Tree harness gate itself is intact (proves it still goes RED for each break);
 #   2. no client bundle calls a function the browser can't execute after the anon revoke.
 #
-# Tier 2 (the DB-backed live predicates in docs/data-tree/verify.mjs) is deliberately NOT wired
-# here yet. It needs a DATABASE_URL secret, and the right credential is a read-only role
-# (consumer_report_readonly) whose password is still a placeholder — NOT the write-capable
-# `postgres` role. Add the tier-2 job only after that role is set up and every predicate in
-# checks.mjs is confirmed to run under it.
+# Tier 2 (DB-backed) is deliberately NOT wired here yet. It needs a DATABASE_URL secret, and the
+# right credential is a read-only role (consumer_report_readonly) whose password is still a
+# placeholder — NOT the write-capable `postgres` role. Add the tier-2 job only after that role is
+# set up and confirmed. When it lands, tier-2 runs BOTH:
+#   node docs/data-tree/verify.mjs        # live predicates (incl. the county-literal + provenance gates)
+#   node docs/data-tree/roz-fixtures.mjs  # Roz runner Layer 1 — payload assertions over roz_test_fixtures
+# (Layer 2 narration assertions are model-calling — run on demand / pre-release, never per push.)
 
 on:
   push:
