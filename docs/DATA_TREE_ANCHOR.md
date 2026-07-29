@@ -79,8 +79,9 @@ tables are added. Everything between the markers is machine-owned; the prose aro
 | — not wired · J0 system | 16 |
 | — not wired · J13 non-parcel domain (`agent_license_status`) | 1 |
 | — not wired · J14 genuine orphan (`sjc_plat_index`, 2,709 rows) | 1 |
-| Unclassified in inventory — row_count unverified | 792 |
-| Never analyzed — no planner stats (`reltuples = −1`) | 805 |
+| Unclassified in inventory — in inventory, not in `nr_master` | 792 |
+| Genuinely empty (`reltuples = 0`, post-ANALYZE) | 57 |
+| Never analyzed — no planner stats (`reltuples = −1`; 0 is healthy) | 0 |
 <!-- DATA-TREE:END -->
 
 **In words:** of the 1,226 classified tables, **1,208 reach a parcel and 18 do not** — 16 J0
@@ -90,10 +91,12 @@ correctly parcel-less), and one J14 genuine orphan (`sjc_plat_index`, a text ind
 that sum against live counts (the `census:*` checks). **What sits *outside* `nr_master` is two
 different figures, and neither means "empty":** 792 of the 2,018 `table_inventory` rows aren't
 classified, and 872 of the 2,098 public base tables aren't — different denominators. `nr_master`
-itself has **zero** empty tables, so classification excluded nothing for looking empty. Separately,
-805 public tables have never been `ANALYZE`d (`reltuples = −1` — a planner-stats gap, not a row
-count). Whether the never-analyzed set explains the unclassified set is **untested** (§8.6). This
-block is live — an orphan resolving, a table loading, or an `ANALYZE` run moves it.
+itself has **zero** empty tables, so classification excluded nothing for looking empty. An
+`ANALYZE` of all 805 never-analyzed tables (2026-07-29, §7) closed the stats gap — now **0**
+never-analyzed — and settled the "empty" question: only **57** public base tables are genuinely
+empty (`reltuples = 0`), not 792. Whether the (few) truly-empty tables explain any of the
+unclassified set is **untested** (§8.6). This block is live — an orphan resolving, a table
+loading, or an `ANALYZE` run moves it.
 
 ---
 
@@ -340,6 +343,7 @@ the same layer, each re-running `ST_DWithin` + `ORDER BY <-> LIMIT 1`. Consolida
 |---|---|---|---|
 | 2026-07-28 | `CREATE INDEX idx_hydrology_waterbodies_geog ON hydrology_waterbodies USING gist ((geom::geography))` | hydrology query 1,679 → 31.6 ms; **`get_pir_report` (Volusia, warm) 5,238 → ~2,096 ms** (3 runs: 2,175 / 2,063 / 2,096) | `DROP INDEX IF EXISTS idx_hydrology_waterbodies_geog;` |
 | 2026-07-29 | Migration `strip_fabricated_v_env_constants_from_get_pir_report` — removed the 13 single-valued `property_environmental` (v_env) fields from `get_pir_report`: the whole `air` block, `radonZone`/`sinkholeRisk`/`sinkholeHistoryCount`/`waterSourceType`/`waterUtility`/`leadServiceLineRisk`/`algaeBloomRisk`, and the `environmentSources` provenance line. Kept only the two real fields — `inFlightPath` (caveat verbatim) + `airportDistanceM`. Surgical exact-substring strip; function otherwise byte-identical | each removed field `count(DISTINCT)=1` across 313,578 rows; post-fix smoke: report returns, all fabricated keys absent, `inFlightPath`/`airportDistanceM`/`elevationM`/gopher present, `get_parcel_env_findings` intact (29 findings) | source in the migration; re-add the keys to the `land`/`air` blocks to revert |
+| 2026-07-29 | `ANALYZE` on all 805 never-analyzed public tables (`reltuples = −1`) | never-analyzed 805 → **0**; the planner now has statistics on all 2,098 public tables (~99M rows newly visible); settled the "empty" question — **57** genuinely empty, not 792 | none needed — statistics-only, non-destructive |
 
 ```sql
 -- Verify report-level effect (warm):
@@ -361,7 +365,7 @@ Nothing here is a fact yet. Do not cite as one.
 3. **The per-layer cast enumeration (6.1) is `RELAYED`, not re-derived.** Re-run each `EXPLAIN` before summing.
 4. **Remaining index builds are pending:** geography func-indexes for the 6.3 "cast still defeats it" layers; geometry GiST for the five no-index layers; the `transmission_lines` `<->` decision.
 5. **Precompute vs request-time is undecided** and should stay undecided until 1–4 are measured. If casts+indexes bring a report under ~1 s, precompute demotes from prerequisite to optimization.
-6. **The "unclassified" tables are uncharacterised.** 792 `table_inventory` rows (and 872 public base tables) sit outside `nr_master`. `nr_master` has **0** empty tables, so nothing was excluded for being empty; the hypothesis that `reltuples = −1` (805 never-analyzed tables) drove the exclusion is plausible but **untested against the actual exclusion list**. Intersect the exclusion set with the never-analyzed set and characterise it before rebuilding any re-inventory on it. `ANALYZE` (applied 2026-07-29, §7) removes the stats gap but does not by itself prove any excluded table holds parcel-joinable data.
+6. **The "unclassified" tables are uncharacterised.** 792 `table_inventory` rows (872 public base tables — different denominators) sit outside `nr_master`. Post-`ANALYZE` only **57** public tables are genuinely empty and `nr_master` has **0** empty, so "excluded for looking empty" explains at most a handful — the earlier re-inventory story is refuted, not supported. What the other ~800 unclassified tables actually are (staging, view base tables, duplicates, genuinely un-joinable, or truly missed) is **uncharacterised**. Intersect the exclusion set with the now-reliable row counts and classify it before rebuilding any re-inventory on it; `ANALYZE` (§7) closed the stats gap but does not itself prove any excluded table holds parcel-joinable data.
 
 ---
 

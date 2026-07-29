@@ -23,6 +23,8 @@ WITH s AS (
     (SELECT count(*) FROM nr_jointype WHERE join_type = 'J14_genuine_orphan')               AS orphans,
     (SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
        WHERE n.nspname = 'public' AND c.relkind = 'r' AND c.reltuples = -1)                 AS never_analyzed,
+    (SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+       WHERE n.nspname = 'public' AND c.relkind = 'r' AND c.reltuples = 0)                  AS empty_analyzed,
     (SELECT coalesce(string_agg(table_name, ', '), '—')
        FROM nr_jointype WHERE join_type = 'J13_non_parcel_domain')                          AS non_parcel_list,
     (SELECT coalesce(string_agg(table_name || ' (' || row_count || ' rows)', ', '), '—')
@@ -37,9 +39,10 @@ E'| measure | count |\n'
  '| — not wired · J0 system | %s |\n'
  '| — not wired · J13 non-parcel domain (%s) | %s |\n'
  '| — not wired · J14 genuine orphan (%s) | %s |\n'
- '| Unclassified in inventory — row_count unverified | %s |\n'
- '| Never analyzed — no planner stats (reltuples = -1) | %s |',
+ '| Unclassified in inventory — in inventory, not in nr_master | %s |\n'
+ '| Genuinely empty (reltuples = 0, post-ANALYZE) | %s |\n'
+ '| Never analyzed — no planner stats (reltuples = -1; 0 is healthy) | %s |',
   inventory_total, classified, wired, system_tables, non_parcel_list, non_parcel,
-  orphan_list, orphans, inventory_total - classified, never_analyzed
+  orphan_list, orphans, inventory_total - classified, empty_analyzed, never_analyzed
 ) AS census_block
 FROM s;

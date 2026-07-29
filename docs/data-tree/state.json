@@ -8,7 +8,8 @@
   "non_parcel_domain": 1,
   "genuine_orphans": 1,
   "unclassified": 792,
-  "never_analyzed": 805,
+  "empty_analyzed": 57,
+  "never_analyzed": 0,
   "non_parcel_list": "agent_license_status",
   "orphan_list": "sjc_plat_index (2709 rows)"
 }

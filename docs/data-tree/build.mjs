@@ -45,8 +45,11 @@ const { rows: [r] } = await client.query(`
     (SELECT count(*) FROM nr_jointype WHERE join_type = 'J14_genuine_orphan')::int    AS orphans,
     -- reltuples = -1 is the "never ANALYZEd" sentinel, NOT a row count. Report it as a
     -- stats gap; never derive "empty" from it (anchor §9 — the 792-empty metadata lie).
+    -- Only reltuples = 0 (on an ANALYZEd table) means genuinely empty.
     (SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
        WHERE n.nspname = 'public' AND c.relkind = 'r' AND c.reltuples = -1)::int      AS never_analyzed,
+    (SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+       WHERE n.nspname = 'public' AND c.relkind = 'r' AND c.reltuples = 0)::int       AS empty_analyzed,
     (SELECT coalesce(string_agg(table_name, ', '), '—')
        FROM nr_jointype WHERE join_type = 'J13_non_parcel_domain')                    AS non_parcel_list,
     (SELECT coalesce(string_agg(table_name || ' (' || row_count || ' rows)', ', '), '—')
@@ -68,8 +71,9 @@ const block = [
   `| — not wired · J0 system | ${fmt(r.system_tables)} |`,
   `| — not wired · J13 non-parcel domain (\`${r.non_parcel_list}\`) | ${fmt(r.non_parcel)} |`,
   `| — not wired · J14 genuine orphan (${r.orphan_list}) | ${fmt(r.orphans)} |`,
-  `| Unclassified in inventory — row_count unverified | ${fmt(unclassified)} |`,
-  `| Never analyzed — no planner stats (\`reltuples = −1\`) | ${fmt(r.never_analyzed)} |`,
+  `| Unclassified in inventory — in inventory, not in \`nr_master\` | ${fmt(unclassified)} |`,
+  `| Genuinely empty (\`reltuples = 0\`, post-ANALYZE) | ${fmt(r.empty_analyzed)} |`,
+  `| Never analyzed — no planner stats (\`reltuples = −1\`; 0 is healthy) | ${fmt(r.never_analyzed)} |`,
 ].join('\n');
 
 const BEGIN = '<!-- DATA-TREE:BEGIN -->';
@@ -98,6 +102,7 @@ writeFileSync(
       non_parcel_domain: r.non_parcel,
       genuine_orphans: r.orphans,
       unclassified,
+      empty_analyzed: r.empty_analyzed,
       never_analyzed: r.never_analyzed,
       non_parcel_list: r.non_parcel_list,
       orphan_list: r.orphan_list,
@@ -109,5 +114,5 @@ writeFileSync(
 
 console.log(
   `data-tree updated ${day}: ${fmt(r.wired)} reach a parcel, ${fmt(r.orphans)} orphan(s); ` +
-  `${fmt(unclassified)} unclassified (row_count unverified), ${fmt(r.never_analyzed)} never analyzed.`
+  `${fmt(unclassified)} unclassified, ${fmt(r.empty_analyzed)} genuinely empty, ${fmt(r.never_analyzed)} never analyzed.`
 );
