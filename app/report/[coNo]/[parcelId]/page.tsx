@@ -146,6 +146,7 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
     ['Ownership / sale history', r.transactions.count > 0],
     ['Elevation & land', r.land.elevationFt != null],
     ['Water & flood', r.flood.zone != null],
+    ['Marine improvements', r.marineImprovements.waterfront_indicator != null],
     ['Zoning & future land use', !!r.zoning.zoneCode],
     ['Economic overlays', Object.values(r.economic ?? {}).some(v => v != null)],
     ['Census / demographics', r.census.population != null],
@@ -333,6 +334,42 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
             {waterBadges.length ? <CompassBadgeGrid badges={waterBadges} /> : <div className="pir-note">No mapped water features within range.</div>}
           </div>
         </Section>
+
+        {/* Marine improvements (Tier 1 #1) — get_pir_report.marineImprovements (volusia_cama_misc,
+            Tyler iasWorld other-improvements). Coverage-aware: 'not_available' (waterfront_indicator
+            null) is a COVERAGE GAP, never "no dock". Material not recorded → only age + county
+            depreciation reported; remaining life never asserted. */}
+        {r.marineImprovements.field_status === 'not_available' ? (
+          <Section title="Marine improvements"
+            note="Coverage gap, not a finding — the county assessor other-improvements file is held for Volusia only. Absence here does NOT mean the parcel has no dock, seawall, boat house, lift or slip.">
+            <div className="pir-note">Not evaluated for this county.</div>
+          </Section>
+        ) : r.marineImprovements.field_status === 'none_recorded' ? (
+          <Section title="Marine improvements" note={r.marineImprovements.coverage_caveat}>
+            <div className="pir-note">The county appraiser records no marine improvement on this parcel.</div>
+          </Section>
+        ) : (
+          <Section title="Marine improvements" note={r.marineImprovements.material_caveat}>
+            <div className="pir-grid">
+              {(r.marineImprovements.items ?? []).map((it, i) => (
+                <Fact key={i} l={titleCase(it.description)} v={<>
+                  {[it.size, it.grade ? `grade ${it.grade}` : null, it.year_built ? `built ${it.year_built}` : null,
+                    it.age_years != null ? `${it.age_years} yr` : null].filter(Boolean).join(' · ')}
+                  {it.depreciated_value != null && it.replacement_cost_new != null
+                    ? ` · RCNLD ${usd(Number(it.depreciated_value))} of ${usd(Number(it.replacement_cost_new))}${it.pct_depreciated != null ? ` (${it.pct_depreciated}% depreciated)` : ''}`
+                    : ''}
+                  {' '}
+                  {it.at_or_past_assessed_service_life ? riskChip('At/past assessed service life', false) : null}
+                </>} />
+              ))}
+            </div>
+            {r.marineImprovements.waterfront_basis ? (
+              <p className="pir-note" style={{ marginTop: 10 }}>
+                {r.marineImprovements.waterfront_basis} {r.marineImprovements.service_life_basis} Material is not recorded by the county for marine improvements, so remaining life is not asserted.
+              </p>
+            ) : null}
+          </Section>
+        )}
       </Sheet>
 
       {/* ═══ PAGE 4 — NEIGHBORHOOD ═══ */}

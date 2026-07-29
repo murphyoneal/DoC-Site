@@ -148,6 +148,29 @@ export interface PirFlood {
   areaRepetitiveLoss: { properties: number | null; totalLosses: number | null } | null
 }
 
+// Marine improvements (volusia_cama_misc — Tyler iasWorld other-improvements): dock/seawall/
+// boat house/lift/slip. Coverage-aware — see PirMarineImprovements.field_status. Material is not
+// recorded by the county, so remaining life is never asserted (only age + county depreciation).
+export interface PirMarineItem {
+  code: string; description: string
+  size: string | null; grade: string | null; dimensions_ft: string | null
+  material: string; year_built: string | null; age_years: number | null
+  pct_depreciated: number | null; depreciated_value: string | null; replacement_cost_new: string | null
+  assessed_service_life_years: number | null; at_or_past_assessed_service_life: boolean
+}
+export interface PirMarineImprovements {
+  field: string; source: string; authority: string; relation?: string
+  // 'present' → items populated; 'none_recorded' → Volusia, county recorded none (indicator false);
+  // 'not_available' → coverage gap, items null, indicator NULL (never render as "no dock").
+  field_status: 'present' | 'none_recorded' | 'not_available'
+  items: PirMarineItem[] | null
+  item_count?: number
+  waterfront_indicator: boolean | null
+  waterfront_basis: string | null
+  coverage_caveat: string; material_caveat?: string; service_life_basis?: string
+  resolution_level?: string; seawall_age_disclosure?: boolean
+}
+
 // PirClimate removed 2026-07-29: every property_hazard_risk (v_haz) climate field was a single
 // value statewide (fabricated). Stripped from get_pir_report — see anchor §9.
 
@@ -186,6 +209,7 @@ export interface PirReport {
   land: PirLand
   water: PirWater
   flood: PirFlood
+  marineImprovements: PirMarineImprovements
   census: PirCensus
   zoning: PirZoning
   economic: PirEconomic
