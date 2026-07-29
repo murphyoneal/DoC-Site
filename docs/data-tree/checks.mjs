@@ -98,6 +98,19 @@ export const predicates = [
                     WHERE ti.source_url IS NULL OR ti.source_url='none') <= 27 AS ok`,
   },
   {
+    id: 'marine-coverage-gap-is-null-not-false',
+    claim: 'a county without marine coverage returns waterfront_indicator = JSON null (a coverage ' +
+      'gap), NEVER false — absence of coverage must never render as absence of a dock. Volusia (74) ' +
+      'returns non-null (false/true, a real finding).',
+    // Guards the load-bearing distinction the marine block rests on (get_parcel_marine_improvements,
+    // rendered in the PIR page). false = "county recorded no marine improvement"; null = "we don't
+    // hold this county's file". Conflating them would tell a waterfront buyer their dock isn't there.
+    sql: `SELECT jsonb_typeof(get_parcel_marine_improvements(23,'0141230000010')->'waterfront_indicator') = 'null'
+             AND get_parcel_marine_improvements(23,'0141230000010')->>'field_status' = 'not_available'
+             AND jsonb_typeof(get_parcel_marine_improvements(74,'744901030061')->'waterfront_indicator') <> 'null'
+             AS ok`,
+  },
+  {
     id: 'pnp-pre-statute-count',
     claim: 'FDEP PNP has exactly 6 genuine pre-s.403.077 records (eff. 2017-07-01) — matches the RPC caveat',
     // Tests the caveat's actual CLAIM ("only 6 predate it"), not a loose proportion. A ≥99%

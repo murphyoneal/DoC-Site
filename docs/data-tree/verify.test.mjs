@@ -159,7 +159,7 @@ await test('real spec is complete — no check silently dropped', () => {
   // Predicates now: 6 original + fabricated-tables-stay-dropped (regression guard, green) +
   // report-sources-provenance-ratchet (green at baseline 27). The stub exercises runner shape
   // only, so the live-data predicates don't gate this self-test.
-  const manifest = { predicates: 8, plans: 1, deltas: 1 };
+  const manifest = { predicates: 9, plans: 1, deltas: 1 };
   assert.equal(realChecks.predicates.length, manifest.predicates, 'predicate count changed — update the manifest on purpose');
   assert.equal(realChecks.plans.length, manifest.plans, 'plan count changed');
   assert.equal(realChecks.deltas.length, manifest.deltas, 'delta count changed');
