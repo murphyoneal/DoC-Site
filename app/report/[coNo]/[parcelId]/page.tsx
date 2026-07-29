@@ -7,11 +7,13 @@ import WindDial from '@/app/components/WindDial'
 import PrintButton from '@/app/components/PrintButton'
 import { FLOOD_STYLE, ZONING_STYLE } from '@/lib/pir-colors'
 import type { PirReport, PirEconOverlay } from '@/types/pir'
+import { formatDistance } from '@/lib/units'
 
 // ── formatting helpers ──────────────────────────────────────────────────────────
 const usd = (n?: number | null) => n == null ? '—' : `$${Math.round(n).toLocaleString('en-US')}`
 const num = (n?: number | null) => n == null ? '—' : n.toLocaleString('en-US')
-const mi = (m?: number | null) => m == null ? '—' : `${(m / 1609.344).toFixed(1)} mi`
+// US units: feet for short spans, miles above ~1000 ft (was miles-only, which read "0.1 mi" for a habitat next door).
+const mi = formatDistance
 const titleCase = (s?: string | null) => !s ? '' : s.replace(/\b\w/g, c => c.toUpperCase())
 const fmtDate = (d?: string | null) => {
   if (!d) return '—'
@@ -143,7 +145,6 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
     ['Assigned schools', r.schools.length > 0],
     ['Permit history', r.permits.count > 0],
     ['Ownership / sale history', r.transactions.count > 0],
-    ['Air quality', r.air.aqiAnnualAvg != null],
     ['Elevation & land', r.land.elevationFt != null],
     ['Water & flood', r.flood.zone != null],
     ['Climate & wind', !!r.wind.prevailingDirection],
@@ -312,29 +313,20 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
           </div>
         </Section>
 
-        <Section title="Air"
-          note={sourceLine(r.environmentSources, ['aqi_pm', 'noise', 'light_pollution', 'wildfire_smoke'])}>
-          <div className="pir-tiles">
-            <Tile l="Air quality index" v={r.air.aqiAnnualAvg ?? '—'} sub={r.air.aqiAnnualAvg != null && r.air.aqiAnnualAvg <= 50 ? 'Good (annual avg)' : 'Annual avg'} />
-            <Tile l="PM2.5 / PM10" v={`${r.air.pm25 ?? '—'} / ${r.air.pm10 ?? '—'}`} sub="µg/m³" />
-            <Tile l="Ozone" v={r.air.ozone ?? '—'} sub="ppb" />
-            <Tile l="Wildfire smoke" v={`${r.air.wildfireSmokeDays ?? '—'} days`} sub="per year" />
-            <Tile l="Noise (day)" v={`${r.air.noiseDbDay ?? '—'} dB`} />
-            <Tile l="Light pollution" v={r.air.lightPollutionIndex ?? '—'} />
-          </div>
-          <div style={{ marginTop: 14 }}><WindDial wind={r.wind} /></div>
+        {/* Air block removed 2026-07-29 — every property_environmental (v_env) air field was a
+            single fabricated value statewide (anchor §9). The wind dial is real hazard data. */}
+        <Section title="Wind"
+          note="Prevailing direction, average and gust speed, and the Florida Building Code design wind speed for the area.">
+          <WindDial wind={r.wind} />
         </Section>
 
+        {/* radon / sinkhole / water service / lead service line removed 2026-07-29 — fabricated
+            v_env constants (single value across all 313,578 rows), not per-parcel facts. Only
+            elevation (USGS) and the gopher-tortoise overlay (real spatial) remain. */}
         <Section title="Land"
-          note={<>Elevation, radon and sinkhole are property/area facts. Soil type & drainage classification is not sourced for Volusia and is omitted rather than guessed. {sourceLine(r.environmentSources, ['radon', 'sinkhole', 'water_quality'])}</>}>
+          note="Ground elevation is a USGS-derived property fact and the gopher-tortoise overlay is a mapped spatial layer. Soil type & drainage classification is not sourced for Volusia and is omitted rather than guessed.">
           <div className="pir-grid">
             <Fact l="Ground elevation" v={r.land.elevationFt != null ? `${r.land.elevationFt} ft` : '—'} />
-            <Fact l="Radon zone" v={r.land.radonZone != null ? `Zone ${r.land.radonZone}` : '—'} />
-            <Fact l="Sinkhole risk" v={<>{titleCase(r.land.sinkholeRisk)} {r.land.sinkholeHistoryCount != null ? `· ${r.land.sinkholeHistoryCount} on record` : ''}</>} />
-            <Fact l="Water service area" v={r.land.waterUtility
-              ? <span>{r.land.waterUtility} <span style={{ fontSize: 11, color: 'var(--color-sage)' }}>(county service area — not confirmed per parcel)</span></span>
-              : <span style={{ color: 'var(--color-sage)' }}>Not evaluated</span>} />
-            <Fact l="Lead service line" v={titleCase(r.land.leadServiceLineRisk)} />
             <Fact l="Sewer / septic" v={<span style={{ color: 'var(--color-sage)' }}>Not evaluated — no parcel-level sewer/septic determination in the record</span>} />
             <Fact l="Protected species" v={r.land.gopherTortoiseInside ? riskChip('Within gopher tortoise habitat overlay', false) : r.land.gopherTortoiseNearestM != null ? `Nearest habitat ${mi(r.land.gopherTortoiseNearestM)}` : 'None mapped nearby'} />
             <Fact l="Sun / solar" v={r.climate.solarKwhM2Day != null ? `${r.climate.solarKwhM2Day} kWh/m²/day · ${r.climate.solarPeakHours} peak hrs` : '—'} />
@@ -342,7 +334,7 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
         </Section>
 
         <Section title="Water" note="One badge per off-property water feature and boat ramp within range. Flood-zone designation is folded into this page (above), not a separate section.">
-          <Fact l="Nearest water" v={r.water.nearestWaterM != null ? `${r.water.nearestWaterM} m` : '—'} />
+          <Fact l="Nearest water" v={mi(r.water.nearestWaterM)} />
           <div style={{ marginTop: 12 }}>
             {waterBadges.length ? <CompassBadgeGrid badges={waterBadges} /> : <div className="pir-note">No mapped water features within range.</div>}
           </div>

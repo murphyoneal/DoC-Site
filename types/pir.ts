@@ -119,21 +119,18 @@ export interface PirTransaction {
 // disagrees with the itemised list.
 export interface PirCountedList<T> { count: number; items: T[] }
 
-export interface PirAir {
-  aqiAnnualAvg?: number; pm25?: number; pm10?: number; ozone?: number
-  wildfireSmokeDays?: number; noiseDbDay?: number; lightPollutionIndex?: number
-}
+// PirAir removed 2026-07-29: every property_environmental (v_env) air field was a single
+// value across all 313,578 rows (fabricated). Stripped from get_pir_report — see anchor §9.
 
 export interface PirWind {
   prevailingDirection?: string; avgSpeedMph?: number; maxGustMph?: number
   designSpeedMph?: number; windSpeedZone?: string
 }
 
+// radon / sinkhole / water / lead / algae removed 2026-07-29 (fabricated v_env constants).
+// Only elevation (v_si) and the gopher-tortoise overlay (real spatial) remain.
 export interface PirLand {
-  elevationM?: number; elevationFt?: number; radonZone?: number
-  sinkholeRisk?: string; sinkholeHistoryCount?: number
-  waterSourceType?: string; waterUtility?: string; leadServiceLineRisk?: string
-  algaeBloomRisk?: string
+  elevationM?: number; elevationFt?: number
   gopherTortoiseInside?: boolean; gopherTortoiseNearestM?: number
 }
 
@@ -196,7 +193,6 @@ export interface PirReport {
   schools: PirSchool[]
   permits: PirCountedList<PirPermit>
   transactions: PirCountedList<PirTransaction>
-  air: PirAir
   wind: PirWind
   land: PirLand
   water: PirWater
@@ -205,7 +201,6 @@ export interface PirReport {
   census: PirCensus
   zoning: PirZoning
   economic: PirEconomic
-  environmentSources: Record<string, string> | null
   climateSources: Record<string, string> | null
   salesAgent?: PirSalesAgent[] | null
 }
