@@ -1,0 +1,12 @@
+{
+  "generated_at": "2026-07-28",
+  "project": "eaifqorwmgayiqmbtzcg",
+  "inventory_total": 2018,
+  "populated": 1226,
+  "empty": 792,
+  "wires_in": 1225,
+  "parcel_linked": 1224,
+  "non_parcel_domain": 1,
+  "genuine_orphans": 1,
+  "orphan_list": "sjc_plat_index (2709 rows)"
+}
