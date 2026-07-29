@@ -300,7 +300,7 @@ export async function POST(req: NextRequest) {
   const messages: Anthropic.MessageParam[] = incoming.map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content }))
   const trace: { tool: string; county: number }[] = []
   const payloadParts: string[] = []
-  let reply = '', inTok = 0, outTok = 0, cacheRead = 0, cacheCreate = 0, calls = 0, cacheMarks = 0
+  let reply = '', inTok = 0, outTok = 0, cacheRead = 0, cacheCreate = 0, calls = 0, cacheMarks = 0, webSearches = 0
   let targetParcel: string | null = null, targetCounty = 74
   let success = true, errorMsg: string | null = null
   const t0 = Date.now()
@@ -342,6 +342,7 @@ export async function POST(req: NextRequest) {
           const u = resp.usage
           inTok += u?.input_tokens ?? 0; outTok += u?.output_tokens ?? 0
           cacheRead += u?.cache_read_input_tokens ?? 0; cacheCreate += u?.cache_creation_input_tokens ?? 0
+          webSearches += (u as any)?.server_tool_use?.web_search_requests ?? 0  // #60 — did web_search actually fire?
           if (resp.stop_reason === 'refusal') { if (turnText) send({ type: 'reset' }); reply = 'I can’t help with that request.'; send({ type: 'delta', text: reply }); break }
           messages.push({ role: 'assistant', content: resp.content })
           const toolUses = resp.content.filter((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use')
@@ -375,6 +376,12 @@ export async function POST(req: NextRequest) {
         success = false; errorMsg = (err instanceof Error ? err.message : String(err)).slice(0, 500)
         if (!reply) { reply = 'Roz hit an error handling that. Please try again.'; send({ type: 'reset' }); send({ type: 'delta', text: reply }) }
       }
+
+      // #60 diagnostic — is web_search actually firing? Read this in the Vercel function logs after a
+      // report: webEnabled=false → the ROZ_WEB_LOOKUP env / allowlist gate is off (the tool was never
+      // offered); webEnabled=true & web_search_requests=0 → the tool WAS offered but the model
+      // (claude-sonnet-5) didn't invoke it (the "search-shaped sentence without the search").
+      console.log(`[roz-websearch] webEnabled=${webEnabled} web_search_requests=${webSearches} model=${MODEL} tools=[${trace.map(t => t.tool).join(',')}]`)
 
       // payload_hash = the record Roz actually saw (for later verifiability of an opinion)
       const payloadHash = createHash('sha256').update(payloadParts.join('\n')).digest('hex')
