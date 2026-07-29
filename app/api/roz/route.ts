@@ -92,6 +92,8 @@ const TOOLS: Anthropic.Tool[] = [
     input_schema: { type: 'object', properties: { unit: { type: 'string', enum: ['block', 'street', 'corner', 'subdivision', 'neighborhood', 'owner'] }, value: { type: 'string' }, city: { type: 'string', description: 'optional city to disambiguate the street' } }, required: ['unit', 'value'] } },
   { name: 'named_site', description: 'Resolve a NAMED site to its parcel(s) when the user names a PLACE instead of an address — a historic or archaeological site ("Old Fort Park"), a civic facility ("City Center Sports Complex"), a Superfund/brownfield/former-defense site ("Clyde Morris Former Landfill"), or a subdivision ("Spruce Creek"). Searches every named-and-geometried layer by name (NRHP National Register, civic amenities, Superfund, brownfield, FUDS, subdivision plats), then locates each match by GEOMETRY: contains = the site point sits on that parcel; max_overlap = the parcel holding the largest share of the site polygon. Fuzzy on the name, exact on the geometry — returns candidates with their layer; present them and NEVER pick one silently. Then call get_property_record on the chosen parcel_id (or get_parcel_archaeological_risk for a historic site, get_area_findings unit=subdivision for a plat). relation=no_containing_parcel = the named point is not inside any loaded parcel (area context, not a parcel fact).',
     input_schema: { type: 'object', properties: { name: { type: 'string', description: 'the site / facility / historic-site / place name' }, city: { type: 'string', description: 'optional city to disambiguate' } }, required: ['name'] } },
+  { name: 'get_county_coverage', description: 'AUTHORITATIVE coverage for a county — call this BEFORE any statement about what is or is not loaded/available for a county. Returns co_no, county_name, parcel_record_available, parcels_loaded, the flood layer held (and name), and per-field availability (wind, surge, water, airport, marine, tax-deed), plus statewide_layers_apply (FDEP contamination, tanks, PNP, sinkholes, TRI, Superfund, FUDS, NRHP apply to EVERY county regardless). All 67 counties are loaded; NEVER assert a coverage gap without this function\'s output.',
+    input_schema: { type: 'object', properties: { co_no: { type: 'number', description: 'DOR county number (resolve a county name via find_parcel first if needed)' } }, required: ['co_no'] } },
   { name: 'find_contractors', description: 'Find licensed Florida contractors by trade and county (Volusia default). trade e.g. "electrical", "plumbing", "roofing". Returns DBPR licence status/expiry, complaint_count, bond/insurance. City is a soft preference only — the DBPR city is the business address, not service area, so search by county.',
     input_schema: { type: 'object', properties: { trade: { type: 'string' }, city: { type: 'string' }, county: { type: 'string' } }, required: [] },
     // Cache breakpoint on the last tool → the whole (system + tools) prefix is cached and reused every call.
@@ -105,7 +107,7 @@ const SYSTEM = [
   'You answer ONLY from the record returned by the tools. Never invent parcel data; if the record does not contain something, say so and point to who would.',
   'NEVER emit a source, collection method, date, vertical datum, or accuracy / precision figure that is not present VERBATIM in the payload. If a field carries no source or accuracy, say so — do not supply one from general knowledge. Fabricating provenance ("2024 USGS lidar-derived, ±0.96 ft") is as serious as fabricating the value: it manufactures false confidence in a number the record never vouched for.',
   'ADDRESS LOOKUP: find_parcel already normalises the address and falls back to shorter forms. If it returns a match_note (the match was loosened, or the county was defaulted), tell the user plainly. If it returns NO results even after fallback, say the address was not found in that county\'s records and offer to try another county or spelling — NEVER "this property may not exist". A single failed exact match is a lookup miss, not evidence the property is not real; that false negative is as wrong as a fabricated clear.',
-  'COVERAGE: this alpha\'s parcel records are VOLUSIA COUNTY (co_no 74) ONLY. If an address resolves to another county (e.g. Sanford is in Seminole), say explicitly that that county is not yet loaded and you cannot speak to it — do not return an empty answer as if the property had no data. Absence of loaded data for a county is a coverage statement, and you must make it out loud.',
+  'COVERAGE IS QUERIED, NEVER ASSUMED. All 67 Florida counties are loaded. NEVER state or imply that a county, a layer, or a parcel is "not loaded", "not in this build/alpha", "Volusia only", "my data covers Volusia", or a coverage gap — unless get_county_coverage(co_no) says so for THAT county. That function is the SOLE authority on coverage; call it before any coverage statement. An unbacked coverage claim is a hallucination, the same class as an invented value — it has caused two live incidents: a false "no data" over fully-loaded Orange County, and a false negative in Pinellas where the flood layer existed. A lookup that returns zero rows is a LOOKUP MISS (wrong county inferred, or the address did not match), NOT a coverage statement — offer another county/spelling, never "this county is not loaded". Per-field availability is get_county_coverage plus each field\'s field_status; statewide registers (FDEP contamination, tanks, PNP, sinkholes, TRI, Superfund, FUDS, NRHP) apply to every county regardless.',
   'GWCA / groundwater restriction: the Ch. 62-524 restriction applies to NEW potable wells, so a property on municipal/public water is unaffected in practice — always carry that caveat with the finding; a bare "this parcel is in a contamination area" overstates it. But if the parcel relies on a private well, the contamination is material.',
   'HONESTY CONTRACT — every field in the record carries field_status, as_of, source, resolution_level, and (for spatial layers) relation:',
   '- field_status: "present" → state the value WITH its as_of date. "not_computed" / "null_at_source" / "layer_not_loaded" / "county_not_covered" → WITHHELD. Never render an absence as a clear, a "none", a green checkmark, or false. A checked negative and an uncomputed field are different facts.',
@@ -158,6 +160,10 @@ function addUsDisplay<T>(v: T): T {
 async function runTool(name: string, input: any, admin: ReturnType<typeof getSupabaseAdmin>) {
   const county = coNo(input.county)
   const pid = input.parcel_id != null ? String(input.parcel_id) : null
+  if (name === 'get_county_coverage') {
+    const { data, error } = await admin.rpc('get_county_coverage', { p_co_no: Number(input.co_no) })
+    return { text: error ? `coverage error: ${error.message}` : JSON.stringify(data ?? {}), county: Number(input.co_no), pid: null }
+  }
   if (name === 'find_parcel') {
     const raw = String(input.address ?? '')
     const { forms, city } = addressForms(raw)
@@ -165,7 +171,7 @@ async function runTool(name: string, input: any, admin: ReturnType<typeof getSup
     let cnty = county, countyNote = ''
     if (!input.county) {
       if (city && VOLUSIA_CITIES.has(city.toLowerCase())) cnty = 74
-      else { cnty = 74; countyNote = 'county not inferable from the address — defaulted to Volusia (74) for the alpha' }
+      else { cnty = 74; countyNote = 'county not inferable from the address — provisionally tried Volusia (74). All 67 counties are loaded; if the property is elsewhere (e.g. Orlando is in Orange), name the county and I will look there — never report this as "not loaded"' }
     }
     // resolve_parcel_query does the whole job server-side: token-AND with soft directionals (so
     // "2184 US Hwy 17 N" reaches "2184 N US HWY 17"), route_alias expansion (New Daytona Rd ->
@@ -182,7 +188,7 @@ async function runTool(name: string, input: any, admin: ReturnType<typeof getSup
       : via === 'facility' ? 'no exact address match — these are GOVERNMENT-OWNED candidates ranked by name-match then value; the county record has no facility-name field, so present them as candidates and let the user confirm which is the facility, never assert one IS it'
       : (rows.length > 1 && via === 'address') ? 'multiple address matches — the full set is returned ranked (government-owned and higher-value first); present them, do not silently pick the first'
       : ''
-    const coverageNote = (rows.length === 0 && cnty !== 74) ? `county ${cnty} is not loaded in this alpha (Volusia / co_no 74 only) — say so, do not imply the property has no data` : ''
+    const coverageNote = (rows.length === 0) ? `no parcel matched in county ${cnty} — a LOOKUP MISS (wrong county inferred, or the address did not match), NOT a coverage statement. All 67 counties are loaded; do NOT say the county is unloaded. Offer another county or spelling; call get_county_coverage(${cnty}) if asked what is held there.` : ''
     const note = [viaNote, countyNote, coverageNote, error ? `resolver error: ${error.message}` : ''].filter(Boolean).join('; ')
     return { text: JSON.stringify({ results: rows, match_note: note || null }), county: cnty, pid: null }
   }
