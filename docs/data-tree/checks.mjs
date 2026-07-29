@@ -63,29 +63,17 @@ export const predicates = [
     sql: `SELECT count(*) = 78 AS ok FROM volusia_cama_condo_bldg WHERE "CNDCMPLX" = '022301'`,
   },
   {
-    id: 'report-source-tables-not-fabricated',
-    claim: 'OPEN DEFECT — expected RED until property_environmental AND property_hazard_risk are ' +
-      'remediated or dropped: their fields are single-valued across all 313,578 rows. env: ' +
-      'sinkhole_risk / radon_zone / lead_service_line_risk / source_attribution. haz: ' +
-      'fl_wind_design_speed_mph (=130) / fl_wind_speed_zone (=II) — a fabricated FBC/insurance ' +
-      'figure understated toward "safer". Both stripped from get_pir_report (2026-07-29); the TABLES still fabricate',
-    // Whole-class guard across BOTH fabricated report-source tables (not one field, not one table —
-    // the v_haz block was fully fabricated too). Currently FALSE — a real negative control; flips
-    // TRUE only when both tables carry real per-parcel data or are dropped. See anchor §9. The fully
-    // generalized "every rendered column of every source table" form is the go-forward (anchor §8.7).
-    sql: `SELECT NOT EXISTS (
-            SELECT 1 FROM (
-              SELECT count(DISTINCT sinkhole_risk) a, count(DISTINCT radon_zone) b,
-                     count(DISTINCT lead_service_line_risk) c, count(DISTINCT source_attribution) d
-              FROM property_environmental
-            ) e WHERE least(a,b,c,d) <= 1
-            UNION ALL
-            SELECT 1 FROM (
-              SELECT count(DISTINCT fl_wind_design_speed_mph) a, count(DISTINCT fl_wind_speed_zone) b,
-                     count(DISTINCT hurricane_direct_hits) c, count(DISTINCT source_attribution) d
-              FROM property_hazard_risk
-            ) h WHERE least(a,b,c,d) <= 1
-          ) AS ok`,
+    id: 'fabricated-tables-stay-dropped',
+    claim: 'the two fabricated report-source tables stay dropped — property_environmental and ' +
+      'property_hazard_risk do not exist (dropped 2026-07-29 §7; both single-valued/all-null ' +
+      'statewide). Goes RED if a seed or restore re-creates either.',
+    // Was the fabrication-tracking predicate; the tables are now dropped (remediated), so this
+    // guards the remediation instead. The GENERAL guard for the next fabricated table — a
+    // provenance gate (primary) + cardinality backstop — is blocked: source_url is recorded for
+    // only ~3/15 report-source tables, so a provenance gate would fire on real data today. Backfill
+    // provenance first, then build it. See anchor §8.7.
+    sql: `SELECT to_regclass('public.property_environmental') IS NULL
+             AND to_regclass('public.property_hazard_risk')   IS NULL AS ok`,
   },
   {
     id: 'pnp-pre-statute-count',
