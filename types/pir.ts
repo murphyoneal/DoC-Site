@@ -140,12 +140,23 @@ export interface PirWater {
   boatRamps: PirBoatRamp[]
 }
 
+// Flood now comes from get_parcel_flood_zone() (coverage-aware NFHL), merged with areaRepetitiveLoss.
+// not_available / parcel_not_resolved are COVERAGE GAPS — never render as "not in a flood zone".
+export interface PirFloodZoneEntry {
+  zone: string; subtype: string | null; in_sfha: boolean
+  base_flood_elevation_ft: number | null; pct_of_parcel: number | null
+}
 export interface PirFlood {
-  zone: string | null
-  available: boolean | null
-  inHazardArea: boolean | null
-  // countyZone / stormSurgeZone / floodEvents10yr removed 2026-07-29 (fabricated v_haz).
-  areaRepetitiveLoss: { properties: number | null; totalLosses: number | null } | null
+  field?: string
+  field_status: 'present' | 'none_intersecting' | 'not_available' | 'parcel_not_resolved'
+  zones?: PirFloodZoneEntry[] | null
+  in_sfha?: boolean | null
+  base_flood_elevation_ft?: number | null
+  vertical_datum?: string | null
+  layer_used?: string
+  coverage_caveat?: string; county_layer_status?: string
+  source?: string; authority?: string; relation?: string; resolution_level?: string
+  areaRepetitiveLoss: { field_status?: string; properties?: number | null; totalLosses?: number | null; note?: string; coverage_caveat?: string } | null
 }
 
 // Marine improvements (volusia_cama_misc — Tyler iasWorld other-improvements): dock/seawall/

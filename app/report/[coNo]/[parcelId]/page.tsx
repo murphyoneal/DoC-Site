@@ -7,7 +7,7 @@ import PrintButton from '@/app/components/PrintButton'
 import { FLOOD_STYLE, ZONING_STYLE } from '@/lib/pir-colors'
 import type { PirReport, PirEconOverlay } from '@/types/pir'
 import { formatDistance } from '@/lib/units'
-import { marineView, taxDeedView } from '@/lib/report-coverage.mjs'
+import { marineView, taxDeedView, floodView } from '@/lib/report-coverage.mjs'
 
 // ── formatting helpers ──────────────────────────────────────────────────────────
 const usd = (n?: number | null) => n == null ? '—' : `$${Math.round(n).toLocaleString('en-US')}`
@@ -146,7 +146,7 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
     ['Permit history', r.permits.count > 0],
     ['Ownership / sale history', r.transactions.count > 0],
     ['Elevation & land', r.land.elevationFt != null],
-    ['Water & flood', r.flood.zone != null],
+    ['Water & flood', r.flood.field_status === 'present'],
     ['Marine improvements', r.marineImprovements.waterfront_indicator != null],
     ['Tax-deed status', r.taxDeedStatus.on_lands_available_list != null],
     ['Zoning & future land use', !!r.zoning.zoneCode],
@@ -299,19 +299,38 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
 
       {/* ═══ PAGE 3 — ENVIRONMENTAL ═══ */}
       <Sheet page={3} total={5} title="Environmental Facts" r={r}>
-        <Section title="Flood & area — 5-mile radius"
-          note="Parcel flood zone is a property-level classification; area FEMA repetitive-loss figures are county context, not a claim about this parcel.">
+        {/* Flood renders from floodView (lib/report-coverage) — the FEMA NFHL coverage-aware shape.
+            not_available / parcel_not_resolved is a COVERAGE GAP, never "not in a flood zone" (the
+            St Pete incident). report-coverage.test.mjs asserts the gap copy. */}
+        {(() => { const fv = floodView(r.flood); return (
+        <Section title="Flood & area — 5-mile radius" note={fv.mode === 'present' ? fv.note : undefined}>
           <div className="pir-maprow">
             <PropertyReportMap coNo={co} parcelId={parcelId} layer="flood" />
             <div>
               <Legend entries={floodLegend} />
               <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <Fact l="Parcel flood zone" v={<>{r.flood.zone ?? '—'} {r.flood.inHazardArea === false ? riskChip('Not in SFHA', true) : r.flood.inHazardArea ? riskChip('In hazard area', false) : null}</>} />
-                <Fact l="Area repetitive loss" v={r.flood.areaRepetitiveLoss ? `${num(r.flood.areaRepetitiveLoss.properties)} props · ${num(r.flood.areaRepetitiveLoss.totalLosses)} losses` : '—'} />
+                {fv.mode === 'present' ? (
+                  <>
+                    <Fact l="Special Flood Hazard Area" v={fv.inSfha
+                      ? riskChip('In an SFHA — flood insurance required with a federally-backed mortgage', false)
+                      : riskChip('Not in an SFHA', true)} />
+                    <Fact l="Flood zones (share of parcel)" v={fv.zones.length
+                      ? fv.zones.map((z) => `${z.zone}${z.in_sfha ? ' · SFHA' : ''}${z.pct_of_parcel != null ? ` ${z.pct_of_parcel}%` : ''}`).join('   ·   ')
+                      : '—'} />
+                    {fv.bfe != null ? <Fact l="Base flood elevation" v={`${fv.bfe} ft${fv.datum ? ` ${fv.datum}` : ''}${fv.layer ? ` (${fv.layer})` : ''}`} /> : null}
+                  </>
+                ) : (
+                  <div className="pir-note">{[fv.note, fv.body].filter(Boolean).join(' ')}</div>
+                )}
+                <Fact l="Area repetitive loss" v={
+                  r.flood.areaRepetitiveLoss && r.flood.areaRepetitiveLoss.field_status === 'present'
+                    ? `${num(r.flood.areaRepetitiveLoss.properties)} properties · ${num(r.flood.areaRepetitiveLoss.totalLosses)} losses (county context)`
+                    : <span style={{ color: 'var(--color-sage)' }}>Not held for this county</span>} />
               </div>
             </div>
           </div>
         </Section>
+        ); })()}
 
         {/* Air + Wind removed 2026-07-29 — every property_environmental (v_env) air field AND
             every property_hazard_risk (v_haz) wind field was a single fabricated value statewide,
