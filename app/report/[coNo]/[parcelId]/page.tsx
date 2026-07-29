@@ -7,6 +7,7 @@ import PrintButton from '@/app/components/PrintButton'
 import { FLOOD_STYLE, ZONING_STYLE } from '@/lib/pir-colors'
 import type { PirReport, PirEconOverlay } from '@/types/pir'
 import { formatDistance } from '@/lib/units'
+import { marineView, taxDeedView } from '@/lib/report-coverage.mjs'
 
 // ── formatting helpers ──────────────────────────────────────────────────────────
 const usd = (n?: number | null) => n == null ? '—' : `$${Math.round(n).toLocaleString('en-US')}`
@@ -147,6 +148,7 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
     ['Elevation & land', r.land.elevationFt != null],
     ['Water & flood', r.flood.zone != null],
     ['Marine improvements', r.marineImprovements.waterfront_indicator != null],
+    ['Tax-deed status', r.taxDeedStatus.on_lands_available_list != null],
     ['Zoning & future land use', !!r.zoning.zoneCode],
     ['Economic overlays', Object.values(r.economic ?? {}).some(v => v != null)],
     ['Census / demographics', r.census.population != null],
@@ -335,41 +337,52 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
           </div>
         </Section>
 
-        {/* Marine improvements (Tier 1 #1) — get_pir_report.marineImprovements (volusia_cama_misc,
-            Tyler iasWorld other-improvements). Coverage-aware: 'not_available' (waterfront_indicator
-            null) is a COVERAGE GAP, never "no dock". Material not recorded → only age + county
-            depreciation reported; remaining life never asserted. */}
-        {r.marineImprovements.field_status === 'not_available' ? (
-          <Section title="Marine improvements"
-            note="Coverage gap, not a finding — the county assessor other-improvements file is held for Volusia only. Absence here does NOT mean the parcel has no dock, seawall, boat house, lift or slip.">
-            <div className="pir-note">Not evaluated for this county.</div>
+        {/* Marine improvements (Tier 1 #1) + Tax-deed status (#36) render FROM lib/report-coverage
+            (marineView / taxDeedView) — the module report-coverage.test.mjs asserts — so a coverage
+            gap (not_available) can never read as "no dock" / "no tax exposure". */}
+        {(() => { const mv = marineView(r.marineImprovements); return (
+          <Section title={mv.title} note={mv.note}>
+            {mv.mode === 'present' ? (
+              <>
+                <div className="pir-grid">
+                  {mv.items.map((it, i) => (
+                    <Fact key={i} l={titleCase(it.description)} v={<>
+                      {[it.size, it.grade ? `grade ${it.grade}` : null, it.year_built ? `built ${it.year_built}` : null,
+                        it.age_years != null ? `${it.age_years} yr` : null].filter(Boolean).join(' · ')}
+                      {it.depreciated_value != null && it.replacement_cost_new != null
+                        ? ` · RCNLD ${usd(Number(it.depreciated_value))} of ${usd(Number(it.replacement_cost_new))}${it.pct_depreciated != null ? ` (${it.pct_depreciated}% depreciated)` : ''}`
+                        : ''}
+                      {' '}
+                      {it.at_or_past_assessed_service_life ? riskChip('At/past assessed service life', false) : null}
+                    </>} />
+                  ))}
+                </div>
+                {mv.basis ? <p className="pir-note" style={{ marginTop: 10 }}>{mv.basis} Material is not recorded by the county for marine improvements, so remaining life is not asserted.</p> : null}
+              </>
+            ) : <div className="pir-note">{mv.body}</div>}
           </Section>
-        ) : r.marineImprovements.field_status === 'none_recorded' ? (
-          <Section title="Marine improvements" note={r.marineImprovements.coverage_caveat}>
-            <div className="pir-note">The county appraiser records no marine improvement on this parcel.</div>
+        ); })()}
+
+        {(() => { const tv = taxDeedView(r.taxDeedStatus); return (
+          <Section title={tv.title}
+            note={tv.mode === 'present'
+              ? `County Lands Available for Taxes register — snapshot ${tv.asOf}. Confirm current status with the county clerk before relying on it.`
+              : tv.note}>
+            {tv.mode === 'present' ? (
+              <>
+                <div className="pir-grid">
+                  <Fact l="On Lands Available list" v={riskChip('County-held — unsold at tax-deed auction', false)} />
+                  {tv.openingBid != null ? <Fact l="Opening bid" v={usd(tv.openingBid)} /> : null}
+                  {tv.certificate ? <Fact l="Certificate no." v={tv.certificate} /> : null}
+                  {tv.dateAvailable ? <Fact l="Available to public" v={tv.dateAvailable} /> : null}
+                  <Fact l="Snapshot date" v={tv.asOf ?? '—'} />
+                </div>
+                <p className="pir-note" style={{ marginTop: 10 }}>{tv.meaning}</p>
+                <p className="pir-note">{tv.staleness} {tv.notLegalAdvice}</p>
+              </>
+            ) : <div className="pir-note">{tv.body}</div>}
           </Section>
-        ) : (
-          <Section title="Marine improvements" note={r.marineImprovements.material_caveat}>
-            <div className="pir-grid">
-              {(r.marineImprovements.items ?? []).map((it, i) => (
-                <Fact key={i} l={titleCase(it.description)} v={<>
-                  {[it.size, it.grade ? `grade ${it.grade}` : null, it.year_built ? `built ${it.year_built}` : null,
-                    it.age_years != null ? `${it.age_years} yr` : null].filter(Boolean).join(' · ')}
-                  {it.depreciated_value != null && it.replacement_cost_new != null
-                    ? ` · RCNLD ${usd(Number(it.depreciated_value))} of ${usd(Number(it.replacement_cost_new))}${it.pct_depreciated != null ? ` (${it.pct_depreciated}% depreciated)` : ''}`
-                    : ''}
-                  {' '}
-                  {it.at_or_past_assessed_service_life ? riskChip('At/past assessed service life', false) : null}
-                </>} />
-              ))}
-            </div>
-            {r.marineImprovements.waterfront_basis ? (
-              <p className="pir-note" style={{ marginTop: 10 }}>
-                {r.marineImprovements.waterfront_basis} {r.marineImprovements.service_life_basis} Material is not recorded by the county for marine improvements, so remaining life is not asserted.
-              </p>
-            ) : null}
-          </Section>
-        )}
+        ); })()}
       </Sheet>
 
       {/* ═══ PAGE 4 — NEIGHBORHOOD ═══ */}

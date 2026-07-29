@@ -158,6 +158,23 @@ export interface PirMarineItem {
   pct_depreciated: number | null; depreciated_value: string | null; replacement_cost_new: string | null
   assessed_service_life_years: number | null; at_or_past_assessed_service_life: boolean
 }
+// Tax-deed status (lands_available_for_taxes_<county>): county-held parcels that went unsold at
+// tax-deed auction. Same three coverage states as marine. as_of is load-bearing — a stale listing
+// acted on is worse than none — and not_available (on_lands_available_list null) is a coverage gap,
+// never "no tax exposure".
+export interface PirTaxDeedStatus {
+  field: string; source: string; authority: string; relation?: string
+  field_status: 'present' | 'not_on_list' | 'not_available'
+  as_of?: string | null
+  on_lands_available_list: boolean | null
+  opening_bid_usd?: number | null
+  certificate_number?: string | null
+  date_original_sale?: string | null
+  date_available_to_public?: string | null
+  meaning?: string; staleness_warning?: string; not_legal_advice?: string
+  coverage_caveat?: string; resolution_level?: string
+}
+
 export interface PirMarineImprovements {
   field: string; source: string; authority: string; relation?: string
   // 'present' → items populated; 'none_recorded' → Volusia, county recorded none (indicator false);
@@ -210,6 +227,7 @@ export interface PirReport {
   water: PirWater
   flood: PirFlood
   marineImprovements: PirMarineImprovements
+  taxDeedStatus: PirTaxDeedStatus
   census: PirCensus
   zoning: PirZoning
   economic: PirEconomic

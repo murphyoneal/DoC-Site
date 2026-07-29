@@ -28,5 +28,8 @@ jobs:
       - name: Harness negative-control — the gate must demonstrably go red
         run: node docs/data-tree/verify.test.mjs
 
+      - name: Report coverage-gap render smoke test — a gap never reads as a finding
+        run: node lib/report-coverage.test.mjs
+
       - name: No client bundle calls a revoked (server-only) RPC
         run: node scripts/check-client-rpc.mjs
