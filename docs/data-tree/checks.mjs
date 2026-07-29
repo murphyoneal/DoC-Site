@@ -63,6 +63,22 @@ export const predicates = [
     sql: `SELECT count(*) = 78 AS ok FROM volusia_cama_condo_bldg WHERE "CNDCMPLX" = '022301'`,
   },
   {
+    id: 'property-environmental-not-fabricated',
+    claim: 'OPEN DEFECT — expected RED until property_environmental is remediated or dropped: its risk ' +
+      'fields are single-valued across all 313,578 rows (sinkhole_risk / radon_zone / lead_service_line_risk / ' +
+      'source_attribution). get_pir_report no longer surfaces them (fix 2026-07-29) but the TABLE still fabricates',
+    // A whole-class guard, not one field — the constant fabrication that a one-field grep would
+    // have missed. Currently FALSE (a real negative control, not another green); flips to TRUE
+    // the day the table carries real per-parcel data or is dropped. See anchor §9.
+    sql: `SELECT NOT EXISTS (
+            SELECT 1 FROM (
+              SELECT count(DISTINCT sinkhole_risk) a, count(DISTINCT radon_zone) b,
+                     count(DISTINCT lead_service_line_risk) c, count(DISTINCT source_attribution) d
+              FROM property_environmental
+            ) t WHERE least(a,b,c,d) <= 1
+          ) AS ok`,
+  },
+  {
     id: 'pnp-pre-statute-count',
     claim: 'FDEP PNP has exactly 6 genuine pre-s.403.077 records (eff. 2017-07-01) — matches the RPC caveat',
     // Tests the caveat's actual CLAIM ("only 6 predate it"), not a loose proportion. A ≥99%

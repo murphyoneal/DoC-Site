@@ -87,11 +87,13 @@ tables are added. Everything between the markers is machine-owned; the prose aro
 system/internal tables, one J13 non-parcel domain (`agent_license_status`, DBPR licences —
 correctly parcel-less), and one J14 genuine orphan (`sjc_plat_index`, a text index by design).
 1,208 + 16 + 1 + 1 = 1,226; those four rows partition `nr_master`, and the harness enforces
-that sum against live counts (the `census:*` checks). The 792 unclassified inventory rows are
-**not confirmed empty**: `table_inventory.row_count` is read from `reltuples`, which is `−1`
-(never analyzed) on 805 public tables — a 30-table sample of them found 25 populated. They need
-`ANALYZE` + re-inventory before any is called empty. This block is live — an orphan resolving,
-a table loading, or an `ANALYZE` run moves it.
+that sum against live counts (the `census:*` checks). **What sits *outside* `nr_master` is two
+different figures, and neither means "empty":** 792 of the 2,018 `table_inventory` rows aren't
+classified, and 872 of the 2,098 public base tables aren't — different denominators. `nr_master`
+itself has **zero** empty tables, so classification excluded nothing for looking empty. Separately,
+805 public tables have never been `ANALYZE`d (`reltuples = −1` — a planner-stats gap, not a row
+count). Whether the never-analyzed set explains the unclassified set is **untested** (§8.6). This
+block is live — an orphan resolving, a table loading, or an `ANALYZE` run moves it.
 
 ---
 
@@ -337,6 +339,7 @@ the same layer, each re-running `ST_DWithin` + `ORDER BY <-> LIMIT 1`. Consolida
 | date | change | evidence | rollback |
 |---|---|---|---|
 | 2026-07-28 | `CREATE INDEX idx_hydrology_waterbodies_geog ON hydrology_waterbodies USING gist ((geom::geography))` | hydrology query 1,679 → 31.6 ms; **`get_pir_report` (Volusia, warm) 5,238 → ~2,096 ms** (3 runs: 2,175 / 2,063 / 2,096) | `DROP INDEX IF EXISTS idx_hydrology_waterbodies_geog;` |
+| 2026-07-29 | Migration `strip_fabricated_v_env_constants_from_get_pir_report` — removed the 13 single-valued `property_environmental` (v_env) fields from `get_pir_report`: the whole `air` block, `radonZone`/`sinkholeRisk`/`sinkholeHistoryCount`/`waterSourceType`/`waterUtility`/`leadServiceLineRisk`/`algaeBloomRisk`, and the `environmentSources` provenance line. Kept only the two real fields — `inFlightPath` (caveat verbatim) + `airportDistanceM`. Surgical exact-substring strip; function otherwise byte-identical | each removed field `count(DISTINCT)=1` across 313,578 rows; post-fix smoke: report returns, all fabricated keys absent, `inFlightPath`/`airportDistanceM`/`elevationM`/gopher present, `get_parcel_env_findings` intact (29 findings) | source in the migration; re-add the keys to the `land`/`air` blocks to revert |
 
 ```sql
 -- Verify report-level effect (warm):
@@ -358,6 +361,7 @@ Nothing here is a fact yet. Do not cite as one.
 3. **The per-layer cast enumeration (6.1) is `RELAYED`, not re-derived.** Re-run each `EXPLAIN` before summing.
 4. **Remaining index builds are pending:** geography func-indexes for the 6.3 "cast still defeats it" layers; geometry GiST for the five no-index layers; the `transmission_lines` `<->` decision.
 5. **Precompute vs request-time is undecided** and should stay undecided until 1–4 are measured. If casts+indexes bring a report under ~1 s, precompute demotes from prerequisite to optimization.
+6. **The "unclassified" tables are uncharacterised.** 792 `table_inventory` rows (and 872 public base tables) sit outside `nr_master`. `nr_master` has **0** empty tables, so nothing was excluded for being empty; the hypothesis that `reltuples = −1` (805 never-analyzed tables) drove the exclusion is plausible but **untested against the actual exclusion list**. Intersect the exclusion set with the never-analyzed set and characterise it before rebuilding any re-inventory on it. `ANALYZE` (applied 2026-07-29, §7) removes the stats gap but does not by itself prove any excluded table holds parcel-joinable data.
 
 ---
 
@@ -380,6 +384,7 @@ Recorded so corrections are traceable, not buried. The survey failures also live
 | "Miami skips 287,661" as an intrinsic cost | 287,661 | one deep parcel's `rows removed by filter`; scan-position dependent (0…585,220), not a county property | couldn't source it to any count |
 | parcel lookup "3× / ~1 s" | 3 call sites | issued by **13 functions**, ≥5 per report/env answer; and a relayed benchmark used co_no 64 (Putnam, 97,305) mislabeled as Volusia (74, 306,889) | `pg_proc` scan + `county_registry` |
 | census "1,225 wire in / 792 empty" `[status report, 2026-07-29]` | 1,225 wired, 792 empty | **1,208 wired** — J0 (16) + J13 (1) + J14 (1) don't reach a parcel and were rounded into the success figure; **0 empty** — "792" was `reltuples ≤ 0`, but `−1` is the *never-analyzed* sentinel (805 tables), not a row count (a 30-table sample was 25 populated) | cross-session audit. Root cause: `build.mjs`/`refresh.sql`/`state.json` defined wired as *everything but J14* and read counts from `reltuples`. Fixed all three generators + added the `census:*` closure so it can't recur |
+| `property_environmental` fabricated `[2026-07-29]` | a per-parcel env table (radon / sinkhole / lead / air / provenance) | **13 of 15** fields `get_pir_report` rendered are **single-valued across all 313,578 rows** — `radon_zone`, `lead_service_line_risk` (health claims), `sinkhole_risk`, `sinkhole_history_count`, air block, and `source_attribution`/`data_retrieved_at` (fabricated provenance); `radon_zone = 2` statewide is impossible (FL spans EPA Zones 2–3). Only `in_flight_path` / `airport_distance_m` are real, and `in_flight_path` was the sole caveated field — caveat discipline running backwards. A one-field fix (the `get_pir_report` sinkhole constant) would have left 12 in place **and** deleted the *honest* derived `sinkhole_risk` in `get_parcel_env_findings` | cross-session audit; `count(DISTINCT)` per column. Render stripped (§7); harness predicate `property-environmental-not-fabricated` tracks the table (RED until real or dropped). Same pattern likely on `v_haz`/`climateSources` — unaudited |
 
 **The pattern in every row:** a plausible number that wasn't derived from what it claimed to
 be. The defence is this document's contract — a query beside every fact, and a negative

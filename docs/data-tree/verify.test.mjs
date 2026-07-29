@@ -156,7 +156,10 @@ await test('query throws (DB failure at query time) → red, not skipped', async
 
 await test('real spec is complete — no check silently dropped', () => {
   // Pinned manifest: adding/removing a check is a deliberate act that updates this.
-  const manifest = { predicates: 6, plans: 1, deltas: 1 };
+  // NB predicate #7 (property-environmental-not-fabricated) is INTENTIONALLY red against live
+  // until that table is remediated — a tracked open defect, not a regression. The stub here
+  // exercises runner shape only, so it doesn't gate this self-test.
+  const manifest = { predicates: 7, plans: 1, deltas: 1 };
   assert.equal(realChecks.predicates.length, manifest.predicates, 'predicate count changed — update the manifest on purpose');
   assert.equal(realChecks.plans.length, manifest.plans, 'plan count changed');
   assert.equal(realChecks.deltas.length, manifest.deltas, 'delta count changed');
