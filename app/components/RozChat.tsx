@@ -3,6 +3,8 @@
 import { useState, useRef, useEffect } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import DiscrepancyPanel from '@/app/components/DiscrepancyPanel'
+import type { DiscrepancyReport } from '@/types/roz-web'
 
 // Outbound links: new tab (a user-clicked tab is never popup-blocked, and it preserves her
 // conversation), rel="noopener noreferrer" so the opened page can't navigate the parent window,
@@ -46,10 +48,12 @@ interface Msg {
   shownAt?: number
   status?: string | null // tool-progress line shown while the answer is still streaming
   done?: boolean         // stream finished — reveal the feedback box only then
+  discrepancy?: DiscrepancyReport // web-vs-record comparison; renders above the prose (lands first)
 }
 
-// Feedback under one answer. Open text box FIRST and always visible; enums optional
-// beneath. Prompts for the gap ("What would you have needed here?"), not the verdict.
+// Feedback under one answer. COLLAPSED to a button by default — an always-visible text box
+// gets mistaken for the chat input (users typed their next question into it). Click opens it;
+// enums + gap prompt ("What would you have needed here?") appear only once opened.
 function FeedbackBox({ queryLogId, parcelId, shownAt }: { queryLogId?: string | null; parcelId?: string | null; shownAt?: number }) {
   const [note, setNote] = useState('')
   const [correct, setCorrect] = useState<string | null>(null)
@@ -57,6 +61,7 @@ function FeedbackBox({ queryLogId, parcelId, shownAt }: { queryLogId?: string | 
   const [gap, setGap] = useState<string | null>(null)
   const [sent, setSent] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [open, setOpen] = useState(false) // collapsed until the user chooses to give feedback
 
   async function submit() {
     if (busy || sent) return
@@ -76,19 +81,29 @@ function FeedbackBox({ queryLogId, parcelId, shownAt }: { queryLogId?: string | 
 
   if (sent) return <div style={{ fontSize: 11, color: 'var(--color-sage)', marginTop: 6 }}>Thanks — logged.</div>
 
+  // Collapsed: a pill button, visually distinct from the chat input so it is not mistaken for it.
+  if (!open) return (
+    <button onClick={() => setOpen(true)} type="button"
+      style={{ marginTop: 6, fontSize: 11, padding: '4px 12px', borderRadius: 999, border: '1px solid var(--color-light-gray)', background: 'transparent', color: 'var(--color-sage)', cursor: 'pointer', textAlign: 'left' }}>
+      Roz learns — tell me where I got it wrong, or correct me
+    </button>
+  )
+
   return (
     <div style={{ marginTop: 8, padding: 10, border: '1px dashed var(--color-light-gray)', borderRadius: 10, background: 'rgba(0,0,0,0.015)' }}>
       <textarea
         value={note} onChange={e => setNote(e.target.value)}
         placeholder="What would you have needed here?"
         rows={2}
+        autoFocus
         style={{ width: '100%', fontSize: 13, padding: '8px 10px', borderRadius: 8, border: '1px solid var(--color-light-gray)', outline: 'none', resize: 'vertical', boxSizing: 'border-box' }}
       />
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6, alignItems: 'center' }}>
         <EnumRow label="Correct?" value={correct} set={setCorrect} opts={['correct', 'incorrect', 'partly', 'cant_tell']} />
         <EnumRow label="Useful?" value={useful} set={setUseful} opts={['useful', 'not_useful', 'partly']} />
         <EnumRow label="Gap?" value={gap} set={setGap} opts={['n_a', 'should_exist', 'correctly_withheld', 'wrong_source']} />
-        <button onClick={submit} disabled={busy} style={{ marginLeft: 'auto', fontSize: 12, padding: '5px 12px', borderRadius: 8, border: 'none', background: 'var(--color-navy)', color: '#fff', fontWeight: 600, cursor: busy ? 'wait' : 'pointer', opacity: busy ? 0.6 : 1 }}>
+        <button onClick={() => setOpen(false)} type="button" style={{ marginLeft: 'auto', fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '1px solid var(--color-light-gray)', background: 'transparent', color: 'var(--color-sage)', cursor: 'pointer' }}>Cancel</button>
+        <button onClick={submit} disabled={busy} style={{ fontSize: 12, padding: '5px 12px', borderRadius: 8, border: 'none', background: 'var(--color-navy)', color: '#fff', fontWeight: 600, cursor: busy ? 'wait' : 'pointer', opacity: busy ? 0.6 : 1 }}>
           {busy ? '…' : 'Send feedback'}
         </button>
       </div>
@@ -168,8 +183,11 @@ export default function RozChat({ userEmail }: { userEmail: string }) {
           if (ev.type === 'delta') { asst += ev.text; patchLast({ content: asst, status: null }) }
           else if (ev.type === 'reset') { asst = ''; patchLast({ content: '', status: null }) }
           else if (ev.type === 'status') { patchLast({ status: ev.label }) }
+          // Web-vs-record comparison — arrives BEFORE the record narration completes, so it
+          // renders first (the fast "On the web" panel while Roz finishes the record pass).
+          else if (ev.type === 'discrepancy') { patchLast({ discrepancy: ev.report as DiscrepancyReport }) }
           else if (ev.type === 'done') {
-            patchLast({ content: ev.reply ?? asst, queryLogId: ev.queryLogId ?? null, parcelId: ev.parcelId ?? null, status: null, done: true, shownAt: Date.now() })
+            patchLast({ content: ev.reply ?? asst, queryLogId: ev.queryLogId ?? null, parcelId: ev.parcelId ?? null, status: null, done: true, shownAt: Date.now(), ...(ev.discrepancy ? { discrepancy: ev.discrepancy as DiscrepancyReport } : {}) })
           }
         }
       }
@@ -217,6 +235,7 @@ export default function RozChat({ userEmail }: { userEmail: string }) {
                 padding: '10px 14px', borderRadius: 12, fontSize: 14, lineHeight: 1.55,
                 background: 'var(--color-white)', color: 'var(--color-ink)', border: '1px solid var(--color-light-gray)',
               }}>
+                {m.discrepancy && <DiscrepancyPanel report={m.discrepancy} />}
                 {m.content
                   ? <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ a: MdLink }}>{m.content}</ReactMarkdown>
                   : <span style={{ color: 'var(--color-sage)' }}>{m.status ?? 'Roz is thinking'}<span className="roz-dots" /></span>}
