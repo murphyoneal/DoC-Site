@@ -268,6 +268,20 @@ export const predicates = [
               AND harness_predicate IS NULL
           ) AS ok`,
   },
+  {
+    id: 'every-firm-flood-layer-is-wired',
+    claim: 'Item 80 — every county FIRM flood layer we HOLD (fld_zone + sfha_tf + geom + rows) is either ' +
+      'selected in flood_layer_selection or a merge-component of a selected view. The sjc_ miss (9,322 NFHL ' +
+      'polygons, slug-matching skipped it) was found by ACCIDENT; the diagnostic then showed 6 counties ' +
+      'returning "not established" while holding a full FIRM layer (Broward/Clay/Lee/Leon/Marion/St.Johns/' +
+      'St.Lucie). 5 wired by CONTENT-EXTENT (Leon/Lee/Marion as merge views — a determination is split across ' +
+      'zone/floodway tables). This predicate makes the next accidental gap fail the build. Excludes ' +
+      'fema_flood_zones (superseded statewide) and *_city_* (a city SFHA is covered by its county). Broward ' +
+      'is a curation judgement, held in the detector\'s deferred list until decided. Backed by detect_unwired_firm_layers().',
+    // The whole point of item 80: rebuild by reading each layer's CONTENTS (geometry extent vs county
+    // boundary, CO_NO where present), never the table name — slug-matching is what missed sjc_.
+    sql: `SELECT NOT EXISTS (SELECT 1 FROM detect_unwired_firm_layers()) AS ok`,
+  },
 ];
 
 export const plans = [
