@@ -233,6 +233,17 @@ export interface PirDisclosure {
   disclosure: string
 }
 
+// The fact-index marine block (get_parcel_marine_block_by_parcel). Every figure is a sourced fact;
+// built-year is cross-examined against building permits. open_questions is the block-level roll-up.
+export interface PirMarineBlock {
+  parcel: string
+  field_status: 'present' | 'none_recorded' | 'not_available'
+  coverage_note?: string
+  open_questions: { count: number; total_improvements: number; headline: string | null; items: Array<{ question: string }> }
+  improvements: Array<{ improvement: string; built: number; facts: Record<string, unknown> }>
+  material_disclosure?: { defect_id: string; kind: string; disclosure: string } | null
+}
+
 export interface PirReport {
   meta: PirMeta
   property: PirProperty
@@ -251,6 +262,7 @@ export interface PirReport {
   zoning: PirZoning
   economic: PirEconomic
   disclosures?: PirDisclosure[] | null
+  marineBlock?: PirMarineBlock | null
   salesAgent?: PirSalesAgent[] | null
 }
 

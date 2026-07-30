@@ -7,7 +7,8 @@ import PrintButton from '@/app/components/PrintButton'
 import { FLOOD_STYLE, ZONING_STYLE } from '@/lib/pir-colors'
 import type { PirReport, PirEconOverlay } from '@/types/pir'
 import { formatDistance } from '@/lib/units'
-import { marineView, taxDeedView, floodView, disclosuresView } from '@/lib/report-coverage.mjs'
+import { taxDeedView, floodView, disclosuresView } from '@/lib/report-coverage.mjs'
+import { renderMarineBlock } from '@/lib/fact-render.mjs'
 
 // ── formatting helpers ──────────────────────────────────────────────────────────
 const usd = (n?: number | null) => n == null ? '—' : `$${Math.round(n).toLocaleString('en-US')}`
@@ -30,6 +31,22 @@ export async function generateMetadata({ params }: { params: Promise<{ coNo: str
 // ── small presentational pieces (server components) ─────────────────────────────
 function Fact({ l, v }: { l: string; v: React.ReactNode }) {
   return <div className="pir-fact"><div className="l">{l}</div><div className="v">{v}</div></div>
+}
+const MARINE_PRED_LABEL: Record<string, string> = {
+  built_year: 'Built', area_sqft: 'Footprint', grade: 'Grade',
+  replacement_cost_new: 'Replacement cost', depreciated_value: 'Depreciated value',
+  pct_depreciated: 'Depreciation', service_life_vs_age: 'Service life',
+}
+// Three visually distinct provenance tiers so a reader never mistakes our estimate for the county's figure.
+function TierBadge({ tier }: { tier?: string }) {
+  const m: Record<string, { t: string; c: string }> = {
+    county_assessor_record: { t: 'county', c: 'var(--color-sage)' },
+    derived: { t: 'derived', c: 'var(--color-sage)' },
+    analysis_inference: { t: 'our estimate', c: 'var(--color-terracotta, #b5502f)' },
+  }
+  const b = tier ? m[tier] : null
+  if (!b) return null
+  return <span style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.06em', color: b.c, border: `1px solid ${b.c}`, borderRadius: 4, padding: '0 4px', marginLeft: 6, verticalAlign: 'middle' }}>{b.t}</span>
 }
 function Tile({ l, v, sub }: { l: string; v: React.ReactNode; sub?: React.ReactNode }) {
   return (
@@ -375,28 +392,52 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
         {/* Marine improvements (Tier 1 #1) + Tax-deed status (#36) render FROM lib/report-coverage
             (marineView / taxDeedView) — the module report-coverage.test.mjs asserts — so a coverage
             gap (not_available) can never read as "no dock" / "no tax exposure". */}
-        {(() => { const mv = marineView(r.marineImprovements); return (
-          <Section title={mv.title} note={mv.note}>
-            {mv.mode === 'present' ? (
-              <>
-                <div className="pir-grid">
-                  {mv.items.map((it, i) => (
-                    <Fact key={i} l={titleCase(it.description)} v={<>
-                      {[it.size, it.grade ? `grade ${it.grade}` : null, it.year_built ? `built ${it.year_built}` : null,
-                        it.age_years != null ? `${it.age_years} yr` : null].filter(Boolean).join(' · ')}
-                      {it.depreciated_value != null && it.replacement_cost_new != null
-                        ? ` · RCNLD ${usd(Number(it.depreciated_value))} of ${usd(Number(it.replacement_cost_new))}${it.pct_depreciated != null ? ` (${it.pct_depreciated}% depreciated)` : ''}`
-                        : ''}
-                      {' '}
-                      {it.at_or_past_assessed_service_life ? riskChip('At/past assessed service life', false) : null}
-                    </>} />
+        {/* Marine improvements render FROM the fact index (get_parcel_marine_block via renderMarineBlock).
+            The cross-examination headline (permit vs. assessor) leads; the improvements are context. Three
+            provenance tiers stay visually distinct (county / derived / OUR estimate). A coverage gap
+            (non-Volusia) never reads as "no dock". report-coverage.test.mjs asserts these. */}
+        {(() => {
+          const mb = r.marineBlock
+          const st = mb?.field_status
+          if (!mb || st === 'not_available') return (
+            <Section title="Marine improvements" note="Coverage gap, not a finding — the county other-improvements file is held for Volusia only.">
+              <div className="pir-note">Whether this parcel has waterfront structures (dock, seawall, lift, boat house) is not known here — its absence is not evidence either way.</div>
+            </Section>
+          )
+          if (st === 'none_recorded') return (
+            <Section title="Marine improvements" note="The county appraiser has assessed no marine improvement on this parcel.">
+              <div className="pir-note">Unassessed, unpermitted or newly built structures may still exist.</div>
+            </Section>
+          )
+          const rb = renderMarineBlock(mb)
+          return (
+            <Section title="Marine improvements" note="Every figure is a sourced assessor fact; build years are cross-examined against county building permits.">
+              {rb.openQuestions.headline ? (
+                <div style={{ border: '1px solid var(--color-line, #d9d3c6)', borderLeft: '3px solid var(--color-terracotta, #b5502f)', borderRadius: 6, padding: '12px 15px', marginBottom: 16, background: 'var(--color-paper-2, rgba(0,0,0,0.02))' }}>
+                  <div style={{ fontSize: 10.5, letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 600, marginBottom: 6 }}>Cross-examination — permit vs. assessor</div>
+                  <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 6 }}>{rb.openQuestions.headline}</div>
+                  <ul style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    {rb.openQuestions.items.map((q: string, i: number) => <li key={i} style={{ fontSize: 13, lineHeight: 1.5 }}>{q}</li>)}
+                  </ul>
+                </div>
+              ) : null}
+              {rb.improvements.map((imp: any, i: number) => (
+                <div key={i} style={{ marginBottom: 14 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6 }}>{titleCase(imp.improvement)} · built {imp.built}</div>
+                  <div className="pir-grid">
+                    {Object.entries(imp.rendered).filter(([, f]: [string, any]) => f.hasValue).map(([pred, f]: [string, any]) => (
+                      <Fact key={pred} l={MARINE_PRED_LABEL[pred] ?? pred} v={<>{f.label} <TierBadge tier={f.provenance?.tier} /></>} />
+                    ))}
+                  </div>
+                  {(imp.rendered.built_year?.corroboration ?? []).map((c: any, j: number) => (
+                    <p key={j} className="pir-note" style={{ marginTop: 6 }}>Permit cross-check: {c.text} — <strong>{c.independence}</strong>{c.gloss ? ` — ${c.gloss}` : ''}</p>
                   ))}
                 </div>
-                {mv.basis ? <p className="pir-note" style={{ marginTop: 10 }}>{mv.basis} Material is not recorded by the county for marine improvements, so remaining life is not asserted.</p> : null}
-              </>
-            ) : <div className="pir-note">{mv.body}</div>}
-          </Section>
-        ); })()}
+              ))}
+              {rb.material ? <p className="pir-note" style={{ marginTop: 8 }}>{rb.material.text}</p> : null}
+            </Section>
+          )
+        })()}
 
         {(() => { const tv = taxDeedView(r.taxDeedStatus); return (
           <Section title={tv.title}
