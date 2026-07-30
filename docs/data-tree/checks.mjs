@@ -179,13 +179,13 @@ export const predicates = [
     // (b) is why this predicate now exercises unknown keys: the original version tested only the seeded
     // slugs and was structurally blind to the permissive default the maintainer caught by calling it
     // with 'dor_nal'. NO confidence score: independence is a boolean about lineage, asserted here directly.
-    sql: `SELECT roz_sources_independent('realtytrac','dor_roll')          = false  -- re-published, one witness
-             AND roz_sources_independent('parcels_staging','nal')          = false  -- shared DOR lineage
-             AND roz_sources_independent('parcels_staging','nps_nomination')= true   -- two agencies = real corroboration
-             AND roz_sources_independent('dor_roll','nps_nomination')       = true
-             AND roz_sources_independent('realtytrac','no_such_source')     = false  -- FAIL CLOSED: unknown ⇒ not independent
-             AND roz_sources_independent('ghost_a','ghost_b')               = false  -- both unknown ⇒ not independent
-             AND roz_sources_independent('realtytrac','realtytrac')         = false  -- a source is not its own witness
+    sql: `SELECT roz_sources_lineage_disjoint('realtytrac','dor_roll')          = false  -- re-published, one witness
+             AND roz_sources_lineage_disjoint('parcels_staging','nal')          = false  -- shared DOR lineage
+             AND roz_sources_lineage_disjoint('parcels_staging','nps_nomination')= true   -- two agencies = real corroboration
+             AND roz_sources_lineage_disjoint('dor_roll','nps_nomination')       = true
+             AND roz_sources_lineage_disjoint('realtytrac','no_such_source')     = false  -- FAIL CLOSED: unknown ⇒ not independent
+             AND roz_sources_lineage_disjoint('ghost_a','ghost_b')               = false  -- both unknown ⇒ not independent
+             AND roz_sources_lineage_disjoint('realtytrac','realtytrac')         = false  -- a source is not its own witness
              AS ok`,
   },
   {
