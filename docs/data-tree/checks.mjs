@@ -246,6 +246,27 @@ export const predicates = [
             WHERE c.relkind IN ('r','m')
           ) AS ok`,
   },
+  {
+    id: 'active-repair-defects-are-harness-tracked',
+    claim: 'THE REGISTRY IS CONSULTED BY THE HARNESS — the guard that would have stopped DEF-005 sitting ' +
+      'active six days while it was rediscovered in FUDS as if new. Every active data_defect_registry defect ' +
+      'with disposition=repair and a globally-runnable detection_sql (no per-table {template}) must name the ' +
+      'harness_predicate that enforces it; a repair defect with no harness link is an UNTRACKED LIVE DEFECT. ' +
+      'RED today: DEF-017 (distinctness-assertion design rule), DEF-020 (slug-matched layer registry), ' +
+      'DEF-021 (single-county-backed report field). disclose/transform_on_ingest defects are tracked by the ' +
+      'disclosure→report wiring and the ingest pipeline respectively, not here; per-table {template} ' +
+      'detections run at ingest. Closes the loop the mid-session lesson named: consult, do not rediscover.',
+    // Populated, not derived: harness_predicate is set by hand when a predicate is written for a defect.
+    // This predicate makes the *absence* of that link fail the build, so a new repair-class defect cannot be
+    // catalogued and then forgotten. Scoped to disposition=repair because that is the class the harness
+    // mechanically PREVENTS; disclose is surfaced to the user, transform_on_ingest is fixed upstream.
+    sql: `SELECT NOT EXISTS (
+            SELECT 1 FROM data_defect_registry
+            WHERE status='active' AND disposition='repair'
+              AND detection_sql IS NOT NULL AND detection_sql NOT LIKE '%{%'
+              AND harness_predicate IS NULL
+          ) AS ok`,
+  },
 ];
 
 export const plans = [
