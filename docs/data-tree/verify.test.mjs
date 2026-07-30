@@ -161,9 +161,10 @@ await test('real spec is complete — no check silently dropped', () => {
   // no-county-literal-in-report-path + fragment-union-owner-address-invariant (fragment-fix guard) +
   // fact-index-corroboration-requires-independence (guard on the derives_from lineage) +
   // enumeration-closure-{every-geometry-layer-registered, no-dangling-registered-layer} (RED by design:
-  // registration-as-rule closure — 7 unregistered layers + 2 dangling rows, the anti-drift guard).
+  // registration-as-rule closure — 7 unregistered layers + 2 dangling rows, the anti-drift guard) +
+  // geometry-srid-metadata-not-lying (DEF-005 rule form — 38 base tables report srid=0 while rows are 4326).
   // The stub exercises runner shape only, so the live-data predicates don't gate this self-test.
-  const manifest = { predicates: 14, plans: 1, deltas: 1 };
+  const manifest = { predicates: 15, plans: 1, deltas: 1 };
   assert.equal(realChecks.predicates.length, manifest.predicates, 'predicate count changed — update the manifest on purpose');
   assert.equal(realChecks.plans.length, manifest.plans, 'plan count changed');
   assert.equal(realChecks.deltas.length, manifest.deltas, 'delta count changed');

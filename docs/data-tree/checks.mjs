@@ -224,6 +224,28 @@ export const predicates = [
               AND to_regclass('public.' || quote_ident(ti.table_name)) IS NULL
           ) AS ok`,
   },
+  {
+    id: 'geometry-srid-metadata-not-lying',
+    claim: 'DEF-005 in RULE form: no base table or matview geometry column may report srid=0 in ' +
+      'geometry_columns while its rows carry a real SRID. The lie shelves a usable 4326 layer as ' +
+      '"unjoinable" — it is why FUDS boundaries LOOKED absent (they were not; the report path reads row ' +
+      'geometry and worked) — and misleads any code that trusts geometry_columns.srid. Swept 2026-07-30: ' +
+      '38 base tables were lying (the class DEF-005 undercounted as "Seminole ~20": fdep_*, seminole_*, ' +
+      'hifld_*, school_zones, fuds_*); 37 repaired via uniformity-guarded UpdateGeometrySRID. RED remains ' +
+      'on fl_cadastral_dor_statewide ALONE (10.8M rows, redundant with parcels_staging — windowed rewrite ' +
+      'or DROP), and fires anew for any layer loaded 4326-in-rows / 0-in-typmod. Views excluded (a view ' +
+      'geometry inherits srid from its base expression). Backed by detect_srid_metadata_lie().',
+    // The metadata lie did NOT corrupt any report — the row geometries carry 4326, so ST_Contains sees
+    // 4326-vs-4326. It is a joinability/trust defect: DEF-005's registry-based detector (county_layer_registry.srid)
+    // structurally cannot see it (FUDS is not even in that registry). This predicate probes the ROWS, the only
+    // place the truth lives — the same row-vs-metadata lesson as sjc_, relkind, and fuds_munitions being MultiPolygon.
+    sql: `SELECT NOT EXISTS (
+            SELECT 1 FROM detect_srid_metadata_lie() d
+            JOIN pg_class c ON c.relname = d.tbl
+            JOIN pg_namespace n ON n.oid = c.relnamespace AND n.nspname = 'public'
+            WHERE c.relkind IN ('r','m')
+          ) AS ok`,
+  },
 ];
 
 export const plans = [
