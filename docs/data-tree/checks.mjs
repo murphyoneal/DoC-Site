@@ -143,6 +143,29 @@ export const predicates = [
               AND to_timestamp((attributes->>'RELEASE_START_DATE_TIME')::bigint / 1000) < '2017-07-01'
           ) = 6 AS ok FROM fdep_pnp`,
   },
+  {
+    id: 'fragment-union-owner-address-invariant',
+    claim: 'the ST_Union fragment fix is safe statewide: no multi-row (co_no, parcel_id) group carries ' +
+      'more than one distinct owner OR more than one distinct situs address. A parcel that appears as N ' +
+      'geometry rows is N fragments of ONE property (union them) — never N different properties sharing an ' +
+      'id (which unioning would silently merge). This is the load-bearing precondition of ' +
+      'resolve_parcel_geometry / get_site_intelligence aggregating fragments (§7).',
+    // WHY owner/address and NOT acreage-vs-lnd_sqfoot: the acreage check was measured at only 12.7%
+    // agreement (assessed land area != geometry area — condo interests, ROW, submerged parcels diverge
+    // legitimately), so it is a cross-examine LEAD, not a guard. Owner/address is exhaustive-clean:
+    // 3,443 groups across Miami-Dade/Orange/Pinellas/Volusia/Marion/St.Johns (incl. St.Johns' 26.7%
+    // dup rate) = ZERO violations. This predicate generalises that to all 67 counties and goes RED the
+    // instant a county's fragments are actually distinct properties (where the union would be wrong).
+    // Full statewide GROUP BY over 10.7M rows: runs in the Tier-2 pg runner under SET statement_timeout=0
+    // (it TIMED OUT through the MCP connector's ~2-min cap — that is a connector limit, not this query's).
+    sql: `SELECT NOT EXISTS (
+            SELECT 1 FROM parcels_staging
+            WHERE parcel_id IS NOT NULL
+            GROUP BY co_no, parcel_id
+            HAVING count(*) > 1
+               AND (count(DISTINCT own_name) > 1 OR count(DISTINCT phy_addr1) > 1)
+          ) AS ok`,
+  },
 ];
 
 export const plans = [

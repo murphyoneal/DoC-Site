@@ -157,9 +157,10 @@ await test('query throws (DB failure at query time) → red, not skipped', async
 await test('real spec is complete — no check silently dropped', () => {
   // Pinned manifest: adding/removing a check is a deliberate act that updates this.
   // Predicates now: 6 original + fabricated-tables-stay-dropped (regression guard, green) +
-  // report-sources-provenance-ratchet (green at baseline 27). The stub exercises runner shape
-  // only, so the live-data predicates don't gate this self-test.
-  const manifest = { predicates: 10, plans: 1, deltas: 1 };
+  // report-sources-provenance-ratchet (green at baseline 27) + marine-coverage-gap-is-null +
+  // no-county-literal-in-report-path + fragment-union-owner-address-invariant (fragment-fix guard).
+  // The stub exercises runner shape only, so the live-data predicates don't gate this self-test.
+  const manifest = { predicates: 11, plans: 1, deltas: 1 };
   assert.equal(realChecks.predicates.length, manifest.predicates, 'predicate count changed — update the manifest on purpose');
   assert.equal(realChecks.plans.length, manifest.plans, 'plan count changed');
   assert.equal(realChecks.deltas.length, manifest.deltas, 'delta count changed');
