@@ -166,6 +166,22 @@ export const predicates = [
                AND (count(DISTINCT own_name) > 1 OR count(DISTINCT phy_addr1) > 1)
           ) AS ok`,
   },
+  {
+    id: 'fact-index-corroboration-requires-independence',
+    claim: 'the fact-index corroboration guard classifies the three hand-verified lineage cases ' +
+      'correctly: two sources may corroborate ONLY if they share no derives_from upstream. RealtyTrac ' +
+      'sqft and the DOR roll are the SAME witness (re-published) → NOT independent. parcels_staging.jv ' +
+      'and the NAL tables share the DOR roll → NOT independent. DOR act_yr_blt (1939) and the NPS ' +
+      'nomination form (1939) are two agencies with no shared upstream → independent = REAL corroboration.',
+    // The guard on the guard. Goes RED if a derives_from edge is dropped (two re-publications would then
+    // read as independent witnesses — the exact error the fact index exists to prevent) or if the
+    // independence logic breaks. There is NO confidence score in this system: independence is a boolean
+    // about lineage, and this predicate asserts that boolean, not a threshold. See roz_source_lineage.
+    sql: `SELECT roz_sources_independent('realtytrac','dor_roll')          = false
+             AND roz_sources_independent('parcels_staging','nal')          = false
+             AND roz_sources_independent('parcels_staging','nps_nomination')= true
+             AND roz_sources_independent('dor_roll','nps_nomination')       = true AS ok`,
+  },
 ];
 
 export const plans = [
