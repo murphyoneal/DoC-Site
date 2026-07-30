@@ -244,6 +244,19 @@ export interface PirMarineBlock {
   material_disclosure?: { defect_id: string; kind: string; disclosure: string } | null
 }
 
+// The fact-index flood block (get_parcel_flood_block). THE fact is the SFHA determination; a coverage
+// gap renders "not established" (about our data), never "not in a flood zone". FEMA is singular authority.
+export interface PirFloodBlock {
+  parcel: string
+  field_status: string
+  determination: { predicate: 'in_sfha'; value: boolean | null; field_status: string; source: string; source_tier: string; determination_note?: string; corroborators: unknown[]; contradictors: unknown[] }
+  base_flood_elevation: Record<string, unknown>
+  elevation_above_bfe: Record<string, unknown>
+  zones: unknown[]
+  vertical_datum: string | null
+  coverage_caveat?: string | null
+}
+
 export interface PirReport {
   meta: PirMeta
   property: PirProperty
@@ -263,6 +276,7 @@ export interface PirReport {
   economic: PirEconomic
   disclosures?: PirDisclosure[] | null
   marineBlock?: PirMarineBlock | null
+  floodBlock?: PirFloodBlock | null
   salesAgent?: PirSalesAgent[] | null
 }
 

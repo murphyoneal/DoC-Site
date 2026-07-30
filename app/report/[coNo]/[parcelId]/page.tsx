@@ -7,8 +7,8 @@ import PrintButton from '@/app/components/PrintButton'
 import { FLOOD_STYLE, ZONING_STYLE } from '@/lib/pir-colors'
 import type { PirReport, PirEconOverlay } from '@/types/pir'
 import { formatDistance } from '@/lib/units'
-import { taxDeedView, floodView, disclosuresView } from '@/lib/report-coverage.mjs'
-import { renderMarineBlock } from '@/lib/fact-render.mjs'
+import { taxDeedView, disclosuresView } from '@/lib/report-coverage.mjs'
+import { renderMarineBlock, renderFloodBlock } from '@/lib/fact-render.mjs'
 
 // ── formatting helpers ──────────────────────────────────────────────────────────
 const usd = (n?: number | null) => n == null ? '—' : `$${Math.round(n).toLocaleString('en-US')}`
@@ -335,26 +335,24 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
         {/* Flood renders from floodView (lib/report-coverage) — the FEMA NFHL coverage-aware shape.
             not_available / parcel_not_resolved is a COVERAGE GAP, never "not in a flood zone" (the
             St Pete incident). report-coverage.test.mjs asserts the gap copy. */}
-        {(() => { const fv = floodView(r.flood); return (
-        <Section title="Flood & area — 5-mile radius" note={fv.mode === 'present' ? fv.note : undefined}>
+        {/* Flood renders FROM the fact index (get_parcel_flood_block via renderFloodBlock). THE finding is
+            the SFHA determination (federal_regulatory tier); a coverage gap renders "not established —
+            about our data, not the parcel", NEVER "not in a flood zone" (the St Pete failure). Datum is
+            surfaced; the elevation-vs-BFE comparison is withheld with its reason visible. */}
+        {(() => { const fb = renderFloodBlock(r.floodBlock); const det = fb.determination; return (
+        <Section title="Flood & area — 5-mile radius" note="The FEMA determination is the finding; zone and base flood elevation are supporting detail.">
           <div className="pir-maprow">
             <PropertyReportMap coNo={co} parcelId={parcelId} layer="flood" />
             <div>
               <Legend entries={floodLegend} />
               <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {fv.mode === 'present' ? (
-                  <>
-                    <Fact l="Special Flood Hazard Area" v={fv.inSfha
-                      ? riskChip('In an SFHA — flood insurance required with a federally-backed mortgage', false)
-                      : riskChip('Not in an SFHA', true)} />
-                    <Fact l="Flood zones (share of parcel)" v={fv.zones.length
-                      ? fv.zones.map((z) => `${z.zone}${z.in_sfha ? ' · SFHA' : ''}${z.pct_of_parcel != null ? ` ${z.pct_of_parcel}%` : ''}`).join('   ·   ')
-                      : '—'} />
-                    {fv.bfe != null ? <Fact l="Base flood elevation" v={`${fv.bfe} ft${fv.datum ? ` ${fv.datum}` : ''}${fv.layer ? ` (${fv.layer})` : ''}`} /> : null}
-                  </>
-                ) : (
-                  <div className="pir-note">{[fv.note, fv.body].filter(Boolean).join(' ')}</div>
-                )}
+                <div style={{ border: '1px solid var(--color-line, #d9d3c6)', borderLeft: `3px solid ${det?.inSfha ? 'var(--color-terracotta, #b5502f)' : 'var(--color-sage)'}`, borderRadius: 6, padding: '10px 13px' }}>
+                  <div style={{ fontSize: 14, fontWeight: 600 }}>{det?.label}<TierBadge tier={det?.tier} /></div>
+                  {det?.headline ? <div style={{ fontSize: 12.5, color: 'var(--color-sage)', marginTop: 4 }}>{det.headline}</div> : null}
+                </div>
+                {fb.bfe ? <Fact l="Base flood elevation" v={fb.bfe.label} /> : null}
+                {fb.zones.length ? <Fact l="Flood zones (share of parcel)" v={fb.zones.map((z: any) => `${z.zone}${z.in_sfha ? ' · SFHA' : ''}${z.pct_of_parcel != null ? ` ${z.pct_of_parcel}%` : ''}`).join('   ·   ')} /> : null}
+                {fb.elevationComparison?.withheld ? <p className="pir-note" style={{ marginTop: 2 }}>Elevation vs. BFE — {fb.elevationComparison.reason}</p> : null}
                 <Fact l="Area repetitive loss" v={
                   r.flood.areaRepetitiveLoss && r.flood.areaRepetitiveLoss.field_status === 'present'
                     ? `${num(r.flood.areaRepetitiveLoss.properties)} properties · ${num(r.flood.areaRepetitiveLoss.totalLosses)} losses (county context)`
