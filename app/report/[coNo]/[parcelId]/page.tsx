@@ -7,7 +7,7 @@ import PrintButton from '@/app/components/PrintButton'
 import { FLOOD_STYLE, ZONING_STYLE } from '@/lib/pir-colors'
 import type { PirReport, PirEconOverlay } from '@/types/pir'
 import { formatDistance } from '@/lib/units'
-import { marineView, taxDeedView, floodView } from '@/lib/report-coverage.mjs'
+import { marineView, taxDeedView, floodView, disclosuresView } from '@/lib/report-coverage.mjs'
 
 // ── formatting helpers ──────────────────────────────────────────────────────────
 const usd = (n?: number | null) => n == null ? '—' : `$${Math.round(n).toLocaleString('en-US')}`
@@ -172,6 +172,22 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
 
       {/* ═══ PAGE 1 — PROPERTY FACTS ═══ */}
       <Sheet page={1} total={5} title="Property Facts" r={r}>
+        {/* Source limitations render FROM disclosuresView (lib/report-coverage) — the get_pir_report
+            `disclosures` array. A source/disclose defect is a FINDING with weight (a stated limit of the
+            county's public record), styled deliberately UNLIKE the muted .pir-note coverage-gap copy:
+            "the county doesn't publish this" is a different sentence from "we don't hold this layer".
+            report-coverage.test.mjs asserts the county scope (Volusia's 8.8% never leaks to another county). */}
+        {(() => { const dv = disclosuresView(r.disclosures); if (dv.mode !== 'source_limit') return null; return (
+          <div className="pir-disclosure" style={{
+            border: '1px solid var(--color-line, #d9d3c6)', borderLeft: '3px solid var(--color-ink, #2b2b2b)',
+            borderRadius: 6, padding: '13px 16px', marginBottom: 18, background: 'var(--color-paper-2, rgba(0,0,0,0.02))' }}>
+            <div style={{ fontSize: 10.5, letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 600, marginBottom: 6 }}>{dv.title}</div>
+            <div style={{ fontSize: 12.5, color: 'var(--color-sage)', marginBottom: 8 }}>{dv.note}</div>
+            <ul style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {dv.items.map((it, i) => <li key={i} style={{ fontSize: 14, lineHeight: 1.5 }}>{it.text}</li>)}
+            </ul>
+          </div>
+        ); })()}
         <Section title="Property">
           <div className="pir-grid">
             <Fact l="Owner" v={<>{titleCase(p.ownerName)} {p.ownerOccupied ? riskChip('Owner-occupied', true) : null}</>} />

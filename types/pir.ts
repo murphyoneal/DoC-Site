@@ -225,6 +225,14 @@ export interface PirEconomic {
   brownfield: PirEconOverlay | null
 }
 
+// A source/disclose defect surfaced onto the report (from get_parcel_disclosures). A stated limit of
+// the county's public record — a finding with weight, NOT a coverage gap and NOT a disclaimer.
+export interface PirDisclosure {
+  defect_id: string
+  kind: 'source_limit'
+  disclosure: string
+}
+
 export interface PirReport {
   meta: PirMeta
   property: PirProperty
@@ -242,6 +250,7 @@ export interface PirReport {
   census: PirCensus
   zoning: PirZoning
   economic: PirEconomic
+  disclosures?: PirDisclosure[] | null
   salesAgent?: PirSalesAgent[] | null
 }
 
