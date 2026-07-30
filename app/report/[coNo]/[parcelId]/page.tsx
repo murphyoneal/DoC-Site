@@ -8,7 +8,7 @@ import { FLOOD_STYLE, ZONING_STYLE } from '@/lib/pir-colors'
 import type { PirReport, PirEconOverlay } from '@/types/pir'
 import { formatDistance } from '@/lib/units'
 import { taxDeedView, disclosuresView } from '@/lib/report-coverage.mjs'
-import { renderMarineBlock, renderFloodBlock, renderFact } from '@/lib/fact-render.mjs'
+import { renderMarineBlock, renderFloodBlock, renderFact, renderContaminationFacilities } from '@/lib/fact-render.mjs'
 
 // ── formatting helpers ──────────────────────────────────────────────────────────
 const usd = (n?: number | null) => n == null ? '—' : `$${Math.round(n).toLocaleString('en-US')}`
@@ -393,6 +393,27 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
         {/* Marine improvements (Tier 1 #1) + Tax-deed status (#36) render FROM lib/report-coverage
             (marineView / taxDeedView) — the module report-coverage.test.mjs asserts — so a coverage
             gap (not_available) can never read as "no dock" / "no tax exposure". */}
+        {/* Contamination facilities render FROM the fact index (get_parcel_contamination_facilities). On-parcel
+            and ACTIVE-remediation facilities are NAMED (not folded into an "N tanks nearby" count); null cleanup
+            renders as a question, never blank. report-coverage.test.mjs asserts these. Item 82 / 316 Main St. */}
+        {(() => { const cf = renderContaminationFacilities(r.contaminationFacilities); if (!cf.facilities.length && !cf.areaContext) return null; return (
+          <Section title="Contamination — on & near this parcel" note="On-parcel and active-remediation facilities are named individually; the surrounding count is area context only.">
+            {cf.facilities.map((f: any, i: number) => {
+              const flag = f.onParcel || /ACTIVE/i.test(f.remediation || '')
+              return (
+                <div key={i} style={{ marginBottom: 10, borderLeft: `3px solid ${flag ? 'var(--color-terracotta, #b5502f)' : 'var(--color-line, #d9d3c6)'}`, paddingLeft: 12 }}>
+                  <div style={{ fontWeight: 600 }}>{titleCase(f.name)} {f.onParcel ? riskChip('On this parcel', false) : null} {/ACTIVE/i.test(f.remediation || '') ? riskChip('Active remediation', false) : null}</div>
+                  <div className="pir-note" style={{ fontStyle: 'normal' }}>
+                    {[f.type, f.status, f.where, f.remediation].filter(Boolean).join(' · ')}. {f.cleanup}.
+                    {f.documentsUrl ? <> <a href={f.documentsUrl} target="_blank" rel="noopener noreferrer">FDEP file</a></> : null}
+                    {f.watchUrl ? <> · <a href={f.watchUrl} target="_blank" rel="noopener noreferrer">monitor</a></> : null}
+                  </div>
+                </div>
+              )
+            })}
+            {cf.areaContext ? <p className="pir-note">Area context (not on-parcel): {cf.areaContext.tanks} storage-tank facilities and {cf.areaContext.cleanups} cleanup site(s) within ~1,600 ft.</p> : null}
+          </Section>
+        ); })()}
         {/* Marine improvements render FROM the fact index (get_parcel_marine_block via renderMarineBlock).
             The cross-examination headline (permit vs. assessor) leads; the improvements are context. Three
             provenance tiers stay visually distinct (county / derived / OUR estimate). A coverage gap
