@@ -277,6 +277,7 @@ export interface PirReport {
   disclosures?: PirDisclosure[] | null
   marineBlock?: PirMarineBlock | null
   floodBlock?: PirFloodBlock | null
+  groundElevation?: Record<string, unknown> | null
   salesAgent?: PirSalesAgent[] | null
 }
 

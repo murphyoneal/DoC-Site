@@ -8,7 +8,7 @@ import { FLOOD_STYLE, ZONING_STYLE } from '@/lib/pir-colors'
 import type { PirReport, PirEconOverlay } from '@/types/pir'
 import { formatDistance } from '@/lib/units'
 import { taxDeedView, disclosuresView } from '@/lib/report-coverage.mjs'
-import { renderMarineBlock, renderFloodBlock } from '@/lib/fact-render.mjs'
+import { renderMarineBlock, renderFloodBlock, renderFact } from '@/lib/fact-render.mjs'
 
 // ── formatting helpers ──────────────────────────────────────────────────────────
 const usd = (n?: number | null) => n == null ? '—' : `$${Math.round(n).toLocaleString('en-US')}`
@@ -374,7 +374,10 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
         <Section title="Land"
           note="Ground elevation is a USGS-derived property fact and the gopher-tortoise overlay is a mapped spatial layer. Soil type & drainage classification is not sourced for Volusia and is omitted rather than guessed.">
           <div className="pir-grid">
-            <Fact l="Ground elevation" v={r.land.elevationFt != null ? `${r.land.elevationFt} ft` : '—'} />
+            {/* Elevation VALUE is withheld (get_ground_elevation_fact): parcel_elevations carries no vertical
+                datum, so a foot-level figure would imply precision we lack — the 5th fabrication. Renders the
+                asymmetry, never the number. */}
+            <Fact l="Ground elevation" v={<span style={{ color: 'var(--color-sage)' }}>{renderFact(r.groundElevation).label}</span>} />
             <Fact l="Sewer / septic" v={<span style={{ color: 'var(--color-sage)' }}>Not evaluated — no parcel-level sewer/septic determination in the record</span>} />
             <Fact l="Protected species" v={r.land.gopherTortoiseInside ? riskChip('Within gopher tortoise habitat overlay', false) : r.land.gopherTortoiseNearestM != null ? `Nearest habitat ${mi(r.land.gopherTortoiseNearestM)}` : 'None mapped nearby'} />
           </div>
