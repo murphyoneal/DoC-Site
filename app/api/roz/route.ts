@@ -94,6 +94,8 @@ const TOOLS: Anthropic.Tool[] = [
     input_schema: { type: 'object', properties: { name: { type: 'string', description: 'the site / facility / historic-site / place name' }, city: { type: 'string', description: 'optional city to disambiguate' } }, required: ['name'] } },
   { name: 'get_county_coverage', description: 'AUTHORITATIVE coverage for a county — call this BEFORE any statement about what is or is not loaded/available for a county. Returns co_no, county_name, parcel_record_available, parcels_loaded, the flood layer held (and name), and per-field availability (wind, surge, water, airport, marine, tax-deed), plus statewide_layers_apply (FDEP contamination, tanks, PNP, sinkholes, TRI, Superfund, FUDS, NRHP apply to EVERY county regardless). All 67 counties are loaded; NEVER assert a coverage gap without this function\'s output.',
     input_schema: { type: 'object', properties: { co_no: { type: 'number', description: 'DOR county number (resolve a county name via find_parcel first if needed)' } }, required: ['co_no'] } },
+  { name: 'discover_county_layers', description: 'Enumerate every data layer held for a county, grouped by concept, with layer counts, row counts and the actual table names. Call this to KNOW WHAT EXISTS for a county before deciding what to ask — never reason about what is held from memory or a hardcoded list. Pairs with get_county_coverage (per-field availability). Needs co_no.',
+    input_schema: { type: 'object', properties: { co_no: { type: 'number', description: 'DOR county number' } }, required: ['co_no'] } },
   { name: 'find_contractors', description: 'Find licensed Florida contractors by trade and county (Volusia default). trade e.g. "electrical", "plumbing", "roofing". Returns DBPR licence status/expiry, complaint_count, bond/insurance. City is a soft preference only — the DBPR city is the business address, not service area, so search by county.',
     input_schema: { type: 'object', properties: { trade: { type: 'string' }, city: { type: 'string' }, county: { type: 'string' } }, required: [] },
     // Cache breakpoint on the last tool → the whole (system + tools) prefix is cached and reused every call.
@@ -163,6 +165,10 @@ async function runTool(name: string, input: any, admin: ReturnType<typeof getSup
   if (name === 'get_county_coverage') {
     const { data, error } = await admin.rpc('get_county_coverage', { p_co_no: Number(input.co_no) })
     return { text: error ? `coverage error: ${error.message}` : JSON.stringify(data ?? {}), county: Number(input.co_no), pid: null }
+  }
+  if (name === 'discover_county_layers') {
+    const { data, error } = await admin.rpc('discover_county_layers', { p_co_no: Number(input.co_no) })
+    return { text: error ? `discovery error: ${error.message}` : JSON.stringify(data ?? []), county: Number(input.co_no), pid: null }
   }
   if (name === 'find_parcel') {
     const raw = String(input.address ?? '')
@@ -382,6 +388,9 @@ export async function POST(req: NextRequest) {
       // offered); webEnabled=true & web_search_requests=0 → the tool WAS offered but the model
       // (claude-sonnet-5) didn't invoke it (the "search-shaped sentence without the search").
       console.log(`[roz-websearch] webEnabled=${webEnabled} web_search_requests=${webSearches} model=${MODEL} tools=[${trace.map(t => t.tool).join(',')}]`)
+      // Durable copy — the console line ages out of Vercel logs in ~1 day; this row is queryable from
+      // the DB after ANY report, so the "did web_search fire?" answer no longer depends on catching a log.
+      try { await admin.from('roz_search_probe').insert({ web_enabled: webEnabled, web_searches: webSearches, model: MODEL, parcel_id: targetParcel, tools: trace.map(t => t.tool).join(',') }) } catch { /* probe is best-effort */ }
 
       // payload_hash = the record Roz actually saw (for later verifiability of an opinion)
       const payloadHash = createHash('sha256').update(payloadParts.join('\n')).digest('hex')
