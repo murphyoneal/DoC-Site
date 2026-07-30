@@ -188,6 +188,42 @@ export const predicates = [
              AND roz_sources_independent('realtytrac','realtytrac')         = false  -- a source is not its own witness
              AS ok`,
   },
+  {
+    id: 'enumeration-closure-every-geometry-layer-registered',
+    claim: 'REGISTRATION-AS-RULE (forward closure), RED BY DESIGN today: every base table or matview ' +
+      'carrying a geometry column — the `geometry_columns` spine, which PostGIS maintains from the ' +
+      'catalog and so CANNOT decay — must appear in `table_inventory`. Mapping was run four times as a ' +
+      'project (ladm_map_run1..v3); each snapshot decayed from its run date because nothing fires when a ' +
+      'new layer arrives. RED = 7 layers that arrived after the last run by routes that touch no registry ' +
+      '(matview fl_sinkhole_incidents, migration parcel_geometry_supplement, one-off FUDS×3, pulls ' +
+      'calhoun_zoning/broward_bmsd_zoning). Goes GREEN only when every geometry layer is enumerated, then ' +
+      'stays a permanent drift guard. Generalises §10 invariant 6 (empty≠done) from pulls to registration.',
+    // The 370 "in no map" figure was inflated by ~364 VIEWS (legitimately outside a table inventory);
+    // relkind IN ('r','m') scopes to arrived DATA — base tables + matviews — the real debt: 7. This is a
+    // CLOSURE invariant, not another map: it reconciles the auto-maintained spine against the hand-
+    // maintained inventory instead of producing a fifth snapshot. Clear the 7 (with real classes) to green it.
+    sql: `SELECT NOT EXISTS (
+            SELECT 1 FROM geometry_columns gc
+            JOIN pg_class c ON c.relname = gc.f_table_name
+            JOIN pg_namespace nsp ON nsp.oid = c.relnamespace AND nsp.nspname = gc.f_table_schema
+            WHERE gc.f_table_schema = 'public' AND c.relkind IN ('r','m')
+              AND NOT EXISTS (SELECT 1 FROM table_inventory ti WHERE ti.table_name = gc.f_table_name)
+          ) AS ok`,
+  },
+  {
+    id: 'enumeration-closure-no-dangling-registered-layer',
+    claim: 'REGISTRATION-AS-RULE (reverse closure), RED BY DESIGN today: every registered layer must ' +
+      'still exist. A `table_inventory` row pointing at a dropped/renamed relation is the registry ' +
+      'lying — the same mechanism as the 10 "never-pulled" sources (loaded outside the registry-writing ' +
+      'path) and the quarantine-rename hazard (§10 invariant 3). RED = 2: property_environmental, ' +
+      'property_hazard_risk — fabricated tables DROPPED 2026-07-29 (§7) whose inventory rows were never ' +
+      'removed. Create and de-register are as decoupled as create and register; this half catches the other direction.',
+    sql: `SELECT NOT EXISTS (
+            SELECT 1 FROM table_inventory ti
+            WHERE ti.table_name IS NOT NULL
+              AND to_regclass('public.' || quote_ident(ti.table_name)) IS NULL
+          ) AS ok`,
+  },
 ];
 
 export const plans = [
