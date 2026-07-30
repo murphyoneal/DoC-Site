@@ -282,6 +282,18 @@ export const predicates = [
     // boundary, CO_NO where present), never the table name — slug-matching is what missed sjc_.
     sql: `SELECT NOT EXISTS (SELECT 1 FROM detect_unwired_firm_layers()) AS ok`,
   },
+  {
+    id: 'flood-layer-serves-its-own-county',
+    claim: 'Item 80 follow-up — every SELECTED flood layer has geometry inside its EXPECTED county ' +
+      '(matched FIPS-to-FIPS, never names — county_registry.fips = fl_county_boundaries.county). The 43 ' +
+      'counties wired before this session were slug-matched (the sjc_ method that mis-wired by name); this ' +
+      'converts "unverified by content" into a permanent assertion. GREEN: 0 mis-wired — all overlap their ' +
+      'county. The check is boundary-INTERSECTION, arrived at after two wrong tries: single-sample point-in-' +
+      'county false-positived on regional extracts (alachua_flood_zones spans Alachua + east), and interior-' +
+      'point-coverage false-positived on SFHA-only layers whose dry county centroid is a zone-X area they omit. ' +
+      'Backed by detect_flood_layer_wrong_county().',
+    sql: `SELECT NOT EXISTS (SELECT 1 FROM detect_flood_layer_wrong_county()) AS ok`,
+  },
 ];
 
 export const plans = [

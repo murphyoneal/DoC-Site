@@ -165,7 +165,7 @@ await test('real spec is complete — no check silently dropped', () => {
   // geometry-srid-metadata-not-lying (DEF-005 rule form — 38 base tables report srid=0 while rows are 4326) +
   // active-repair-defects-are-harness-tracked (the registry-consulted-by-harness guard; RED on DEF-017/020/021).
   // The stub exercises runner shape only, so the live-data predicates don't gate this self-test.
-  const manifest = { predicates: 17, plans: 1, deltas: 1 };
+  const manifest = { predicates: 18, plans: 1, deltas: 1 };
   assert.equal(realChecks.predicates.length, manifest.predicates, 'predicate count changed — update the manifest on purpose');
   assert.equal(realChecks.plans.length, manifest.plans, 'plan count changed');
   assert.equal(realChecks.deltas.length, manifest.deltas, 'delta count changed');
