@@ -50,6 +50,20 @@ export interface PirProperty {
   range: string | null
 }
 
+// One value fact from get_parcel_values_facts (_value_fact output): the winning coalesce branch's
+// figure with its OWN provenance. corroborators are always [] — CAMA and NAL share DOR lineage, so
+// one is never an independent witness of the other. as_of is per-field (the winning branch's roll).
+export interface PirValueFact {
+  predicate: string
+  value: number | null
+  field_status: 'present' | 'not_recorded'
+  source?: string
+  source_tier?: 'county_assessor_record' | 'government_derived' | string
+  as_of?: string | null
+  corroborators: unknown[]
+  contradictors: unknown[]
+}
+
 export interface PirValues {
   justValue: number | null
   assessedValue: number | null
@@ -57,6 +71,10 @@ export interface PirValues {
   landValue: number | null
   specialFeatureValue: number | null
   improvementValue: number | null
+  // Fact-index records backing the four dollar figures above (justValue/assessedValue/landValue/
+  // improvementValue). The page renders FROM these — value, per-field roll year, and tier badge — so a
+  // figure is never shown without its provenance and mixed rolls are surfaced, not reconciled.
+  valuesFacts?: Record<string, PirValueFact> | null
 }
 
 export interface PirTax {

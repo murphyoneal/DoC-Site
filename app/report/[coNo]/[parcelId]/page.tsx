@@ -8,7 +8,7 @@ import { FLOOD_STYLE, ZONING_STYLE } from '@/lib/pir-colors'
 import type { PirReport, PirEconOverlay } from '@/types/pir'
 import { formatDistance } from '@/lib/units'
 import { taxDeedView, disclosuresView } from '@/lib/report-coverage.mjs'
-import { renderMarineBlock, renderFloodBlock, renderFact, renderContaminationFacilities } from '@/lib/fact-render.mjs'
+import { renderMarineBlock, renderFloodBlock, renderFact, renderContaminationFacilities, renderValuesBlock } from '@/lib/fact-render.mjs'
 
 // ── formatting helpers ──────────────────────────────────────────────────────────
 const usd = (n?: number | null) => n == null ? '—' : `$${Math.round(n).toLocaleString('en-US')}`
@@ -41,6 +41,7 @@ const MARINE_PRED_LABEL: Record<string, string> = {
 function TierBadge({ tier }: { tier?: string }) {
   const m: Record<string, { t: string; c: string }> = {
     county_assessor_record: { t: 'county', c: 'var(--color-sage)' },
+    government_derived: { t: 'state roll', c: 'var(--color-sage)' },
     derived: { t: 'derived', c: 'var(--color-sage)' },
     analysis_inference: { t: 'our estimate', c: 'var(--color-terracotta, #b5502f)' },
   }
@@ -223,15 +224,35 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
           <div className="pir-note">Legal: {p.legal ?? '—'}.{p.livingAreaSource ? ` Living area from ${p.livingAreaSource}.` : ''}</div>
         </Section>
 
-        <Section title="Assessed values" note="Improvement value = just value − land − special-feature value.">
-          <div className="pir-tiles">
-            <Tile l="Just (market) value" v={usd(v.justValue)} sub={`${v.assessedYear ?? ''} roll`} />
-            <Tile l="Assessed value" v={usd(v.assessedValue)} sub="capped/SOH" />
-            <Tile l="Land value" v={usd(v.landValue)} />
-            <Tile l="Improvement value" v={usd(v.improvementValue)} />
-            <Tile l="Special features" v={usd(v.specialFeatureValue)} />
-          </div>
-        </Section>
+        {/* Values render FROM the fact index (get_parcel_values_facts, surfaced as values.valuesFacts).
+            Each dollar figure carries its OWN per-field roll year + authority (CAMA 2026 vs NAL 2025) —
+            a block-level year would MISDATE a field when the coalesce mixes sources, so the asymmetry is
+            surfaced in the section note, never silently reconciled. Absent field → the fixed NULL string,
+            never a number. corroborators are [] by design (CAMA/NAL share DOR lineage — not independent). */}
+        {(() => {
+          const vb = renderValuesBlock(v.valuesFacts)
+          const byKey = (k: string) => vb.fields.find((f: any) => f.key === k)
+          const valTile = (l: string, key: string) => {
+            const f = byKey(key)
+            if (!f) return <Tile key={key} l={l} v="—" />
+            const rd = f.rendered
+            return <Tile key={key} l={l}
+              v={rd.hasValue ? rd.label : <span style={{ color: 'var(--color-sage)' }}>{rd.label}</span>}
+              sub={rd.hasValue ? <>{f.asOf}<TierBadge tier={rd.provenance?.tier} /></> : null} />
+          }
+          return (
+            <Section title="Assessed values"
+              note={<>Improvement value = just value − land − special-feature value.{vb.rollSpan?.mixed ? ` ${vb.rollSpan.note}` : ''}</>}>
+              <div className="pir-tiles">
+                {valTile('Just (market) value', 'justValue')}
+                {valTile('Assessed value', 'assessedValue')}
+                {valTile('Land value', 'landValue')}
+                {valTile('Improvement value', 'improvementValue')}
+                <Tile l="Special features" v={usd(v.specialFeatureValue)} />
+              </div>
+            </Section>
+          )
+        })()}
 
         <Section title="Tax & exemptions"
           note="This dataset carries taxable values by authority and exemptions on file; it does not include the computed annual tax bill or per-authority millage, so those are not shown rather than estimated.">
