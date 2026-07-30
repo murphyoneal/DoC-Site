@@ -391,6 +391,7 @@ Recorded so corrections are traceable, not buried. The survey failures also live
 
 | error | claimed | actual | how caught |
 |---|---|---|---|
+| `roz_sources_independent` fail-OPEN | reported "3 seed cases classify correctly" | an **unregistered/typo source key returned `true` (independent)** — `('realtytrac','dor_nal')` and even `('foo','bar')` → true. Ancestor-set of an unknown key was `{itself}`, so it shared nothing with anyone and read as an independent second witness — the exact false confidence the substrate exists to prevent | maintainer called it with `'dor_nal'` (not the seeded `'dor_roll'`). My seed-case predicate tested ONLY the seeded slugs → structurally blind to the permissive default. Fixed fail-CLOSED (both sources must be registered; unknown ⇒ not independent) + predicate now exercises unknown keys |
 | J12 row count | 531,061 | 40,301 | verification; number not derived from anything (`nr_failures` id 79) |
 | topology hand-edited | v3 §3 listed J12/J13/J14 | artifact still held J10/J11 | verification (`nr_failures` id 78) |
 | Miami-Dade size | "900,000" | 585,220 | `count(*)` |

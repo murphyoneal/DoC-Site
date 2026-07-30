@@ -173,14 +173,20 @@ export const predicates = [
       'sqft and the DOR roll are the SAME witness (re-published) → NOT independent. parcels_staging.jv ' +
       'and the NAL tables share the DOR roll → NOT independent. DOR act_yr_blt (1939) and the NPS ' +
       'nomination form (1939) are two agencies with no shared upstream → independent = REAL corroboration.',
-    // The guard on the guard. Goes RED if a derives_from edge is dropped (two re-publications would then
-    // read as independent witnesses — the exact error the fact index exists to prevent) or if the
-    // independence logic breaks. There is NO confidence score in this system: independence is a boolean
-    // about lineage, and this predicate asserts that boolean, not a threshold. See roz_source_lineage.
-    sql: `SELECT roz_sources_independent('realtytrac','dor_roll')          = false
-             AND roz_sources_independent('parcels_staging','nal')          = false
-             AND roz_sources_independent('parcels_staging','nps_nomination')= true
-             AND roz_sources_independent('dor_roll','nps_nomination')       = true AS ok`,
+    // The guard on the guard, BOTH directions. Goes RED if (a) a derives_from edge is dropped so two
+    // re-publications read as independent witnesses, OR (b) the function reverts to FAIL-OPEN — an
+    // unknown/typo source key reading as independent, which manufactures a second witness from nothing.
+    // (b) is why this predicate now exercises unknown keys: the original version tested only the seeded
+    // slugs and was structurally blind to the permissive default the maintainer caught by calling it
+    // with 'dor_nal'. NO confidence score: independence is a boolean about lineage, asserted here directly.
+    sql: `SELECT roz_sources_independent('realtytrac','dor_roll')          = false  -- re-published, one witness
+             AND roz_sources_independent('parcels_staging','nal')          = false  -- shared DOR lineage
+             AND roz_sources_independent('parcels_staging','nps_nomination')= true   -- two agencies = real corroboration
+             AND roz_sources_independent('dor_roll','nps_nomination')       = true
+             AND roz_sources_independent('realtytrac','no_such_source')     = false  -- FAIL CLOSED: unknown ⇒ not independent
+             AND roz_sources_independent('ghost_a','ghost_b')               = false  -- both unknown ⇒ not independent
+             AND roz_sources_independent('realtytrac','realtytrac')         = false  -- a source is not its own witness
+             AS ok`,
   },
 ];
 
