@@ -232,8 +232,9 @@ export const predicates = [
       'geometry and worked) — and misleads any code that trusts geometry_columns.srid. Swept 2026-07-30: ' +
       '38 base tables were lying (the class DEF-005 undercounted as "Seminole ~20": fdep_*, seminole_*, ' +
       'hifld_*, school_zones, fuds_*); 37 repaired via uniformity-guarded UpdateGeometrySRID. RED remains ' +
-      'on fl_cadastral_dor_statewide ALONE (10.8M rows, redundant with parcels_staging — windowed rewrite ' +
-      'or DROP), and fires anew for any layer loaded 4326-in-rows / 0-in-typmod. Views excluded (a view ' +
+      'on fl_cadastral_dor_statewide ALONE (10.8M rows, a SUPERSET of parcels_staging holding twn/rng/sec + ' +
+      'OR deed refs unique to it — NOT a drop; typmod fix needs a direct connection, exceeds the pooler limit), ' +
+      'and fires anew for any layer loaded 4326-in-rows / 0-in-typmod. Views excluded (a view ' +
       'geometry inherits srid from its base expression). Backed by detect_srid_metadata_lie().',
     // The metadata lie did NOT corrupt any report — the row geometries carry 4326, so ST_Contains sees
     // 4326-vs-4326. It is a joinability/trust defect: DEF-005's registry-based detector (county_layer_registry.srid)
