@@ -8,7 +8,7 @@ import { FLOOD_STYLE, ZONING_STYLE } from '@/lib/pir-colors'
 import type { PirReport, PirEconOverlay } from '@/types/pir'
 import { formatDistance } from '@/lib/units'
 import { taxDeedView, disclosuresView } from '@/lib/report-coverage.mjs'
-import { renderMarineBlock, renderFloodBlock, renderFact, renderContaminationFacilities, renderValuesBlock, renderCensusBlock, renderOwnersBlock, renderTransactionsBlock } from '@/lib/fact-render.mjs'
+import { renderMarineBlock, renderFloodBlock, renderFact, renderContaminationFacilities, renderValuesBlock, renderCensusBlock, renderOwnersBlock, renderTransactionsBlock, renderPermitsBlock } from '@/lib/fact-render.mjs'
 
 // ── formatting helpers ──────────────────────────────────────────────────────────
 const usd = (n?: number | null) => n == null ? '—' : `$${Math.round(n).toLocaleString('en-US')}`
@@ -137,6 +137,9 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
   // Transactions: qualification gates the money — a market sale is a price, everything else is
   // consideration. The deed chain is kept whole (a $100 quit-claim can hide a real $2.125M warranty deed).
   const tb = renderTransactionsBlock(r.transactionFacts)
+  // Permits: subject is the permit; closeout is a disclosure (a dated completion => finaled; else "not
+  // recorded", never open/closed). Contractor licence is checked as of the permit date against DBPR.
+  const pb = renderPermitsBlock(r.permitFacts)
 
   // amenity badges (individual compass per type)
   const amenityBadges: CompassBadgeData[] = r.amenities.map(a => ({
@@ -167,7 +170,7 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
     ['Tax & exemptions', tax.taxableValueCounty != null],
     ['Nearby amenities', r.amenities.length > 0],
     ['Assigned schools', r.schools.length > 0],
-    ['Permit history', r.permits.count > 0],
+    ['Permit history', (pb.count ?? 0) > 0],
     ['Ownership / sale history', (tb.count ?? 0) > 0],
     ['Elevation & land', r.land.elevationFt != null],
     ['Water & flood', r.flood.field_status === 'present'],
@@ -344,31 +347,50 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
 
       {/* ═══ PAGE 2 — PROPERTY HISTORY ═══ */}
       <Sheet page={2} total={5} title="Property History" r={r}>
-        <Section title={`Permit history — ${r.permits.count} on record`}
-          note="Every permit on file is listed; the count matches the list. Where the county record carries no final status, that is stated rather than assumed. 1980s records occasionally merge the work-description and contractor fields at the source.">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {r.permits.items.map((pm, i) => {
-              const statusText = pm.status ? `County status ${pm.status}` : pm.completionDate ? 'Completed — final status not on file' : 'Issued — no confirmed outcome'
-              return (
+        {/* Permits render FROM the fact index (get_parcel_permit_facts). Subject is the PERMIT
+            (attaches_by_key). Closeout is a disclosure: a dated completion => finaled; otherwise
+            "closeout not recorded" is an affirmative line (an authorized-but-unfinaled permit can be
+            inherited at closing), never "open"/"closed" — the numeric STATUS code is opaque and NOT
+            decoded. AMOUNT is declared value, not cost. The contractor licence is checked AS OF THE
+            PERMIT DATE against DBPR (a different agency): active = independent corroboration, inactive =
+            a finding. Marine build-year cross-exam is NOT duplicated here — it lives in Marine. */}
+        {pb.established ? (
+          <Section title={`Permit history — ${pb.count} on record`}
+            note={pb.closeoutNotRecordedCount > 0
+              ? `${pb.closeoutNotRecordedCount} of ${pb.count} permits have no recorded closeout — the county record does not confirm they were signed off. Any open permit can transfer to a buyer at closing; verify with the building department.`
+              : 'Every permit on file is listed; the count matches the list.'}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {pb.permits.map((pm: any, i: number) => (
                 <div key={i} style={permitCard}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
-                    <span style={{ fontFamily: 'Georgia, serif', fontWeight: 700, color: 'var(--color-navy)', fontSize: 14 }}>
-                      {titleCase(pm.workDescription) || 'Permit'} {pm.tradeCategory && pm.tradeCategory !== 'other' ? `· ${pm.tradeCategory.toUpperCase()}` : ''}
-                    </span>
-                    <span style={{ fontSize: 12, color: 'var(--color-sage)' }}>#{pm.permitNumber}</span>
+                    <span style={{ fontFamily: 'Georgia, serif', fontWeight: 700, color: 'var(--color-navy)', fontSize: 14 }}>{titleCase(pm.workDescription) || 'Permit'}</span>
+                    <span style={{ fontSize: 12, color: 'var(--color-sage)' }}>#{pm.number}{pm.issuingAuthority ? ` · ${pm.issuingAuthority}` : ''}</span>
                   </div>
                   <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', marginTop: 6, fontSize: 12, color: 'var(--color-ink)' }}>
-                    <span><b>Filed</b> {fmtDate(pm.permitDate)}</span>
-                    <span><b>Completed</b> {fmtDate(pm.completionDate)}</span>
-                    {pm.jobValue ? <span><b>Job value</b> {usd(pm.jobValue)}</span> : null}
-                    {pm.contractorName ? <span><b>Contractor</b> {titleCase(pm.contractorName)}</span> : null}
+                    <span><b>Filed</b> {fmtDate(pm.date)}</span>
+                    {pm.declaredValueLabel ? <span><b>Value</b> {pm.declaredValueLabel}</span> : null}
+                    {pm.contractor ? <span><b>Contractor</b> {titleCase(pm.contractor)}</span> : null}
                   </div>
-                  <div style={{ marginTop: 6 }}>{riskChip(statusText, !!pm.status || !!pm.completionDate)}</div>
+                  <div style={{ marginTop: 6 }}>
+                    {pm.closeout.finaled
+                      ? riskChip(`Finaled ${fmtDate(pm.closeout.finaledDate)}`, true)
+                      : <span style={{ fontSize: 12, color: 'var(--color-terracotta, #b5502f)' }}>{pm.closeout.disclosure}</span>}
+                  </div>
+                  {pm.contractorLicence?.matched && pm.contractorLicence.finding
+                    ? <div className="pir-note" style={{ marginTop: 6, color: 'var(--color-terracotta, #b5502f)' }}>Contractor licence: {pm.contractorLicence.finding}</div> : null}
+                  {pm.contractorLicence?.matched && pm.contractorLicence.corroboration
+                    ? <div className="pir-note" style={{ marginTop: 6 }}>Contractor licence: {pm.contractorLicence.corroboration}<TierBadge tier="analysis_inference" /></div> : null}
+                  {pm.contractorLicence && pm.contractorLicence.matched === false
+                    ? <div className="pir-note" style={{ marginTop: 6 }}>{pm.contractorLicence.note}</div> : null}
                 </div>
-              )
-            })}
-          </div>
-        </Section>
+              ))}
+            </div>
+          </Section>
+        ) : (
+          <Section title="Permit history" note="Permits from the county building record.">
+            <div className="pir-note">{pb.coverageNote}</div>
+          </Section>
+        )}
 
         {/* Transactions render FROM the fact index (get_parcel_transaction_facts). Qualification GATES the
             money: a market sale (qualified warranty deed) shows a SALE PRICE; a quit-claim / certificate of

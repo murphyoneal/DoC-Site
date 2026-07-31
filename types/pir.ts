@@ -329,6 +329,44 @@ export interface PirTransactionFacts {
   coverage_note: string | null
 }
 
+// One permit fact. Subject is the permit (attaches_by_key to the parcel). closeout is a disclosure: a
+// dated completion => finaled; otherwise 'not_recorded' with an affirmative disclosure line. declared_value
+// is DECLARED, not cost. contractor_licence is checked as of the permit date against DBPR (independent).
+export interface PirPermitFact {
+  subject?: { permit_number?: string; date?: string; issuing_authority?: string | null }
+  predicate: 'permit'
+  relation_to_parcel: 'attaches_by_key'
+  date: string | null
+  permit_number: string | null
+  issuing_authority: string | null
+  work_description: string | null
+  work_type?: string | null
+  sub_type?: string | null
+  contractor: string | null
+  source?: string; source_tier?: string
+  declared_value: number | null
+  declared_value_note?: string
+  closeout: {
+    predicate: 'permit_closeout'; value: 'finaled' | null; field_status: 'present' | 'not_recorded'
+    finaled_date: string | null; source?: string; source_tier?: string; disclosure: string | null
+  }
+  contractor_licence?: {
+    predicate?: 'contractor_licence_at_permit_date'; matched: boolean
+    license_number?: string | null; business_name?: string | null
+    active_at_permit_date?: boolean | null; checked_as_of?: string
+    source?: string; source_tier?: string; independence?: string
+    finding?: string | null; corroboration?: string | null; note?: string
+  } | null
+}
+
+export interface PirPermitFacts {
+  field_status: 'present' | 'not_established'
+  count: number
+  permits: PirPermitFact[]
+  closeout_not_recorded_count: number
+  coverage_note: string | null
+}
+
 export interface PirZoning {
   zoneCode?: string; pudName?: string
   futureLandUseCode?: string; futureLandUseName?: string
@@ -384,7 +422,7 @@ export interface PirReport {
   tax: PirTax
   amenities: PirAmenity[]
   schools: PirSchool[]
-  permits: PirCountedList<PirPermit>
+  permitFacts?: PirPermitFacts | null
   transactionFacts?: PirTransactionFacts | null
   land: PirLand
   water: PirWater
