@@ -145,6 +145,19 @@ export interface PirCountedList<T> { count: number; items: T[] }
 
 // radon / sinkhole / water / lead / algae removed 2026-07-29 (fabricated v_env constants).
 // Only elevation (v_si) and the gopher-tortoise overlay (real spatial) remain.
+// get_parcel_sinkhole_facts — documented FGS subsidence incidents near the parcel (area context, never a
+// per-parcel risk score). field_status 'present' | 'not_established' (a coverage gap about OUR data).
+export interface PirSinkholeFacts {
+  field_status: 'present' | 'not_established'
+  county?: string
+  nearest?: { distance_ft: number | null; event_date: string | null; verified: string | null; depth: string | null } | null
+  incidents_within_1mi?: number
+  incidents_within_quarter_mi?: number
+  verified_within_1mi?: number
+  note?: string
+  coverage_note?: string | null
+}
+
 export interface PirLand {
   // elevationM/elevationFt intentionally REMOVED from the payload — a bare elevation figure with no
   // vertical datum was the recurring fabrication surface. Elevation is represented ONLY by the withheld
@@ -459,6 +472,7 @@ export interface PirReport {
   permitFacts?: PirPermitFacts | null
   transactionFacts?: PirTransactionFacts | null
   land: PirLand
+  sinkholeFacts?: PirSinkholeFacts | null
   water: PirWater
   // `flood` and `marineImprovements` REMOVED from the payload — superseded by floodBlock / marineBlock.
   // They were live fabrication surfaces for payload consumers (the payload is the security boundary, not

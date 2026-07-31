@@ -8,7 +8,7 @@ import { FLOOD_STYLE, ZONING_STYLE } from '@/lib/pir-colors'
 import type { PirReport, PirEconOverlay } from '@/types/pir'
 import { formatDistance } from '@/lib/units'
 import { taxDeedView, disclosuresView } from '@/lib/report-coverage.mjs'
-import { renderMarineBlock, renderFloodBlock, renderFact, renderContaminationFacilities, renderValuesBlock, renderCensusBlock, renderOwnersBlock, renderTransactionsBlock, renderPermitsBlock, renderZoningBlock } from '@/lib/fact-render.mjs'
+import { renderMarineBlock, renderFloodBlock, renderFact, renderContaminationFacilities, renderValuesBlock, renderCensusBlock, renderOwnersBlock, renderTransactionsBlock, renderPermitsBlock, renderZoningBlock, renderSinkholeBlock } from '@/lib/fact-render.mjs'
 
 // ── formatting helpers ──────────────────────────────────────────────────────────
 const usd = (n?: number | null) => n == null ? '—' : `$${Math.round(n).toLocaleString('en-US')}`
@@ -482,6 +482,19 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
             <Fact l="Ground elevation" v={<span style={{ color: 'var(--color-sage)' }}>{renderFact(r.groundElevation).label}</span>} />
             <Fact l="Sewer / septic" v={<span style={{ color: 'var(--color-sage)' }}>Not evaluated — no parcel-level sewer/septic determination in the record</span>} />
             <Fact l="Protected species" v={r.land.gopherTortoiseInside ? riskChip('Within gopher tortoise habitat overlay', false) : r.land.gopherTortoiseNearestM != null ? `Nearest habitat ${mi(r.land.gopherTortoiseNearestM)}` : 'None mapped nearby'} />
+            {/* Sinkhole renders FROM the fact index (get_parcel_sinkhole_facts): DOCUMENTED FGS subsidence
+                incidents near the parcel — area context, never a per-parcel risk score (the purged
+                fabrication), never "no risk" where we hold no layer. */}
+            {(() => {
+              const sb = renderSinkholeBlock(r.sinkholeFacts)
+              if (!sb.established) return <Fact l="Sinkhole incidents" v={<span style={{ color: 'var(--color-sage)' }}>{sb.coverageNote}</span>} />
+              return <Fact l="Sinkhole incidents (FGS)" v={<>
+                {sb.nearest
+                  ? <>Nearest documented incident <b>{num(sb.nearest.distanceFt)} ft</b> away{sb.nearest.eventDate ? ` (${fmtDate(sb.nearest.eventDate)})` : ''} — {sb.nearest.verifiedLabel}. {sb.within1mi} within 1 mi{sb.verifiedWithin1mi ? `, ${sb.verifiedWithin1mi} confirmed` : ''}.</>
+                  : <>The county incident layer is held but shows none near this parcel.</>}
+                <div className="pir-note" style={{ marginTop: 2 }}>Documented reports (Florida Geological Survey), not a prediction this parcel will subside; zero nearby is not a guarantee of stability.</div>
+              </>} />
+            })()}
           </div>
         </Section>
 
