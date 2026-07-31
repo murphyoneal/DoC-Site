@@ -111,6 +111,17 @@ export const predicates = [
              AS ok`,
   },
   {
+    id: 'no-served-flood-layer-holds-invalid-geometry',
+    claim: 'every served flood layer holds only VALID geometry. Invalid geometry is not just a correctness ' +
+      'risk — an invalid huge polygon (Marion held a 550,457-vertex one) makes the resolver’s per-call ' +
+      'ST_MakeValid cost ~26s and times out the paid report. Validated statewide once (0 invalid); this goes ' +
+      'RED the moment a flood reload restores them, before a user hits the timeout.',
+    // Heavy Tier-2 check (full ST_IsValid scan across ~60 flood base tables) — run it in the live-DB pass,
+    // not the fast unit gate. The DURABLE fix is validation at INGEST (item 99); this is the backstop that
+    // catches a reload that skipped it. The statewide repair was a one-time DATA fix, not a schema guard.
+    sql: `SELECT NOT EXISTS (SELECT 1 FROM public.detect_invalid_served_flood_geometry()) AS ok`,
+  },
+  {
     id: 'payload-carries-no-superseded-fabrication-keys',
     claim: 'the get_pir_report payload contains NONE of the superseded flat keys a consumer could dress ' +
       'as a fabricated fact: land.elevationM/elevationFt (the USGS-datum fabrication that recurred 6×), ' +
