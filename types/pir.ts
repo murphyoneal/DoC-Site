@@ -424,7 +424,10 @@ export interface PirEconomic {
   hubZone: PirEconOverlay | null
   cra: PirEconOverlay | null
   enterpriseZone: PirEconOverlay | null
-  brownfield: PirEconOverlay | null
+  // Brownfield is NO LONGER an econ overlay — it is a statewide FINDING (get_parcel_brownfield_facts):
+  // inside a designated area (containment) + nearby sites (proximity) + honest absence. Rendered via
+  // renderBrownfieldBlock, not overlayLine. Shape is the resolver's jsonb; field_status gates it.
+  brownfield: Record<string, unknown> | null
 }
 
 // A source/disclose defect surfaced onto the report (from get_parcel_disclosures). A stated limit of

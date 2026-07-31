@@ -8,7 +8,7 @@ import { FLOOD_STYLE, ZONING_STYLE } from '@/lib/pir-colors'
 import type { PirReport, PirEconOverlay } from '@/types/pir'
 import { formatDistance } from '@/lib/units'
 import { taxDeedView, disclosuresView } from '@/lib/report-coverage.mjs'
-import { renderMarineBlock, renderFloodBlock, renderFact, renderContaminationFacilities, renderValuesBlock, renderCensusBlock, renderOwnersBlock, renderTransactionsBlock, renderPermitsBlock, renderZoningBlock, renderSinkholeBlock, renderRestrictionsBlock } from '@/lib/fact-render.mjs'
+import { renderMarineBlock, renderFloodBlock, renderFact, renderContaminationFacilities, renderValuesBlock, renderCensusBlock, renderOwnersBlock, renderTransactionsBlock, renderPermitsBlock, renderZoningBlock, renderSinkholeBlock, renderRestrictionsBlock, renderBrownfieldBlock } from '@/lib/fact-render.mjs'
 
 // ── formatting helpers ──────────────────────────────────────────────────────────
 const usd = (n?: number | null) => n == null ? '—' : `$${Math.round(n).toLocaleString('en-US')}`
@@ -670,7 +670,31 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
             <Fact l="HUB Zone" v={overlayLine(r.economic.hubZone, 'Within HUB Zone')} />
             <Fact l="Community Redevelopment Area" v={overlayLine(r.economic.cra, 'Within a CRA')} />
             <Fact l="Enterprise Zone" v={overlayLine(r.economic.enterpriseZone, 'Within Enterprise Zone')} />
-            <Fact l="Brownfield Area" v={overlayLine(r.economic.brownfield, 'Within Brownfield Area')} />
+            {/* Brownfield renders FROM the fact index (get_parcel_brownfield_facts), statewide (49 counties) —
+                the report previously read volusia_brownfield_areas (28 rows, Volusia-only) so this reached no
+                buyer outside Volusia. It is a FINDING that pairs with contamination: inside a designated AREA
+                is the finding; nearby SITES are area context; a null remediation status shows WHY, never blank;
+                absence is not a clearance. fact-render.test.mjs asserts these. */}
+            {(() => {
+              const bf = renderBrownfieldBlock(r.economic.brownfield)
+              if (!bf.established) return <Fact l="Brownfield" v={<span className="pir-note" style={{ fontStyle: 'normal' }}>{bf.coverageNote}</span>} />
+              const ia = bf.insideArea, ns = bf.sites
+              return (
+                <div style={{ borderLeft: `3px solid ${ia ? 'var(--color-terracotta, #b5502f)' : 'var(--color-line, #d9d3c6)'}`, paddingLeft: 12 }}>
+                  <div style={{ fontWeight: 600 }}>
+                    {ia ? <>Within the {titleCase(ia.name)} brownfield area {riskChip('Designated brownfield', false)}</>
+                        : bf.nearestArea ? <>Nearest brownfield area: {titleCase(bf.nearestArea.name)} ({bf.nearestArea.distanceFt?.toLocaleString()} ft)</>
+                        : 'FDEP brownfield sites nearby'}
+                    <TierBadge tier="government_derived" />
+                  </div>
+                  <div className="pir-note" style={{ fontStyle: 'normal' }}>
+                    {ia ? <>{[ia.acreageAc ? `${ia.acreageAc.toLocaleString()} ac` : null, ia.resolutionNumber ? `resolution ${ia.resolutionNumber}` : null, ia.resolutionDate].filter(Boolean).join(' · ')}. </> : null}
+                    {ns ? <>{ns.countWithin1mi} FDEP brownfield site{ns.countWithin1mi === 1 ? '' : 's'} within 1 mile{ns.nearest ? <> — nearest {titleCase(ns.nearest.name)} at {ns.nearest.distanceFt?.toLocaleString()} ft{ns.nearest.remediationStatus ? ` (${titleCase(ns.nearest.remediationStatus)})` : ''}</> : null}. {ns.nearest?.remediationStatusNote ? <span style={{ color: 'var(--color-clay)' }}>{ns.nearest.remediationStatusNote}</span> : null}</> : null}
+                    {bf.note ? <div style={{ marginTop: 2 }}>{bf.note}</div> : null}
+                  </div>
+                </div>
+              )
+            })()}
           </div>
         </Section>
 
