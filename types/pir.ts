@@ -369,6 +369,31 @@ export interface PirPermitFacts {
   coverage_note: string | null
 }
 
+// One zoning/FLU fact — the jurisdiction's OWN code + description, never normalized into a national
+// taxonomy. definition_note carries the half-a-fact caveat when no description is held; note carries the
+// municipal-governs message. Two of these travel per parcel (zoning + future_land_use), never merged.
+export interface PirZoningFact {
+  subject?: unknown
+  predicate: 'zoning' | 'future_land_use'
+  value: string | null
+  description?: string | null
+  field_status: 'present'
+  jurisdiction?: string | null
+  jurisdiction_level?: 'county' | 'municipal' | string
+  source?: string
+  source_tier?: string
+  definition_url?: string | null
+  definition_note?: string | null
+  note?: string | null
+}
+export interface PirZoningFacts {
+  field_status: 'present' | 'not_established'
+  zoning: PirZoningFact | null
+  future_land_use: PirZoningFact | null
+  relationship?: { note: string } | null
+  coverage_note: string | null
+}
+
 export interface PirZoning {
   zoneCode?: string; pudName?: string
   futureLandUseCode?: string; futureLandUseName?: string
@@ -438,6 +463,7 @@ export interface PirReport {
   censusFacts?: PirCensusFacts | null
   ownerFacts?: PirOwnerFacts | null
   zoning: PirZoning
+  zoningFacts?: PirZoningFacts | null
   economic: PirEconomic
   disclosures?: PirDisclosure[] | null
   marineBlock?: PirMarineBlock | null

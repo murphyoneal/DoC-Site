@@ -8,7 +8,7 @@ import { FLOOD_STYLE, ZONING_STYLE } from '@/lib/pir-colors'
 import type { PirReport, PirEconOverlay } from '@/types/pir'
 import { formatDistance } from '@/lib/units'
 import { taxDeedView, disclosuresView } from '@/lib/report-coverage.mjs'
-import { renderMarineBlock, renderFloodBlock, renderFact, renderContaminationFacilities, renderValuesBlock, renderCensusBlock, renderOwnersBlock, renderTransactionsBlock, renderPermitsBlock } from '@/lib/fact-render.mjs'
+import { renderMarineBlock, renderFloodBlock, renderFact, renderContaminationFacilities, renderValuesBlock, renderCensusBlock, renderOwnersBlock, renderTransactionsBlock, renderPermitsBlock, renderZoningBlock } from '@/lib/fact-render.mjs'
 
 // ── formatting helpers ──────────────────────────────────────────────────────────
 const usd = (n?: number | null) => n == null ? '—' : `$${Math.round(n).toLocaleString('en-US')}`
@@ -176,7 +176,7 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
     ['Water & flood', renderFloodBlock(r.floodBlock).determination?.established === true],
     ['Marine improvements', (renderMarineBlock(r.marineBlock).improvements?.length ?? 0) > 0],
     ['Tax-deed status', r.taxDeedStatus.on_lands_available_list != null],
-    ['Zoning & future land use', !!r.zoning.zoneCode],
+    ['Zoning & future land use', r.zoningFacts?.field_status === 'present'],
     ['Economic overlays', Object.values(r.economic ?? {}).some(v => v != null)],
     ['Census / demographics', r.censusFacts?.field_status === 'present'],
     ['Crime / safety statistics', false],
@@ -593,10 +593,31 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
             <PropertyReportMap coNo={co} parcelId={parcelId} layer="zoning" />
             <div>
               <Legend entries={zoningLegend} />
-              <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <Fact l="Zoning" v={<>{r.zoning.zoneCode ?? '—'} {r.zoning.pudName ? `· ${titleCase(r.zoning.pudName)}` : ''}</>} />
-                <Fact l="Future land use" v={r.zoning.futureLandUseName ? `${titleCase(r.zoning.futureLandUseName)}${r.zoning.futureLandUseCode ? ` (${r.zoning.futureLandUseCode})` : ''}` : '—'} />
-              </div>
+              {/* Zoning renders FROM the fact index (get_parcel_zoning_facts). Zoning (what may be built
+                  now) and future land use (what the plan says it should become) are SEPARATE facts, never
+                  merged. Codes are the jurisdiction's OWN vocabulary — never normalized (B-5 in Ocala != B-5
+                  in DeLand). Municipal zoning governs inside city limits. A code with no definition shows
+                  the caveat + a pointer to the land development code, never an invented meaning. */}
+              {(() => {
+                const zb = renderZoningBlock(r.zoningFacts)
+                if (!zb.established) return <div className="pir-note" style={{ marginTop: 12 }}>{zb.coverageNote}</div>
+                const zf = (f: any, label: string) => f ? (
+                  <Fact l={label} v={<>
+                    <b>{f.code}</b>{f.description ? ` · ${titleCase(f.description)}` : ''}
+                    {f.jurisdictionLevel === 'municipal' ? <span style={{ color: 'var(--color-sage)' }}> · {f.jurisdiction}</span> : null}
+                    <TierBadge tier="government_derived" />
+                    {f.definitionNote ? <div className="pir-note" style={{ marginTop: 2 }}>{f.definitionNote}{f.definitionUrl ? <> — <a href={f.definitionUrl}>code definition</a></> : null}</div> : null}
+                    {f.municipalNote ? <div className="pir-note" style={{ marginTop: 2 }}>{f.municipalNote}</div> : null}
+                  </>} />
+                ) : null
+                return (
+                  <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {zf(zb.zoning, 'Zoning (what may be built now)')}
+                    {zf(zb.futureLandUse, 'Future land use (what the plan says)')}
+                    {zb.relationship ? <div className="pir-note" style={{ marginTop: 4 }}>{zb.relationship}</div> : null}
+                  </div>
+                )
+              })()}
             </div>
           </div>
         </Section>
