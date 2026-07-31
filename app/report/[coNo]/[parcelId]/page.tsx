@@ -623,6 +623,8 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
                     {f.jurisdictionLevel === 'municipal' ? <span style={{ color: 'var(--color-sage)' }}> · {f.jurisdiction}</span> : null}
                     <TierBadge tier="government_derived" />
                     {f.definitionNote ? <div className="pir-note" style={{ marginTop: 2 }}>{f.definitionNote}{f.definitionUrl ? <> — <a href={f.definitionUrl}>code definition</a></> : null}</div> : null}
+                    {/* unconfirmed placeholder: value shown verbatim above, caveat said HERE (in the output, not just the registry) */}
+                    {f.unconfirmedNote ? <div className="pir-note" style={{ marginTop: 2, color: 'var(--color-clay)' }}>⚠ {f.unconfirmedNote}</div> : null}
                     {f.municipalNote ? <div className="pir-note" style={{ marginTop: 2 }}>{f.municipalNote}</div> : null}
                   </>} />
                 ) : null
