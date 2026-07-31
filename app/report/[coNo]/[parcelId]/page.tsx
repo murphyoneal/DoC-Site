@@ -8,7 +8,7 @@ import { FLOOD_STYLE, ZONING_STYLE } from '@/lib/pir-colors'
 import type { PirReport, PirEconOverlay } from '@/types/pir'
 import { formatDistance } from '@/lib/units'
 import { taxDeedView, disclosuresView } from '@/lib/report-coverage.mjs'
-import { renderMarineBlock, renderFloodBlock, renderFact, renderContaminationFacilities, renderValuesBlock } from '@/lib/fact-render.mjs'
+import { renderMarineBlock, renderFloodBlock, renderFact, renderContaminationFacilities, renderValuesBlock, renderCensusBlock } from '@/lib/fact-render.mjs'
 
 // ── formatting helpers ──────────────────────────────────────────────────────────
 const usd = (n?: number | null) => n == null ? '—' : `$${Math.round(n).toLocaleString('en-US')}`
@@ -169,7 +169,7 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
     ['Tax-deed status', r.taxDeedStatus.on_lands_available_list != null],
     ['Zoning & future land use', !!r.zoning.zoneCode],
     ['Economic overlays', Object.values(r.economic ?? {}).some(v => v != null)],
-    ['Census / demographics', r.census.population != null],
+    ['Census / demographics', r.censusFacts?.field_status === 'present'],
     ['Crime / safety statistics', false],
     ['Neighborhood news (live)', false],
   ]
@@ -531,13 +531,44 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
           </div>
         </Section>
 
-        <Section title="Census & demographics" note={`Block group ${r.census.blockGroup ?? '—'} (American Community Survey).`}>
-          <div className="pir-tiles">
-            <Tile l="Population" v={num(r.census.population)} sub="block group" />
-            <Tile l="Median household income" v={usd(r.census.medianHouseholdIncome)} />
-            <Tile l="Housing units" v={num(r.census.housingUnits)} />
-          </div>
-        </Section>
+        {/* Census renders FROM the fact index (get_parcel_census_facts). The SUBJECT IS THE BLOCK GROUP,
+            not the parcel — the geography is NAMED and the parcel's contained_within relationship stated,
+            so a figure never reads as "this property's income" (DEF-014). Tier federal_statistical (a
+            5-year SAMPLE estimate); the un-carried MOE is stated, never invented; the vintage shows its
+            unconfirmed status; a coverage gap is about our data, not the parcel. */}
+        {(() => {
+          const cb = renderCensusBlock(r.censusFacts)
+          if (!cb.established) {
+            return (
+              <Section title="Census & demographics" note="These figures describe the surrounding census block group, not the parcel itself.">
+                <div className="pir-note">{cb.coverageNote}</div>
+              </Section>
+            )
+          }
+          const fig = (key: string) => cb.fields.find((f: any) => f.key === key)?.rendered
+          const tile = (l: string, key: string, sub: React.ReactNode) => {
+            const rd = fig(key)
+            return <Tile l={l}
+              v={rd?.hasValue ? rd.label : <span style={{ color: 'var(--color-sage)' }}>{rd?.label ?? '—'}</span>}
+              sub={sub} />
+          }
+          const mhiNote = fig('medianHouseholdIncome')?.provenance?.note
+          return (
+            <Section title="Census & demographics"
+              note={<>These figures describe <strong>the census block group (GEOID {cb.geography.geoid})</strong> that contains this parcel — area estimates, not parcel facts. {cb.vintage?.asOf ?? 'American Community Survey.'}</>}>
+              <div className="pir-note" style={{ marginBottom: 10 }}>
+                This parcel is contained within {cb.geography.name}
+                {cb.containment ? <> (established by point-in-polygon on {cb.containment.source}<TierBadge tier={cb.containment.tier} />)</> : null}.
+              </div>
+              <div className="pir-tiles">
+                {tile('Median household income', 'medianHouseholdIncome', <>block group<TierBadge tier="federal_statistical" /></>)}
+                {tile('Population', 'population', 'block group')}
+                {tile('Housing units', 'housingUnits', 'block group')}
+              </div>
+              {mhiNote ? <div className="pir-note" style={{ marginTop: 8 }}>{mhiNote}</div> : null}
+            </Section>
+          )
+        })()}
       </Sheet>
 
       {/* ═══ PAGE 5 — SUPPORTING INFORMATION ═══ */}

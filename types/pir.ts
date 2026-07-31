@@ -227,6 +227,37 @@ export interface PirCensus {
   housingUnits: number | null
 }
 
+// A census fact whose SUBJECT is the block group, never the parcel. tier is federal_statistical (a
+// 5-year sample estimate). note carries the un-carried-MOE statement; vintage_note the how-we-know.
+// corroborators always [] (a single federal statistical source).
+export interface PirCensusFact {
+  subject: { type?: string; geoid?: string; contains_parcel?: string }
+  predicate: string
+  value: number | null
+  field_status: 'present' | 'not_recorded'
+  source?: string
+  source_tier?: 'federal_statistical' | string
+  as_of?: string
+  note?: string
+  vintage_note?: string | null
+  corroborators: unknown[]
+  contradictors: unknown[]
+}
+
+// get_parcel_census_facts output. field_status 'present' | 'not_established' (a coverage gap about OUR
+// data). The geography is NAMED; the parcel's contained_within relationship is its own stated fact.
+export interface PirCensusFacts {
+  field_status: 'present' | 'not_established'
+  geography: { type?: string; geoid?: string; name?: string; contains_parcel?: string } | null
+  containment?: {
+    subject?: unknown; predicate?: string; value?: string; field_status?: string
+    source?: string; source_tier?: string; as_of?: string; derivation?: unknown
+    corroborators?: unknown[]; contradictors?: unknown[]
+  } | null
+  facts: Record<string, PirCensusFact>
+  coverage_note: string | null
+}
+
 export interface PirZoning {
   zoneCode?: string; pudName?: string
   futureLandUseCode?: string; futureLandUseName?: string
@@ -289,7 +320,7 @@ export interface PirReport {
   flood: PirFlood
   marineImprovements: PirMarineImprovements
   taxDeedStatus: PirTaxDeedStatus
-  census: PirCensus
+  censusFacts?: PirCensusFacts | null
   zoning: PirZoning
   economic: PirEconomic
   disclosures?: PirDisclosure[] | null
