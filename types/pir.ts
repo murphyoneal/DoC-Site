@@ -65,15 +65,18 @@ export interface PirValueFact {
 }
 
 export interface PirValues {
-  justValue: number | null
-  assessedValue: number | null
+  // The flat justValue/assessedValue/landValue/improvementValue were REMOVED — they duplicated the value
+  // facts below (a bare number stripped of its roll-year/authority). Those four dollar figures live ONLY in
+  // valuesFacts now. Do not re-add: a flat number without its per-field as_of misleads when Volusia reads a
+  // 2026 CAMA roll and Marion a 2025 NAL roll. Guarded by payload-carries-no-superseded-fabrication-keys.
   assessedYear: number | null
-  landValue: number | null
+  // specialFeatureValue is the SOLE representation (no fact predicate yet — backlog 115 adds one to
+  // get_parcel_values_facts); it is NOT a duplicate, so it stays.
   specialFeatureValue: number | null
-  improvementValue: number | null
-  // Fact-index records backing the four dollar figures above (justValue/assessedValue/landValue/
-  // improvementValue). The page renders FROM these — value, per-field roll year, and tier badge — so a
-  // figure is never shown without its provenance and mixed rolls are surfaced, not reconciled.
+  rollYear?: number | string | null
+  // The value facts: just_value / assessed_value / land_value / improvement_value, each with its own value,
+  // per-field roll year (as_of) and tier. The page renders FROM these, so a figure is never shown without
+  // its provenance and mixed rolls are surfaced, not reconciled.
   valuesFacts?: Record<string, PirValueFact> | null
 }
 

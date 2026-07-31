@@ -166,7 +166,9 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
   // completeness checklist
   const completeness: Array<[string, boolean]> = [
     ['Property basics', !!p.yearBuilt],
-    ['Assessed & market values', v.justValue != null],
+    // reads the VALUE FACT (values.valuesFacts.just_value), not a flat shadow — the flat justValue key was
+    // removed as a duplicate representation of the provenance-carrying fact (backlog 114).
+    ['Assessed & market values', (v.valuesFacts as any)?.just_value?.field_status === 'present'],
     ['Tax & exemptions', tax.taxableValueCounty != null],
     ['Nearby amenities', r.amenities.length > 0],
     ['Assigned schools', r.schools.length > 0],

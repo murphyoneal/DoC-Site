@@ -124,22 +124,27 @@ export const predicates = [
   {
     id: 'payload-carries-no-superseded-fabrication-keys',
     claim: 'DUPLICATE-REPRESENTATION CLOSURE: the get_pir_report payload answers each question with exactly ' +
-      'ONE key — no superseded shadow a consumer could take instead. Retired, four for four: land.elevationM/' +
+      'ONE key — no superseded shadow a consumer could take instead. Retired, FIVE for five: land.elevationM/' +
       'elevationFt (the USGS-datum fabrication that recurred 6×) → groundElevation; the flat flood shape → ' +
       'floodBlock; marineImprovements → marineBlock; the volusia_zoning/FLU-backed top-level "zoning" → ' +
-      'zoningFacts (Volusia-only shadow beside the statewide fact, removed not deprecated). THE PAYLOAD IS ' +
-      'THE SECURITY BOUNDARY — a page guard protects only React; Roz reads the raw keys, and two answers to ' +
-      'one question is how the elevation lie recurred a 6th time (it read land.elevationFt beside the ' +
-      'withheld groundElevation). Two-sided: the superseded key must be ABSENT and the canonical key PRESENT, ' +
-      'so an over-removal that drops both also fails. Find the fifth here, not by reading a report.',
-    // The 6th recurrence proved a render-side withheld-fact guard is not enough: the bare land.elevationFt
-    // stayed in the payload beside the withheld groundElevation fact, and Roz emitted the ±0.96 ft datum lie
-    // off the payload. Each question is represented ONCE: elevation=groundElevation, flood=floodBlock,
-    // marine=marineBlock, zoning/FLU=zoningFacts. Re-adding any superseded key — OR dropping a canonical one —
-    // goes red. A new duplicate pair is added here the moment it's retired, so the check closes the CLASS.
+      'zoningFacts (Volusia-only shadow, removed not deprecated); and values.{justValue,assessedValue,' +
+      'landValue,improvementValue} → values.valuesFacts (bare dollar numbers stripped of their per-field ' +
+      'roll-year/authority — "can\'t diverge" is a property of today\'s code, not an invariant). THE PAYLOAD ' +
+      'IS THE SECURITY BOUNDARY — a page guard protects only React; Roz reads the raw keys, and two answers ' +
+      'to one question is how the elevation lie recurred a 6th time (land.elevationFt beside the withheld ' +
+      'groundElevation). Two-sided: the superseded key must be ABSENT and the canonical PRESENT, so an ' +
+      'over-removal that drops both also fails. Find the sixth here, not by reading a report.',
+    // Each question is represented ONCE: elevation=groundElevation, flood=floodBlock, marine=marineBlock,
+    // zoning/FLU=zoningFacts, values=values.valuesFacts. Re-adding any superseded key — OR dropping a canonical
+    // one — goes red. specialFeatureValue is intentionally NOT listed: it is the SOLE representation (no fact
+    // predicate yet, backlog 115), not a duplicate. A new pair is added here the moment it's retired, so the
+    // check closes the CLASS rather than the instance.
     sql: `SELECT NOT ((p->'land') ? 'elevationM' OR (p->'land') ? 'elevationFt'
-                       OR p ? 'flood' OR p ? 'marineImprovements' OR p ? 'zoning')
-                 AND (p ? 'groundElevation' AND p ? 'floodBlock' AND p ? 'marineBlock' AND p ? 'zoningFacts') AS ok
+                       OR p ? 'flood' OR p ? 'marineImprovements' OR p ? 'zoning'
+                       OR (p->'values') ? 'justValue' OR (p->'values') ? 'assessedValue'
+                       OR (p->'values') ? 'landValue' OR (p->'values') ? 'improvementValue')
+                 AND (p ? 'groundElevation' AND p ? 'floodBlock' AND p ? 'marineBlock' AND p ? 'zoningFacts'
+                      AND (p->'values') ? 'valuesFacts') AS ok
           FROM (SELECT get_pir_report(74,'744403020120') AS p) s`,
   },
   {
