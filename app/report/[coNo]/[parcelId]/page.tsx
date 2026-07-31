@@ -8,7 +8,7 @@ import { FLOOD_STYLE, ZONING_STYLE } from '@/lib/pir-colors'
 import type { PirReport, PirEconOverlay } from '@/types/pir'
 import { formatDistance } from '@/lib/units'
 import { taxDeedView, disclosuresView } from '@/lib/report-coverage.mjs'
-import { renderMarineBlock, renderFloodBlock, renderFact, renderContaminationFacilities, renderValuesBlock, renderCensusBlock, renderOwnersBlock, renderTransactionsBlock, renderPermitsBlock, renderZoningBlock, renderSinkholeBlock } from '@/lib/fact-render.mjs'
+import { renderMarineBlock, renderFloodBlock, renderFact, renderContaminationFacilities, renderValuesBlock, renderCensusBlock, renderOwnersBlock, renderTransactionsBlock, renderPermitsBlock, renderZoningBlock, renderSinkholeBlock, renderRestrictionsBlock } from '@/lib/fact-render.mjs'
 
 // ── formatting helpers ──────────────────────────────────────────────────────────
 const usd = (n?: number | null) => n == null ? '—' : `$${Math.round(n).toLocaleString('en-US')}`
@@ -529,6 +529,29 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
             {cf.areaContext ? <p className="pir-note">Area context (not on-parcel): {cf.areaContext.tanks} storage-tank facilities and {cf.areaContext.cleanups} cleanup site(s) within ~1,600 ft.</p> : null}
           </Section>
         ); })()}
+        {/* Land-use RESTRICTIONS render FROM the fact index (get_parcel_restrictions via renderRestrictionsBlock).
+            A delineated Groundwater Contamination Area (Ch. 62-524) is a state_regulatory CONSTRAINT — a criminal-
+            penalty bar on new potable wells, treated like the flood mandate (containment, not distance). UNLIKE
+            contamination facilities, this section renders EVEN WHEN EMPTY: the honest "not a clearance — historic
+            use isn't in any register" absence statement is itself the finding. fact-render.test.mjs asserts it. */}
+        {(() => {
+          const rb = renderRestrictionsBlock(r.landRestrictions)
+          return (
+            <Section title="Recorded land-use restrictions" note="State/federal constraints recorded against this location — groundwater-contamination areas, institutional controls, regulated on-parcel wells. A containment test, not a distance.">
+              {rb.established ? rb.items.map((it: any, i: number) => (
+                <div key={i} style={{ marginBottom: 10, borderLeft: '3px solid var(--color-terracotta, #b5502f)', paddingLeft: 12 }}>
+                  <div style={{ fontWeight: 600 }}>{it.label} {riskChip(it.relation === 'contains' ? 'On this parcel' : 'Overlapping', false)} <TierBadge tier="government_derived" /></div>
+                  <div className="pir-note" style={{ fontStyle: 'normal' }}>
+                    {it.value}{it.authority ? ` — ${it.authority}` : ''}{it.asOf ? ` (${it.asOf})` : ''}.
+                    {it.caveat ? <> {it.caveat}</> : null}
+                  </div>
+                </div>
+              )) : (
+                <div className="pir-note">{rb.absenceNote}</div>
+              )}
+            </Section>
+          )
+        })()}
         {/* Marine improvements render FROM the fact index (get_parcel_marine_block via renderMarineBlock).
             The cross-examination headline (permit vs. assessor) leads; the improvements are context. Three
             provenance tiers stay visually distinct (county / derived / OUR estimate). A coverage gap

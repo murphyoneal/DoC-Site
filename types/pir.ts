@@ -488,6 +488,10 @@ export interface PirReport {
   floodBlock?: PirFloodBlock | null
   groundElevation?: Record<string, unknown> | null
   contaminationFacilities?: Record<string, unknown> | null
+  // Recorded land-use restrictions (get_parcel_restrictions): GWCA well-drilling bar (Ch. 62-524),
+  // institutional controls, regulated on-parcel wells. An ARRAY of restriction findings; [] = checked,
+  // none in the layers we hold (the render turns that into the honest historic-use absence statement).
+  landRestrictions?: Record<string, unknown>[] | null
   salesAgent?: PirSalesAgent[] | null
 }
 
