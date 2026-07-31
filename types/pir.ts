@@ -292,6 +292,39 @@ export interface PirOwnerFacts {
   coverage_note: string | null
 }
 
+// One recorded conveyance. TWO qualification facts travel with it: sale_qualification (the county's, on
+// county_assessor_record) and market_signal (OURS, on analysis_inference — never borrows county authority).
+// price_role gates the money: 'sale_price' only for a qualified market sale; 'consideration' otherwise.
+export interface PirConveyance {
+  subject?: { parcel?: string; instrument?: string; date?: string }
+  date: string | null
+  instrument_type: string | null
+  book?: string | null; page?: string | null; instrument_number?: string | null
+  grantor?: string | null; grantee?: string | null
+  sale_type?: string | null
+  consideration: number | null
+  multi_parcel?: boolean; parcels_on_instrument?: number | null
+  legal_xref?: boolean
+  price_role: 'sale_price' | 'consideration'
+  nominal?: boolean; nominal_reason?: string | null
+  sale_qualification: { predicate: 'sale_qualification'; value: string | null; field_status: string
+    source?: string; source_tier?: string; as_of?: string; corroborators: unknown[]; contradictors: unknown[] }
+  market_signal: { predicate: 'market_signal'; value: 'market' | 'non_market'; field_status: string
+    source?: string; source_tier?: 'analysis_inference' | string; derivation?: unknown; note?: string | null
+    corroborators: unknown[]; contradictors: unknown[] }
+  legal_cross_reference?: { note: string; independence: string } | null
+}
+
+// get_parcel_transaction_facts output. field_status 'present' | 'not_established' (coverage gap about OUR
+// data). last_market_sale is the most recent conveyance we classify as a market sale (null if none).
+export interface PirTransactionFacts {
+  field_status: 'present' | 'not_established'
+  count: number
+  conveyances: PirConveyance[]
+  last_market_sale: PirConveyance | null
+  coverage_note: string | null
+}
+
 export interface PirZoning {
   zoneCode?: string; pudName?: string
   futureLandUseCode?: string; futureLandUseName?: string
@@ -348,7 +381,7 @@ export interface PirReport {
   amenities: PirAmenity[]
   schools: PirSchool[]
   permits: PirCountedList<PirPermit>
-  transactions: PirCountedList<PirTransaction>
+  transactionFacts?: PirTransactionFacts | null
   land: PirLand
   water: PirWater
   flood: PirFlood

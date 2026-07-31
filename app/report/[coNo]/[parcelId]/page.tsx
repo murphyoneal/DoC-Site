@@ -8,7 +8,7 @@ import { FLOOD_STYLE, ZONING_STYLE } from '@/lib/pir-colors'
 import type { PirReport, PirEconOverlay } from '@/types/pir'
 import { formatDistance } from '@/lib/units'
 import { taxDeedView, disclosuresView } from '@/lib/report-coverage.mjs'
-import { renderMarineBlock, renderFloodBlock, renderFact, renderContaminationFacilities, renderValuesBlock, renderCensusBlock, renderOwnersBlock } from '@/lib/fact-render.mjs'
+import { renderMarineBlock, renderFloodBlock, renderFact, renderContaminationFacilities, renderValuesBlock, renderCensusBlock, renderOwnersBlock, renderTransactionsBlock } from '@/lib/fact-render.mjs'
 
 // ── formatting helpers ──────────────────────────────────────────────────────────
 const usd = (n?: number | null) => n == null ? '—' : `$${Math.round(n).toLocaleString('en-US')}`
@@ -134,6 +134,9 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
   // Owners are multi-valued: one fact per owner, count stated, percentages never normalized. A single
   // "Owner" line is wrong by design when there are two owners of record.
   const ob = renderOwnersBlock(r.ownerFacts)
+  // Transactions: qualification gates the money — a market sale is a price, everything else is
+  // consideration. The deed chain is kept whole (a $100 quit-claim can hide a real $2.125M warranty deed).
+  const tb = renderTransactionsBlock(r.transactionFacts)
 
   // amenity badges (individual compass per type)
   const amenityBadges: CompassBadgeData[] = r.amenities.map(a => ({
@@ -165,7 +168,7 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
     ['Nearby amenities', r.amenities.length > 0],
     ['Assigned schools', r.schools.length > 0],
     ['Permit history', r.permits.count > 0],
-    ['Ownership / sale history', r.transactions.count > 0],
+    ['Ownership / sale history', (tb.count ?? 0) > 0],
     ['Elevation & land', r.land.elevationFt != null],
     ['Water & flood', r.flood.field_status === 'present'],
     ['Marine improvements', r.marineImprovements.waterfront_indicator != null],
@@ -367,23 +370,43 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
           </div>
         </Section>
 
-        <Section title={`Ownership & sale history — ${r.transactions.count} on record`}
-          note="Recorded deed transfers beyond the assessor's last-qualified-sale are not present in this dataset; only what is on file is shown, and the count matches the list.">
-          {r.transactions.items.length ? (
+        {/* Transactions render FROM the fact index (get_parcel_transaction_facts). Qualification GATES the
+            money: a market sale (qualified warranty deed) shows a SALE PRICE; a quit-claim / certificate of
+            title / unqualified / nominal transfer shows CONSIDERATION and says why — the number is never
+            presented as value. The whole deed chain is kept (the $100 transfers pair ownership; deleting
+            them breaks the chain). The county's qualification and OUR market-signal reading are distinct;
+            where we downgrade a technically-qualified sale, that note is visibly ours. */}
+        <Section title={`Ownership & sale history — ${tb.count} on record`}
+          note="Only sales the county qualifies as arm’s-length are shown as a sale price. Quit-claims, certificates of title, and nominal transfers are real conveyances shown as consideration — never as value.">
+          {tb.established && tb.lastMarketSale ? (
+            <div style={{ border: '1px solid var(--color-line, #d9d3c6)', borderLeft: '3px solid var(--color-bronze, #9a6a3a)', borderRadius: 6, padding: '10px 13px', marginBottom: 12 }}>
+              <div style={{ fontSize: 14, fontWeight: 600 }}>Last qualified market sale: {tb.lastMarketSale.amountLabel} · {fmtDate(tb.lastMarketSale.date)} · {tb.lastMarketSale.instrumentType}<TierBadge tier="analysis_inference" /></div>
+              <div style={{ fontSize: 12.5, color: 'var(--color-sage)', marginTop: 3 }}>The most recent sale we read as an arm’s-length market transaction — the value-relevant one. {tb.lastMarketSale.legalCrossReference ? 'The county’s legal description cites this same deed.' : ''}</div>
+            </div>
+          ) : tb.established ? (
+            <div className="pir-note" style={{ marginBottom: 12 }}>{tb.coverageNote}</div>
+          ) : null}
+          {tb.established && tb.conveyances.length ? (
             <table style={tableStyle}>
-              <thead><tr>{['Date', 'Price', 'Instrument', 'Grantor → Grantee'].map(h => <th key={h} style={thStyle}>{h}</th>)}</tr></thead>
+              <thead><tr>{['Date', 'Amount', 'Instrument', 'Grantor → Grantee'].map(h => <th key={h} style={thStyle}>{h}</th>)}</tr></thead>
               <tbody>
-                {r.transactions.items.map((t, i) => (
+                {tb.conveyances.map((c: any, i: number) => (
                   <tr key={i}>
-                    <td style={tdStyle}>{fmtDate(t.saleDate ?? t.recordingDate)}</td>
-                    <td style={tdStyle}>{usd(t.salePrice)}</td>
-                    <td style={tdStyle}>{t.instrumentType ?? '— (assessor sale record)'}</td>
-                    <td style={tdStyle}>{t.grantor || t.grantee ? `${t.grantor ?? '—'} → ${t.grantee ?? '—'}` : 'Parties not on file'}</td>
+                    <td style={tdStyle}>{fmtDate(c.date)}</td>
+                    <td style={tdStyle}>
+                      {c.amountLabel ?? '—'}{c.multiParcel ? <span style={{ color: 'var(--color-terracotta, #b5502f)' }}> · {c.parcelsOnInstrument}-parcel sale</span> : null}
+                    </td>
+                    <td style={tdStyle}>
+                      {c.instrumentType ?? '—'}
+                      {c.marketSignal === 'non_market' && c.nominalReason ? <div style={{ fontSize: 11, color: 'var(--color-sage)', marginTop: 2 }}>{c.nominalReason}</div> : null}
+                      {c.ourNote ? <div style={{ fontSize: 11, color: 'var(--color-terracotta, #b5502f)', marginTop: 2 }}>{c.ourNote}</div> : null}
+                    </td>
+                    <td style={tdStyle}>{c.grantor || c.grantee ? `${titleCase(c.grantor) ?? '—'} → ${titleCase(c.grantee) ?? '—'}` : 'Parties not on file'}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          ) : <div className="pir-note">No recorded transfers on file.</div>}
+          ) : <div className="pir-note">{tb.coverageNote ?? 'No recorded transfers on file.'}</div>}
         </Section>
       </Sheet>
 
