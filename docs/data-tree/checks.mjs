@@ -319,6 +319,45 @@ export const predicates = [
       'Backed by detect_flood_layer_wrong_county().',
     sql: `SELECT NOT EXISTS (SELECT 1 FROM detect_flood_layer_wrong_county()) AS ok`,
   },
+  {
+    id: 'served-path-reaches-every-pir-fact-resolver',
+    claim: 'DONE MEANS THE SERVED PATH REACHES IT. Every PIR fact-resolver — any get_parcel_*_facts, plus ' +
+      'get_parcel_restrictions / _contamination_facilities / _marine_block / _flood_block / ' +
+      'get_ground_elevation_fact — must be reachable from get_pir_report through the actual call graph ' +
+      '(a wrapper still counts). RED = a resolver that EXISTS, is populated, and is never called by the ' +
+      'served report: the GWCA class. get_parcel_restrictions sat built + parcel-matched (195,358) + marked ' +
+      'done (backlog id=3) yet get_pir_report never called it, so the Ch.62-524 potable-well prohibition ' +
+      'reached no buyer outside Volusia. This is the third instance of the class (flood block rendering a ' +
+      'dash; a disclosure unrendered in the payload; GWCA orphaned) — now it fires instead of being remembered.',
+    // Reachability is the CALL-GRAPH transitive closure, not a direct-mention grep: get_parcel_env_findings
+    // reaches the payload only via get_parcel_disclosures, and a direct scan of get_pir_report would have
+    // wrongly called it orphaned. The convention is scoped to *_facts + the named block/restriction resolvers
+    // (the functions whose whole job is to feed the served report) — deliberately NOT all get_parcel_*, so a
+    // Roz-only helper doesn't false-positive. A NEW *_facts resolver is auto-included: it must be consciously
+    // wired into get_pir_report or this goes red (fail-closed, the point of the rule). Backs defect
+    // gwca-orphaned-from-served-payload. Tier-2 (computes pg_get_functiondef across public functions) — run
+    // in the live-DB pass. prokind='f' excludes aggregates (pg_get_functiondef errors on them).
+    sql: `WITH RECURSIVE allf AS (
+            SELECT p.proname, pg_get_functiondef(p.oid) AS def
+            FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+            WHERE n.nspname='public' AND p.prokind='f'
+              AND p.prolang <> (SELECT oid FROM pg_language WHERE lanname='internal')
+          ),
+          reach AS (
+            SELECT proname, def FROM allf WHERE proname='get_pir_report'
+            UNION
+            SELECT a.proname, a.def FROM allf a
+            JOIN reach r ON r.def ~ ('\\m'||a.proname||'\\M')
+            WHERE a.proname <> r.proname
+          )
+          SELECT NOT EXISTS (
+            SELECT 1 FROM allf f
+            WHERE (f.proname ~ '^get_parcel_.*_facts$'
+                   OR f.proname IN ('get_parcel_restrictions','get_parcel_contamination_facilities',
+                                    'get_parcel_marine_block','get_parcel_flood_block','get_ground_elevation_fact'))
+              AND f.proname NOT IN (SELECT proname FROM reach)
+          ) AS ok`,
+  },
 ];
 
 export const plans = [
