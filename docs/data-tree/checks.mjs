@@ -136,15 +136,17 @@ export const predicates = [
       'over-removal that drops both also fails. Find the sixth here, not by reading a report.',
     // Each question is represented ONCE: elevation=groundElevation, flood=floodBlock, marine=marineBlock,
     // zoning/FLU=zoningFacts, values=values.valuesFacts. Re-adding any superseded key — OR dropping a canonical
-    // one — goes red. specialFeatureValue is intentionally NOT listed: it is the SOLE representation (no fact
-    // predicate yet, backlog 115), not a duplicate. A new pair is added here the moment it's retired, so the
-    // check closes the CLASS rather than the instance.
+    // one — goes red. ALL FIVE dollar figures now live only in valuesFacts (specialFeatureValue joined the
+    // index, its flat key removed), so the values block has no flat shadow left. A new pair is added the moment
+    // it's retired, so the check closes the CLASS rather than the instance.
     sql: `SELECT NOT ((p->'land') ? 'elevationM' OR (p->'land') ? 'elevationFt'
                        OR p ? 'flood' OR p ? 'marineImprovements' OR p ? 'zoning'
                        OR (p->'values') ? 'justValue' OR (p->'values') ? 'assessedValue'
-                       OR (p->'values') ? 'landValue' OR (p->'values') ? 'improvementValue')
+                       OR (p->'values') ? 'landValue' OR (p->'values') ? 'improvementValue'
+                       OR (p->'values') ? 'specialFeatureValue')
                  AND (p ? 'groundElevation' AND p ? 'floodBlock' AND p ? 'marineBlock' AND p ? 'zoningFacts'
-                      AND (p->'values') ? 'valuesFacts') AS ok
+                      AND (p->'values') ? 'valuesFacts'
+                      AND (p->'values'->'valuesFacts') ? 'special_feature_value') AS ok
           FROM (SELECT get_pir_report(74,'744403020120') AS p) s`,
   },
   {

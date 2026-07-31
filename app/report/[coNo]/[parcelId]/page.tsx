@@ -280,9 +280,13 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
             const f = byKey(key)
             if (!f) return <Tile key={key} l={l} v="—" />
             const rd = f.rendered
+            // A COMPUTED value declares itself: improvement_value carries a derivation naming its inputs on the
+            // NAL branch (just − land − special), so the reader sees where the number came from, not just the total.
+            const deriv = rd.provenance?.derivation
             return <Tile key={key} l={l}
               v={rd.hasValue ? rd.label : <span style={{ color: 'var(--color-sage)' }}>{rd.label}</span>}
-              sub={rd.hasValue ? <>{f.asOf}<TierBadge tier={rd.provenance?.tier} /></> : null} />
+              sub={rd.hasValue ? <>{f.asOf}<TierBadge tier={rd.provenance?.tier} />
+                {deriv?.formula ? <div className="pir-note" style={{ marginTop: 2, fontStyle: 'normal' }}>= {String(deriv.formula).replace(/_/g, ' ')}</div> : null}</> : null} />
           }
           return (
             <Section title="Assessed values"
@@ -291,8 +295,9 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
                 {valTile('Just (market) value', 'justValue')}
                 {valTile('Assessed value', 'assessedValue')}
                 {valTile('Land value', 'landValue')}
+                {/* Special features is now a fact (its own source + roll year), not a bare number */}
+                {valTile('Special features', 'specialFeatureValue')}
                 {valTile('Improvement value', 'improvementValue')}
-                <Tile l="Special features" v={usd(v.specialFeatureValue)} />
               </div>
             </Section>
           )
