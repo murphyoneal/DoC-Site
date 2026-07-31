@@ -8,11 +8,37 @@ import { formatDistanceBand } from '@/lib/units'
 const MODEL = 'claude-sonnet-5'
 const ROZ_VERSION = '0.1.0-alpha' // roz_version_register current; stamped per exchange
 
+// A report query can make several tool calls, and get_pir_report self-limits at 25s. Without an explicit
+// ceiling the function can be killed at the platform default BEFORE the post-loop telemetry tail (the
+// web-search probe / query log) runs — a plausible reason the probe never wrote. Give the tail room.
+export const maxDuration = 120
+
 // Sonnet 5 rates (USD/token) — cost computed at request time, stored as a literal.
 // This task reads a precomputed payload and reports it; Opus reasoning isn't needed.
 // Prompt caching bills cache WRITES at 1.25x input and cache READS at 0.1x.
 const RATE_IN = 3.0 / 1e6, RATE_OUT = 15.0 / 1e6
 const CACHE_WRITE_MULT = 1.25, CACHE_READ_MULT = 0.1
+
+// Post-generation tourniquet for the elevation-fabrication class (7th occurrence, 2026-07-31). The model
+// invents a lidar-accuracy figure ("15.9 ft, USGS 3DEP lidar-derived, ±0.96 ft at 95% confidence") over a
+// WITHHELD field — pure GENERATION, not payload exposure, so removing keys cannot reach it and three
+// instruction guards failed. These terms appear in NO honest Roz output: we hold lidar vertical-accuracy
+// for ZERO parcels statewide. Any sentence carrying them is fabricated — drop it and substitute the honest
+// withheld statement. Zero false positives by construction. This is the tourniquet; the durable general
+// fix is numeric-provenance validation (backlog) — every rendered number must trace to a payload value.
+const FABRICATION_RX = /\b3DEP\b|\blidar\b|\b95\s*%\s*confidence\b|±\s*\d|\bNVA\b|\bVVA\b|vertical accuracy/i
+const WITHHELD_ELEVATION_NOTE = 'Ground elevation is on record, but its vertical datum is not — so it cannot be stated as a precise figure or placed relative to a base flood elevation.'
+function redactFabricatedPrecision(text: string): { text: string; triggered: boolean; terms: string; excerpt: string } {
+  if (!text || !FABRICATION_RX.test(text)) return { text, triggered: false, terms: '', excerpt: '' }
+  const g = new RegExp(FABRICATION_RX.source, 'gi')
+  const terms = Array.from(new Set((text.match(g) ?? []).map(s => s.trim()))).join(', ')
+  const parts = text.split(/(?<=[.!?])\s+|\n+/)
+  const dropped = parts.filter(s => FABRICATION_RX.test(s))
+  const kept = parts.filter(s => !FABRICATION_RX.test(s))
+  let clean = kept.join(' ').replace(/\s{2,}/g, ' ').trim()
+  clean = (clean ? clean + ' ' : '') + WITHHELD_ELEVATION_NOTE
+  return { text: clean, triggered: true, terms, excerpt: dropped.join(' ').slice(0, 2000) }
+}
 
 // DOR county code map. Reads of county_registry are denied to the app role, so the
 // name→co_no crosswalk is static (DOR is stable). Roz defaults to Volusia.
@@ -307,6 +333,7 @@ export async function POST(req: NextRequest) {
   const trace: { tool: string; county: number }[] = []
   const payloadParts: string[] = []
   let reply = '', inTok = 0, outTok = 0, cacheRead = 0, cacheCreate = 0, calls = 0, cacheMarks = 0, webSearches = 0
+  let fabricationBlocked: { terms: string; excerpt: string } | null = null  // set if the tourniquet fired
   let targetParcel: string | null = null, targetCounty = 74
   let success = true, errorMsg: string | null = null
   const t0 = Date.now()
@@ -354,8 +381,12 @@ export async function POST(req: NextRequest) {
           const toolUses = resp.content.filter((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use')
           if (resp.stop_reason === 'end_turn' || toolUses.length === 0) {
             reply = resp.content.filter((b): b is Anthropic.TextBlock => b.type === 'text').map(b => b.text).join('\n').trim()
+            // TOURNIQUET: strip any fabricated lidar-accuracy claim (7th-occurrence class) BEFORE it stands.
+            // The model can't talk past a mechanical gate at the response boundary; instruction couldn't.
+            const fab = redactFabricatedPrecision(reply)
+            if (fab.triggered) { reply = fab.text; fabricationBlocked = fab; send({ type: 'reset' }); send({ type: 'delta', text: reply }) }
             // Correct the client if the assembled text differs from what streamed (multi-block joins).
-            if (turnText.trim() !== reply) { send({ type: 'reset' }); send({ type: 'delta', text: reply }) }
+            else if (turnText.trim() !== reply) { send({ type: 'reset' }); send({ type: 'delta', text: reply }) }
             break
           }
           // Tool turn: discard any interstitial prose we streamed, show a status line instead.
@@ -390,7 +421,24 @@ export async function POST(req: NextRequest) {
       console.log(`[roz-websearch] webEnabled=${webEnabled} web_search_requests=${webSearches} model=${MODEL} tools=[${trace.map(t => t.tool).join(',')}]`)
       // Durable copy — the console line ages out of Vercel logs in ~1 day; this row is queryable from
       // the DB after ANY report, so the "did web_search fire?" answer no longer depends on catching a log.
-      try { await admin.from('roz_search_probe').insert({ web_enabled: webEnabled, web_searches: webSearches, model: MODEL, parcel_id: targetParcel, tools: trace.map(t => t.tool).join(',') }) } catch { /* probe is best-effort */ }
+      // Write via a SECURITY DEFINER rpc (the reliable roz_log_query path), so the write can't depend on
+      // the caller's role or RLS. Errors are LOGGED, never swallowed — a silent catch here is exactly why
+      // this went undiagnosed for five turns (zero rows, no reason). If this still writes nothing, the
+      // Vercel log will show either the rpc error or nothing at all (function killed before this line).
+      try {
+        const { error: probeErr } = await admin.rpc('roz_log_search_probe', {
+          p_web_enabled: webEnabled, p_web_searches: webSearches, p_model: MODEL, p_parcel_id: targetParcel, p_tools: trace.map(t => t.tool).join(',') })
+        if (probeErr) console.error('[roz-probe] rpc error:', probeErr.message, probeErr.code)
+        else console.log('[roz-probe] wrote row: parcel=' + targetParcel + ' web_searches=' + webSearches)
+      } catch (e) { console.error('[roz-probe] threw:', e instanceof Error ? e.message : String(e)) }
+
+      // Durable measurement of the fabrication tourniquet — every trigger is a caught 7th-occurrence, so
+      // recurrence is a number we can watch, not a story. Visible error, never swallowed.
+      if (fabricationBlocked) {
+        console.warn('[roz-fabrication] BLOCKED lidar-accuracy fabrication: terms=[' + fabricationBlocked.terms + '] parcel=' + targetParcel)
+        try { await admin.rpc('roz_log_fabrication_block', { p_parcel_id: targetParcel, p_terms: fabricationBlocked.terms, p_excerpt: fabricationBlocked.excerpt, p_model: MODEL }) }
+        catch (e) { console.error('[roz-fabrication] log failed:', e instanceof Error ? e.message : String(e)) }
+      }
 
       // payload_hash = the record Roz actually saw (for later verifiability of an opinion)
       const payloadHash = createHash('sha256').update(payloadParts.join('\n')).digest('hex')
