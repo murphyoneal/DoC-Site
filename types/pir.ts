@@ -258,6 +258,40 @@ export interface PirCensusFacts {
   coverage_note: string | null
 }
 
+// One owner-of-record fact. Subject is anchored on (parcel, ownseq) — NEVER the name (a reported value,
+// not a join key). pct_own is AS RECORDED and must never be summed or normalized (tenancy by the entirety
+// records each owner at 100%). corroborators always [] by default (CAMA/NAL share DOR lineage).
+export interface PirOwnerFact {
+  subject: { parcel?: string; ownseq?: string }
+  predicate: 'owner_of_record'
+  value: string | null
+  name_detail?: string | null
+  pct_own?: number | null
+  ownership_type?: string | null
+  ownership_type2?: string | null
+  field_status: 'present'
+  source?: string
+  source_tier?: 'county_assessor_record' | 'government_derived' | string
+  as_of?: string
+  corroborators: unknown[]
+  contradictors: unknown[]
+}
+
+// get_parcel_owner_facts output. Multi-valued: one fact per owner, plus a parcel-level owner_count fact.
+// field_status 'present' | 'not_established' (a coverage gap about OUR data). Precedence Clerk deed >
+// county CAMA (live file) > DOR NAL (1-January snapshot, can lag ~19 months).
+export interface PirOwnerFacts {
+  field_status: 'present' | 'not_established'
+  owner_count: {
+    subject?: unknown; predicate: 'owner_count'; value: number | null
+    field_status: 'present' | 'not_recorded'
+    source?: string; source_tier?: string; as_of?: string; note?: string
+  }
+  owners: PirOwnerFact[]
+  tenancy?: { form: string | null; note: string | null } | null
+  coverage_note: string | null
+}
+
 export interface PirZoning {
   zoneCode?: string; pudName?: string
   futureLandUseCode?: string; futureLandUseName?: string
@@ -321,6 +355,7 @@ export interface PirReport {
   marineImprovements: PirMarineImprovements
   taxDeedStatus: PirTaxDeedStatus
   censusFacts?: PirCensusFacts | null
+  ownerFacts?: PirOwnerFacts | null
   zoning: PirZoning
   economic: PirEconomic
   disclosures?: PirDisclosure[] | null

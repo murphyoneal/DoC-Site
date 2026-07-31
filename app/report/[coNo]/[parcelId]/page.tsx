@@ -8,7 +8,7 @@ import { FLOOD_STYLE, ZONING_STYLE } from '@/lib/pir-colors'
 import type { PirReport, PirEconOverlay } from '@/types/pir'
 import { formatDistance } from '@/lib/units'
 import { taxDeedView, disclosuresView } from '@/lib/report-coverage.mjs'
-import { renderMarineBlock, renderFloodBlock, renderFact, renderContaminationFacilities, renderValuesBlock, renderCensusBlock } from '@/lib/fact-render.mjs'
+import { renderMarineBlock, renderFloodBlock, renderFact, renderContaminationFacilities, renderValuesBlock, renderCensusBlock, renderOwnersBlock } from '@/lib/fact-render.mjs'
 
 // ── formatting helpers ──────────────────────────────────────────────────────────
 const usd = (n?: number | null) => n == null ? '—' : `$${Math.round(n).toLocaleString('en-US')}`
@@ -131,6 +131,9 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
   if (!r) notFound()
 
   const p = r.property, v = r.values, tax = r.tax
+  // Owners are multi-valued: one fact per owner, count stated, percentages never normalized. A single
+  // "Owner" line is wrong by design when there are two owners of record.
+  const ob = renderOwnersBlock(r.ownerFacts)
 
   // amenity badges (individual compass per type)
   const amenityBadges: CompassBadgeData[] = r.amenities.map(a => ({
@@ -208,7 +211,10 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
         ); })()}
         <Section title="Property">
           <div className="pir-grid">
-            <Fact l="Owner" v={<>{titleCase(p.ownerName)} {p.ownerOccupied ? riskChip('Owner-occupied', true) : null}</>} />
+            <Fact l={ob.established && (ob.ownerCount?.value ?? 0) > 1 ? `Owners of record (${ob.ownerCount!.value})` : 'Owner of record'}
+              v={ob.established
+                ? <>{ob.owners.map((o: any) => titleCase(o.name)).filter(Boolean).join('; ')} {p.ownerOccupied ? riskChip('Owner-occupied', true) : null}</>
+                : <span style={{ color: 'var(--color-sage)' }}>{ob.coverageNote ?? 'Not established'}</span>} />
             <Fact l="Use" v={titleCase(p.propertyType?.replace('_', ' ')) || '—'} />
             <Fact l="Year built" v={p.yearBuilt ? `${p.yearBuilt}${p.effectiveYearBuilt ? ` (eff. ${p.effectiveYearBuilt})` : ''}` : '—'} />
             <Fact l="Living area" v={p.livingSqft ? `${num(p.livingSqft)} sq ft` : '—'} />
@@ -223,6 +229,36 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
           </div>
           <div className="pir-note">Legal: {p.legal ?? '—'}.{p.livingAreaSource ? ` Living area from ${p.livingAreaSource}.` : ''}</div>
         </Section>
+
+        {/* Ownership renders FROM the fact index (get_parcel_owner_facts). ONE row per owner — each with
+            its own OWNSEQ, PCTOWN (as recorded, NEVER normalized), tenancy type, and per-source as_of. The
+            parcel's owner_count is stated. as_of is load-bearing: CAMA is the live file; a DOR/NAL owner is
+            a 1-January snapshot that can lag a recorded deed by ~19 months. A coverage gap is about our
+            data, not the parcel. */}
+        {ob.established ? (
+          <Section title="Ownership"
+            note={<>{ob.ownerCount?.note}{ob.tenancy?.form ? ` Tenancy on file: ${ob.tenancy.form}.` : ''}</>}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {ob.owners.map((o: any, i: number) => (
+                <div key={o.ownseq ?? i} style={{ border: '1px solid var(--color-line, #d9d3c6)', borderRadius: 6, padding: '9px 12px' }}>
+                  <div style={{ fontSize: 14, fontWeight: 600 }}>
+                    {titleCase(o.name)}
+                    {o.pctOwn != null ? <span style={{ fontWeight: 400, color: 'var(--color-sage)' }}> — {o.pctOwn}% as recorded</span> : null}
+                    {o.ownershipType ? <span style={{ fontWeight: 400, color: 'var(--color-sage)' }}> · {o.ownershipType}</span> : null}
+                    <TierBadge tier={o.provenance?.tier} />
+                  </div>
+                  {o.nameDetail ? <div style={{ fontSize: 12.5, color: 'var(--color-sage)', marginTop: 2 }}>{titleCase(o.nameDetail)}</div> : null}
+                  <div style={{ fontSize: 11.5, color: 'var(--color-sage)', marginTop: 3 }}>{o.provenance?.as_of}</div>
+                </div>
+              ))}
+            </div>
+            {ob.tenancy?.note ? <div className="pir-note" style={{ marginTop: 8 }}>{ob.tenancy.note}</div> : null}
+          </Section>
+        ) : (
+          <Section title="Ownership" note="Owner of record from the county/state record.">
+            <div className="pir-note">{ob.coverageNote}</div>
+          </Section>
+        )}
 
         {/* Values render FROM the fact index (get_parcel_values_facts, surfaced as values.valuesFacts).
             Each dollar figure carries its OWN per-field roll year + authority (CAMA 2026 vs NAL 2025) —
