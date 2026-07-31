@@ -302,6 +302,8 @@ export interface PirConveyance {
   book?: string | null; page?: string | null; instrument_number?: string | null
   grantor?: string | null; grantee?: string | null
   sale_type?: string | null
+  // money on the key that names it: sale_price only for a qualified market sale, consideration otherwise
+  sale_price: number | null
   consideration: number | null
   multi_parcel?: boolean; parcels_on_instrument?: number | null
   legal_xref?: boolean
@@ -322,6 +324,8 @@ export interface PirTransactionFacts {
   count: number
   conveyances: PirConveyance[]
   last_market_sale: PirConveyance | null
+  last_market_sale_price?: number | null
+  last_market_sale_date?: string | null
   coverage_note: string | null
 }
 
