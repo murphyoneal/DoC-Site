@@ -123,16 +123,23 @@ export const predicates = [
   },
   {
     id: 'payload-carries-no-superseded-fabrication-keys',
-    claim: 'the get_pir_report payload contains NONE of the superseded flat keys a consumer could dress ' +
-      'as a fabricated fact: land.elevationM/elevationFt (the USGS-datum fabrication that recurred 6×), ' +
-      'and the pre-fact-index flood / marineImprovements shapes. THE PAYLOAD IS THE SECURITY BOUNDARY, ' +
-      'not the render — a page guard protects only React; a payload consumer (Roz) reads these directly.',
+    claim: 'DUPLICATE-REPRESENTATION CLOSURE: the get_pir_report payload answers each question with exactly ' +
+      'ONE key — no superseded shadow a consumer could take instead. Retired, four for four: land.elevationM/' +
+      'elevationFt (the USGS-datum fabrication that recurred 6×) → groundElevation; the flat flood shape → ' +
+      'floodBlock; marineImprovements → marineBlock; the volusia_zoning/FLU-backed top-level "zoning" → ' +
+      'zoningFacts (Volusia-only shadow beside the statewide fact, removed not deprecated). THE PAYLOAD IS ' +
+      'THE SECURITY BOUNDARY — a page guard protects only React; Roz reads the raw keys, and two answers to ' +
+      'one question is how the elevation lie recurred a 6th time (it read land.elevationFt beside the ' +
+      'withheld groundElevation). Two-sided: the superseded key must be ABSENT and the canonical key PRESENT, ' +
+      'so an over-removal that drops both also fails. Find the fifth here, not by reading a report.',
     // The 6th recurrence proved a render-side withheld-fact guard is not enough: the bare land.elevationFt
-    // stayed in the payload beside the withheld groundElevation fact, and Roz emitted the ±0.96 ft datum
-    // lie off the payload. Elevation is represented ONLY by groundElevation (value_withheld); flood by
-    // floodBlock; marine by marineBlock. Re-adding any of these flat keys must go red here.
+    // stayed in the payload beside the withheld groundElevation fact, and Roz emitted the ±0.96 ft datum lie
+    // off the payload. Each question is represented ONCE: elevation=groundElevation, flood=floodBlock,
+    // marine=marineBlock, zoning/FLU=zoningFacts. Re-adding any superseded key — OR dropping a canonical one —
+    // goes red. A new duplicate pair is added here the moment it's retired, so the check closes the CLASS.
     sql: `SELECT NOT ((p->'land') ? 'elevationM' OR (p->'land') ? 'elevationFt'
-                       OR p ? 'flood' OR p ? 'marineImprovements') AS ok
+                       OR p ? 'flood' OR p ? 'marineImprovements' OR p ? 'zoning')
+                 AND (p ? 'groundElevation' AND p ? 'floodBlock' AND p ? 'marineBlock' AND p ? 'zoningFacts') AS ok
           FROM (SELECT get_pir_report(74,'744403020120') AS p) s`,
   },
   {

@@ -411,10 +411,8 @@ export interface PirZoningFacts {
   coverage_note: string | null
 }
 
-export interface PirZoning {
-  zoneCode?: string; pudName?: string
-  futureLandUseCode?: string; futureLandUseName?: string
-}
+// PirZoning (zoneCode/pudName/futureLandUse*) REMOVED with the legacy `zoning` payload key — it was a
+// Volusia-only duplicate of zoningFacts. Zoning + future land use live on PirZoningFacts only.
 
 // inside === false with a distanceM ⇒ "nearest, not adjacent" context.
 // A whole overlay being null ⇒ none within range at all.
@@ -483,7 +481,9 @@ export interface PirReport {
   taxDeedStatus: PirTaxDeedStatus
   censusFacts?: PirCensusFacts | null
   ownerFacts?: PirOwnerFacts | null
-  zoning: PirZoning
+  // NOTE: the legacy `zoning` key (volusia_zoning/FLU-backed, Volusia-only) was REMOVED — it was a duplicate
+  // representation sitting beside statewide zoningFacts, the same hazard class as land.elevationFt beside
+  // groundElevation. Zoning + future land use are answered ONLY by zoningFacts now. Do not re-add.
   zoningFacts?: PirZoningFacts | null
   economic: PirEconomic
   disclosures?: PirDisclosure[] | null
