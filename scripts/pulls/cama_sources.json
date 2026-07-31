@@ -1,0 +1,28 @@
+{
+  "_README": [
+    "CAMA export probe work-list, ordered by parcel share (the lever on statewide depth).",
+    "cama_schema_probe.py reads this file and classifies each county's export: iasworld / other_vendor / roll_only.",
+    "candidate_url is the ACTUAL export to probe (a ZIP of CSV/DBF, an ArcGIS REST layer, or a CSV/JSON).",
+    "It is intentionally EMPTY here — populate it from the county property appraiser's public data-download page.",
+    "appraiser_hint is a RESEARCH STARTING POINT (a public domain), NOT an asserted export URL — verify it.",
+    "We do not guess the vendor from memory; the schema at pull time is the authoritative signal.",
+    "format_hint: one of 'arcgis' | 'zip' | 'csv' | 'json' | null (null = auto-detect from content).",
+    "The full 67-county work-list is seeded in public.cama_vendor_probe; start with these top-share counties.",
+    "The number that matters: if >=4 of the top 10 are iasworld, the Volusia loader takes rich coverage",
+    "from 2.86% to roughly a quarter of the state's parcels. If none are, it is per-vendor work and the plan changes."
+  ],
+  "counties": [
+    { "county_name": "Broward",      "co_no": 16, "parcel_count": 765030, "pct_of_state": 7.1, "candidate_url": "", "format_hint": null, "appraiser_hint": "bcpa.net (verify — find the data-download / GIS export)" },
+    { "county_name": "Palm Beach",   "co_no": 60, "parcel_count": 682984, "pct_of_state": 6.4, "candidate_url": "", "format_hint": null, "appraiser_hint": "pbcpao.gov (verify)" },
+    { "county_name": "Miami-Dade",   "co_no": 23, "parcel_count": 585220, "pct_of_state": 5.4, "candidate_url": "", "format_hint": null, "appraiser_hint": "miamidade.gov property appraiser open data (verify)" },
+    { "county_name": "Lee",          "co_no": 46, "parcel_count": 556100, "pct_of_state": 5.2, "candidate_url": "", "format_hint": null, "appraiser_hint": "leepa.org (verify)" },
+    { "county_name": "Hillsborough", "co_no": 39, "parcel_count": 533207, "pct_of_state": 5.0, "candidate_url": "", "format_hint": null, "appraiser_hint": "hcpafl.org (verify)" },
+    { "county_name": "Orange",       "co_no": 58, "parcel_count": 488959, "pct_of_state": 4.6, "candidate_url": "", "format_hint": null, "appraiser_hint": "ocpafl.org (verify)" },
+    { "county_name": "Pinellas",     "co_no": 62, "parcel_count": 432360, "pct_of_state": 4.0, "candidate_url": "", "format_hint": null, "appraiser_hint": "pcpao.gov (verify)" },
+    { "county_name": "Polk",         "co_no": 63, "parcel_count": 424289, "pct_of_state": 4.0, "candidate_url": "", "format_hint": null, "appraiser_hint": "polkpa.org (verify)" },
+    { "county_name": "Duval",        "co_no": 26, "parcel_count": 398063, "pct_of_state": 3.7, "candidate_url": "", "format_hint": null, "appraiser_hint": "coj.net property appraiser (verify)" },
+    { "county_name": "Collier",      "co_no": 21, "parcel_count": 364827, "pct_of_state": 3.4, "candidate_url": "", "format_hint": null, "appraiser_hint": "collierappraiser.com (verify)" },
+    { "county_name": "Brevard",      "co_no": 15, "parcel_count": 347497, "pct_of_state": 3.2, "candidate_url": "", "format_hint": null, "appraiser_hint": "bcpao.us (verify)" },
+    { "county_name": "Pasco",        "co_no": 61, "parcel_count": 310542, "pct_of_state": 2.9, "candidate_url": "", "format_hint": null, "appraiser_hint": "pascopa.com (verify)" }
+  ]
+}
