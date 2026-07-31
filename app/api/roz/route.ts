@@ -4,6 +4,7 @@ import { createHash } from 'crypto'
 import { getSupabaseAdmin } from '@/lib/supabase/server'
 import { getSessionUser } from '@/lib/supabase/ssr-server'
 import { formatDistanceBand } from '@/lib/units'
+import { validateNarration } from '@/lib/numeric-provenance.mjs'
 
 const MODEL = 'claude-sonnet-5'
 const ROZ_VERSION = '0.1.0-alpha' // roz_version_register current; stamped per exchange
@@ -334,6 +335,7 @@ export async function POST(req: NextRequest) {
   const payloadParts: string[] = []
   let reply = '', inTok = 0, outTok = 0, cacheRead = 0, cacheCreate = 0, calls = 0, cacheMarks = 0, webSearches = 0
   let fabricationBlocked: { terms: string; excerpt: string } | null = null  // set if the tourniquet fired
+  let numericShadow: { flagged: unknown[]; claimCount: number; licensedCount: number; provenanceSize: number } | null = null  // item 95 shadow
   let targetParcel: string | null = null, targetCounty = 74
   let success = true, errorMsg: string | null = null
   const t0 = Date.now()
@@ -381,6 +383,9 @@ export async function POST(req: NextRequest) {
           const toolUses = resp.content.filter((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use')
           if (resp.stop_reason === 'end_turn' || toolUses.length === 0) {
             reply = resp.content.filter((b): b is Anthropic.TextBlock => b.type === 'text').map(b => b.text).join('\n').trim()
+            // ITEM 95 SHADOW: validate the RAW narration (before the tourniquet touches it) against the
+            // payload Roz saw. Log-only — we read what it would flag against real reports before enforcing.
+            try { numericShadow = validateNarration(reply, payloadParts.join('\n')) } catch { /* shadow is best-effort */ }
             // TOURNIQUET: strip any fabricated lidar-accuracy claim (7th-occurrence class) BEFORE it stands.
             // The model can't talk past a mechanical gate at the response boundary; instruction couldn't.
             const fab = redactFabricatedPrecision(reply)
@@ -438,6 +443,18 @@ export async function POST(req: NextRequest) {
         console.warn('[roz-fabrication] BLOCKED lidar-accuracy fabrication: terms=[' + fabricationBlocked.terms + '] parcel=' + targetParcel)
         try { await admin.rpc('roz_log_fabrication_block', { p_parcel_id: targetParcel, p_terms: fabricationBlocked.terms, p_excerpt: fabricationBlocked.excerpt, p_model: MODEL }) }
         catch (e) { console.error('[roz-fabrication] log failed:', e instanceof Error ? e.message : String(e)) }
+      }
+
+      // Item 95 SHADOW MODE — log (do NOT enforce) any measurement the numeric validator could not trace to
+      // a payload value. Read roz_numeric_shadow against real reports: does it catch fabrications without
+      // flagging truthful sentences? Only then flip to enforcement. The tourniquet above stays live meanwhile.
+      if (numericShadow && numericShadow.flagged.length > 0) {
+        console.warn('[roz-numeric-shadow] would-flag ' + numericShadow.flagged.length + ' measurement(s) with no payload provenance: ' + JSON.stringify(numericShadow.flagged).slice(0, 300))
+        try { await admin.rpc('roz_log_numeric_shadow', {
+          p_parcel_id: targetParcel, p_model: MODEL, p_flagged: JSON.stringify(numericShadow.flagged),
+          p_claim_count: numericShadow.claimCount, p_licensed_count: numericShadow.licensedCount,
+          p_provenance_size: numericShadow.provenanceSize, p_reply_excerpt: reply }) }
+        catch (e) { console.error('[roz-numeric-shadow] log failed:', e instanceof Error ? e.message : String(e)) }
       }
 
       // payload_hash = the record Roz actually saw (for later verifiability of an opinion)
