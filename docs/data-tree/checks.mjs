@@ -111,6 +111,20 @@ export const predicates = [
              AS ok`,
   },
   {
+    id: 'payload-carries-no-superseded-fabrication-keys',
+    claim: 'the get_pir_report payload contains NONE of the superseded flat keys a consumer could dress ' +
+      'as a fabricated fact: land.elevationM/elevationFt (the USGS-datum fabrication that recurred 6×), ' +
+      'and the pre-fact-index flood / marineImprovements shapes. THE PAYLOAD IS THE SECURITY BOUNDARY, ' +
+      'not the render — a page guard protects only React; a payload consumer (Roz) reads these directly.',
+    // The 6th recurrence proved a render-side withheld-fact guard is not enough: the bare land.elevationFt
+    // stayed in the payload beside the withheld groundElevation fact, and Roz emitted the ±0.96 ft datum
+    // lie off the payload. Elevation is represented ONLY by groundElevation (value_withheld); flood by
+    // floodBlock; marine by marineBlock. Re-adding any of these flat keys must go red here.
+    sql: `SELECT NOT ((p->'land') ? 'elevationM' OR (p->'land') ? 'elevationFt'
+                       OR p ? 'flood' OR p ? 'marineImprovements') AS ok
+          FROM (SELECT get_pir_report(74,'744403020120') AS p) s`,
+  },
+  {
     id: 'no-county-literal-in-report-path',
     claim: 'OPEN (tracks register #14) — no report-path function may hardcode a county: a co_no ' +
       'compared to a numeric literal, or a quoted county-name string. Two of three live incidents were ' +

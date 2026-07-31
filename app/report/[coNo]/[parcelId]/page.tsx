@@ -172,9 +172,9 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
     ['Assigned schools', r.schools.length > 0],
     ['Permit history', (pb.count ?? 0) > 0],
     ['Ownership / sale history', (tb.count ?? 0) > 0],
-    ['Elevation & land', r.land.elevationFt != null],
-    ['Water & flood', r.flood.field_status === 'present'],
-    ['Marine improvements', r.marineImprovements.waterfront_indicator != null],
+    ['Elevation & land', r.groundElevation != null],
+    ['Water & flood', renderFloodBlock(r.floodBlock).determination?.established === true],
+    ['Marine improvements', (renderMarineBlock(r.marineBlock).improvements?.length ?? 0) > 0],
     ['Tax-deed status', r.taxDeedStatus.on_lands_available_list != null],
     ['Zoning & future land use', !!r.zoning.zoneCode],
     ['Economic overlays', Object.values(r.economic ?? {}).some(v => v != null)],
@@ -456,8 +456,8 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
                 {fb.zones.length ? <Fact l="Flood zones (share of parcel)" v={fb.zones.map((z: any) => `${z.zone}${z.in_sfha ? ' · SFHA' : ''}${z.pct_of_parcel != null ? ` ${z.pct_of_parcel}%` : ''}`).join('   ·   ')} /> : null}
                 {fb.elevationComparison?.withheld ? <p className="pir-note" style={{ marginTop: 2 }}>Elevation vs. BFE — {fb.elevationComparison.reason}</p> : null}
                 <Fact l="Area repetitive loss" v={
-                  r.flood.areaRepetitiveLoss && r.flood.areaRepetitiveLoss.field_status === 'present'
-                    ? `${num(r.flood.areaRepetitiveLoss.properties)} properties · ${num(r.flood.areaRepetitiveLoss.totalLosses)} losses (county context)`
+                  r.floodBlock?.areaRepetitiveLoss && r.floodBlock.areaRepetitiveLoss.field_status === 'present'
+                    ? `${num(r.floodBlock.areaRepetitiveLoss.properties)} properties · ${num(r.floodBlock.areaRepetitiveLoss.totalLosses)} losses (county context)`
                     : <span style={{ color: 'var(--color-sage)' }}>Not held for this county</span>} />
               </div>
             </div>

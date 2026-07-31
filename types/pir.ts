@@ -146,7 +146,9 @@ export interface PirCountedList<T> { count: number; items: T[] }
 // radon / sinkhole / water / lead / algae removed 2026-07-29 (fabricated v_env constants).
 // Only elevation (v_si) and the gopher-tortoise overlay (real spatial) remain.
 export interface PirLand {
-  elevationM?: number; elevationFt?: number
+  // elevationM/elevationFt intentionally REMOVED from the payload — a bare elevation figure with no
+  // vertical datum was the recurring fabrication surface. Elevation is represented ONLY by the withheld
+  // groundElevation fact (PirReport.groundElevation). Do not re-add these keys.
   gopherTortoiseInside?: boolean; gopherTortoiseNearestM?: number
 }
 
@@ -413,6 +415,9 @@ export interface PirFloodBlock {
   zones: unknown[]
   vertical_datum: string | null
   coverage_caveat?: string | null
+  // county-context FEMA NFIP repetitive-loss totals, merged onto floodBlock (migrated off the removed
+  // standalone `flood` key). Area context, not a per-parcel claim.
+  areaRepetitiveLoss?: { field_status?: string; properties?: number | null; totalLosses?: number | null; note?: string; coverage_caveat?: string } | null
 }
 
 export interface PirReport {
@@ -426,8 +431,9 @@ export interface PirReport {
   transactionFacts?: PirTransactionFacts | null
   land: PirLand
   water: PirWater
-  flood: PirFlood
-  marineImprovements: PirMarineImprovements
+  // `flood` and `marineImprovements` REMOVED from the payload — superseded by floodBlock / marineBlock.
+  // They were live fabrication surfaces for payload consumers (the payload is the security boundary, not
+  // the render). areaRepetitiveLoss migrated onto floodBlock. Do not re-add.
   taxDeedStatus: PirTaxDeedStatus
   censusFacts?: PirCensusFacts | null
   ownerFacts?: PirOwnerFacts | null
