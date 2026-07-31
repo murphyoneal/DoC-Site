@@ -602,6 +602,9 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
                 const zb = renderZoningBlock(r.zoningFacts)
                 if (!zb.established) return <div className="pir-note" style={{ marginTop: 12 }}>{zb.coverageNote}</div>
                 const zf = (f: any, label: string) => f ? (
+                  f.municipalNotHeld ? (
+                    <Fact l={label} v={<span style={{ color: 'var(--color-sage)' }}>{f.coverageNote}</span>} />
+                  ) :
                   <Fact l={label} v={<>
                     <b>{f.code}</b>{f.description ? ` · ${titleCase(f.description)}` : ''}
                     {f.jurisdictionLevel === 'municipal' ? <span style={{ color: 'var(--color-sage)' }}> · {f.jurisdiction}</span> : null}

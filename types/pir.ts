@@ -377,7 +377,11 @@ export interface PirZoningFact {
   predicate: 'zoning' | 'future_land_use'
   value: string | null
   description?: string | null
-  field_status: 'present'
+  // 'municipal_not_held' = the county disclaims jurisdiction (a "999"/"INCORPORATED" sentinel); the value
+  // is null and coverage_note names the governing municipality. Never render the sentinel as a code.
+  field_status: 'present' | 'municipal_not_held'
+  incorporated_in?: string | null
+  coverage_note?: string | null
   jurisdiction?: string | null
   jurisdiction_level?: 'county' | 'municipal' | string
   source?: string
