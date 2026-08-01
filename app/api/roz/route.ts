@@ -124,7 +124,22 @@ const TOOLS: Anthropic.Tool[] = [
   { name: 'discover_county_layers', description: 'Enumerate every data layer held for a county, grouped by concept, with layer counts, row counts and the actual table names. Call this to KNOW WHAT EXISTS for a county before deciding what to ask — never reason about what is held from memory or a hardcoded list. Pairs with get_county_coverage (per-field availability). Needs co_no.',
     input_schema: { type: 'object', properties: { co_no: { type: 'number', description: 'DOR county number' } }, required: ['co_no'] } },
   { name: 'find_contractors', description: 'Find licensed Florida contractors by trade and county (Volusia default). trade e.g. "electrical", "plumbing", "roofing". Returns DBPR licence status/expiry, complaint_count, bond/insurance. City is a soft preference only — the DBPR city is the business address, not service area, so search by county.',
-    input_schema: { type: 'object', properties: { trade: { type: 'string' }, city: { type: 'string' }, county: { type: 'string' } }, required: [] },
+    input_schema: { type: 'object', properties: { trade: { type: 'string' }, city: { type: 'string' }, county: { type: 'string' } }, required: [] } },
+  // Item 81 step 4 — the MECHANISM behind tier separation: a listing (Tier 4, commercial, perishable) is
+  // PERSISTED here, append-only with mandatory url + snippet + retrieval method, and renders only in its own
+  // dated block, never as a finding. Without this tool the tier-separation prompt rule is an instruction with
+  // no mechanism — the elevation-fabrication shape. A .gov finding does NOT go here; it is a record, reported
+  // in the body.
+  { name: 'record_web_observation', description: 'Persist a WEB/LISTING observation (Tier 4 — a commercial site\'s claim, e.g. a Zillow/Realtor listing), append-only, so it renders ONLY in the dated "Web observations" block and NEVER as a finding. Use for market/listing results, never for a .gov public record (a commission agenda, EPA/FDEP record — those are findings reported in the body). Mandatory: parcel_id, source_url, raw_snippet (verbatim), retrieval_method. Do NOT call when the owner is a government body (market_question_suppressed) — public land is not marketed.',
+    input_schema: { type: 'object', properties: {
+      parcel_id: { type: 'string' }, county: { type: 'string', description: 'county name or DOR number of the parcel' },
+      source_domain: { type: 'string', description: 'e.g. zillow.com' }, source_url: { type: 'string' },
+      observation_type: { type: 'string', description: 'e.g. listing_status, listing_price, days_on_market, prior_sale' },
+      raw_snippet: { type: 'string', description: 'the verbatim text from the page that supports the observation' },
+      retrieval_method: { type: 'string', enum: ['search_result_snippet', 'page_fetch', 'manual_entry', 'api_response'], description: 'search_result_snippet for a web_search result; page_fetch if the page itself was retrieved' },
+      value_text: { type: 'string' }, value_numeric: { type: 'number' }, value_date: { type: 'string' },
+      page_title: { type: 'string' }, source_published_at: { type: 'string' }, notes: { type: 'string' } },
+      required: ['parcel_id', 'source_url', 'observation_type', 'raw_snippet', 'retrieval_method'] },
     // Cache breakpoint on the last tool → the whole (system + tools) prefix is cached and reused every call.
     cache_control: { type: 'ephemeral' } },
 ]
@@ -203,6 +218,35 @@ async function runTool(name: string, input: any, admin: ReturnType<typeof getSup
   if (name === 'discover_county_layers') {
     const { data, error } = await admin.rpc('discover_county_layers', { p_co_no: Number(input.co_no) })
     return { text: error ? `discovery error: ${error.message}` : JSON.stringify(data ?? []), county: Number(input.co_no), pid: null }
+  }
+  if (name === 'record_web_observation') {
+    // Tier-4 listing persistence (item 81 step 4). The DB enforces evidence: url + snippet + retrieval method
+    // are required by _web_observations_require_evidence, and the table is append-only. A failure is surfaced,
+    // never swallowed — a silent catch here would recreate the "instruction with no mechanism" gap.
+    const co = input.co_no != null ? Number(input.co_no) : coNo(input.county)
+    // retrieval_method is DB-CHECK-constrained; map anything unexpected to the search-snippet default
+    const ALLOWED_RM = ['search_result_snippet', 'page_fetch', 'manual_entry', 'api_response']
+    const rm = ALLOWED_RM.includes(String(input.retrieval_method)) ? String(input.retrieval_method) : 'search_result_snippet'
+    const { data, error } = await admin.rpc('record_web_observation', {
+      p_co_no: co, p_parcel_id: pid,
+      p_source_domain: String(input.source_domain ?? '') || null,
+      p_source_url: String(input.source_url ?? ''),
+      p_observation_type: String(input.observation_type ?? ''),
+      p_raw_snippet: String(input.raw_snippet ?? ''),
+      p_retrieval_method: rm,
+      p_value_text: input.value_text != null ? String(input.value_text) : null,
+      p_value_numeric: input.value_numeric != null ? Number(input.value_numeric) : null,
+      p_value_date: input.value_date != null ? String(input.value_date) : null,
+      p_page_title: input.page_title != null ? String(input.page_title) : null,
+      p_source_published_at: input.source_published_at != null ? String(input.source_published_at) : null,
+      p_notes: input.notes != null ? String(input.notes) : null,
+    })
+    return {
+      text: error
+        ? `web observation NOT recorded: ${error.message}. Evidence is mandatory (source_url + raw_snippet + retrieval_method). This is a listing/Tier-4 claim — do not report it as a finding.`
+        : `web observation recorded (Tier 4). It renders ONLY in the dated "Web observations" block, never as a finding.`,
+      county: co, pid,
+    }
   }
   if (name === 'find_parcel') {
     const raw = String(input.address ?? '')
