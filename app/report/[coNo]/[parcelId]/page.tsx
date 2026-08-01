@@ -13,7 +13,6 @@ import { renderMarineBlock, renderFloodBlock, renderFact, renderContaminationFac
 // ── formatting helpers ──────────────────────────────────────────────────────────
 const usd = (n?: number | null) => n == null ? '—' : `$${Math.round(n).toLocaleString('en-US')}`
 const num = (n?: number | null) => n == null ? '—' : n.toLocaleString('en-US')
-// US units: feet for short spans, miles above ~1000 ft (was miles-only, which read "0.1 mi" for a habitat next door).
 const mi = formatDistance
 const titleCase = (s?: string | null) => !s ? '' : s.replace(/\b\w/g, c => c.toUpperCase())
 const fmtDate = (d?: string | null) => {
@@ -37,7 +36,6 @@ const MARINE_PRED_LABEL: Record<string, string> = {
   replacement_cost_new: 'Replacement cost', depreciated_value: 'Depreciated value',
   pct_depreciated: 'Depreciation', service_life_vs_age: 'Service life',
 }
-// Three visually distinct provenance tiers so a reader never mistakes our estimate for the county's figure.
 function TierBadge({ tier }: { tier?: string }) {
   const m: Record<string, { t: string; c: string }> = {
     county_assessor_record: { t: 'county', c: 'var(--color-sage)' },
@@ -67,29 +65,13 @@ function Section({ title, children, note }: { title: string; children: React.Rea
     </div>
   )
 }
-function Sheet({ page, total, title, r, children }: { page: number; total: number; title: string; r: PirReport; children: React.ReactNode }) {
-  const addr = r.property.address ?? '—'
-  const cityLine = [titleCase(r.property.city), 'FL', r.property.zip].filter(Boolean).join(', ')
-  const agent = r.salesAgent?.[0] ?? null
+// A continuous, numbered section group — replaces the five fixed print "sheets" (fork 1). Sections determine
+// the page breaks (CSS page-break-inside: avoid), not the reverse.
+function Grp({ n, title, children }: { n: number; title: string; children: React.ReactNode }) {
   return (
-    <section className="pir-sheet">
-      <header className="pir-head">
-        <div>
-          <div className="addr">{titleCase(addr)}</div>
-          <div className="ref">{cityLine}</div>
-        </div>
-        <div style={{ textAlign: 'right' }}>
-          <div className="ref">Parcel {r.meta.parcelId} · {r.meta.countyName} County</div>
-          <div className="ref">{agent?.value ? `${titleCase(agent.value)} (self-reported)` : 'No agent listed'}</div>
-        </div>
-      </header>
-      <div className="pir-body">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 14 }}>
-          <h2 className="pir-h2">{title}</h2>
-          <span className="pir-pageno">Page {page} of {total}</span>
-        </div>
-        {children}
-      </div>
+    <section className="pir-group">
+      <h2 className="pir-grouphead"><span className="pir-grpn">{n}</span>{title}</h2>
+      {children}
     </section>
   )
 }
@@ -108,7 +90,6 @@ function Legend({ entries }: { entries: Array<{ color: string; label: string }> 
   )
 }
 
-// nearest-overlay phrasing: inside ⇒ badge-worthy; else honest "nearest" context
 function overlayLine(o: PirEconOverlay | null, insideLabel: string): string {
   if (!o) return 'None mapped within 5 mi'
   if (o.inside) return insideLabel
@@ -121,6 +102,43 @@ function riskChip(text: string, good: boolean) {
   return <span style={{ background: c.bg, color: c.fg, padding: '2px 9px', borderRadius: 20, fontSize: 11.5, fontWeight: 700 }}>{text}</span>
 }
 
+// THE LEAD — frame + the single most consequential regulatory fact, ranked by what a buyer must act on:
+// contamination containment → SFHA flood mandate → GWCA well prohibition → institutional control → lead-paint
+// → historic district. First present wins; causally-linked facts combine (contamination + GWCA), ceiling of
+// TWO clauses. When none are present it SAYS SO — section 7 immediately qualifies what we could not check, so
+// silence never reads as clearance. Nothing here is originated; every clause traces to a rendered fact.
+function buildLead(r: PirReport): { identity: string; regulatory: string; none: boolean } {
+  const idf: any = (r as any).identityFrame ?? null
+  const p = r.property
+  const owner = idf?.signals?.owner ? titleCase(String(idf.signals.owner)) : (p.ownerName ? titleCase(p.ownerName) : null)
+  const frameLabel = idf?.frame_label ? String(idf.frame_label).toLowerCase() : null
+  const identity = [frameLabel ? `This is ${/^[aeiou]/i.test(frameLabel) ? 'an' : 'a'} ${frameLabel}` : 'This property',
+    owner ? `owned by ${owner}` : null].filter(Boolean).join(', ')
+
+  const fb = renderFloodBlock(r.floodBlock)
+  const rb = renderRestrictionsBlock(r.landRestrictions)
+  const restr = rb.established ? rb.items : []
+  const gwca = restr.find((it: any) => /well|62-524|groundwater/i.test(`${it.value ?? ''} ${it.label ?? ''}`))
+  const ic = restr.find((it: any) => /institutional control/i.test(it.label ?? ''))
+  const contamOn = idf?.signals?.contamination_on_parcel === true
+  const inSfha = fb.determination?.inSfha === true
+  const leadPaint = !!(p.yearBuilt && p.yearBuilt < 1978)
+  const historic = idf?.signals?.historic_on_parcel === true
+
+  const clauses: string[] = []
+  if (contamOn) {
+    clauses.push('on a designated contamination site')
+    if (gwca) clauses.push('inside a groundwater-contamination area where new potable wells are prohibited')
+  }
+  if (clauses.length < 2 && inSfha) clauses.push(`in a FEMA Special Flood Hazard Area${fb.determination?.zone ? ` (Zone ${fb.determination.zone})` : ''} — flood insurance is mandated with a federally-backed mortgage`)
+  if (clauses.length < 2 && !contamOn && gwca) clauses.push('inside a groundwater-contamination area where new potable wells are prohibited')
+  if (clauses.length < 2 && ic) clauses.push('subject to a recorded institutional control limiting site use')
+  if (clauses.length < 2 && leadPaint) clauses.push(`built in ${p.yearBuilt} — pre-1978, so the federal lead-paint disclosure duty applies on sale or lease`)
+  if (clauses.length < 2 && historic) clauses.push('within a listed historic district, which commonly triggers local review')
+
+  return { identity, regulatory: clauses.slice(0, 2).join(', '), none: clauses.length === 0 }
+}
+
 // =============================================================================
 export default async function ReportPage({ params }: { params: Promise<{ coNo: string; parcelId: string }> }) {
   const { coNo, parcelId } = await params
@@ -131,17 +149,25 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
   if (!r) notFound()
 
   const p = r.property, v = r.values, tax = r.tax
-  // Owners are multi-valued: one fact per owner, count stated, percentages never normalized. A single
-  // "Owner" line is wrong by design when there are two owners of record.
+  const idf: any = (r as any).identityFrame ?? null
+  const lead = buildLead(r)
   const ob = renderOwnersBlock(r.ownerFacts)
-  // Transactions: qualification gates the money — a market sale is a price, everything else is
-  // consideration. The deed chain is kept whole (a $100 quit-claim can hide a real $2.125M warranty deed).
   const tb = renderTransactionsBlock(r.transactionFacts)
-  // Permits: subject is the permit; closeout is a disclosure (a dated completion => finaled; else "not
-  // recorded", never open/closed). Contractor licence is checked as of the permit date against DBPR.
   const pb = renderPermitsBlock(r.permitFacts)
+  const fb = renderFloodBlock(r.floodBlock)
+  const rb = renderRestrictionsBlock(r.landRestrictions)
+  const dv = disclosuresView(r.disclosures)
 
-  // amenity badges (individual compass per type)
+  // Contamination SPLIT (rule: nothing above §4 carries a distance): on-parcel / active-remediation facilities
+  // are §3 (a fact about this ground); everything else + the area-context count is §4 (proximity).
+  const cf = renderContaminationFacilities(r.contaminationFacilities)
+  const cfOn = cf.facilities.filter((f: any) => f.onParcel || /ACTIVE/i.test(f.remediation || ''))
+  const cfNear = cf.facilities.filter((f: any) => !(f.onParcel || /ACTIVE/i.test(f.remediation || '')))
+
+  // Marine SPLIT: the improvements are §3 (on-parcel); the permit-vs-assessor cross-examination is §6 (open q).
+  const mbSt = r.marineBlock?.field_status
+  const marine = (r.marineBlock && mbSt !== 'not_available' && mbSt !== 'none_recorded') ? renderMarineBlock(r.marineBlock) : null
+
   const amenityBadges: CompassBadgeData[] = r.amenities.map(a => ({
     icon: a.iconName ?? '📍', label: a.displayName, sublabel: a.name, distanceM: a.distanceM, bearingDegrees: a.bearingDegrees,
   }))
@@ -155,7 +181,6 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
       icon: 'ramp', label: 'Boat ramp', sublabel: b.name ?? b.waterbody, distanceM: b.distanceM, bearingDegrees: b.bearingDegrees,
     })),
   ]
-  // Assigned school zones — one badge per level (elementary / middle / high).
   const schoolBadges: CompassBadgeData[] = r.schools
     .filter(s => s.distanceM != null)
     .map(s => ({ icon: 'school', label: s.level, sublabel: s.name, distanceM: s.distanceM!, bearingDegrees: s.bearingDegrees ?? 0 }))
@@ -163,29 +188,28 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
   const floodLegend = ['VE', 'AE', 'AH', 'A', 'X'].map(z => FLOOD_STYLE[z])
   const zoningLegend = Object.values(ZONING_STYLE)
 
-  // completeness checklist
-  const completeness: Array<[string, boolean]> = [
-    ['Property basics', !!p.yearBuilt],
-    // reads the VALUE FACT (values.valuesFacts.just_value), not a flat shadow — the flat justValue key was
-    // removed as a duplicate representation of the provenance-carrying fact (backlog 114).
-    ['Assessed & market values', (v.valuesFacts as any)?.just_value?.field_status === 'present'],
-    ['Tax & exemptions', tax.taxableValueCounty != null],
-    ['Nearby amenities', r.amenities.length > 0],
-    ['Assigned schools', r.schools.length > 0],
-    ['Permit history', (pb.count ?? 0) > 0],
-    ['Ownership / sale history', (tb.count ?? 0) > 0],
-    ['Elevation & land', r.groundElevation != null],
-    ['Water & flood', renderFloodBlock(r.floodBlock).determination?.established === true],
-    ['Marine improvements', (renderMarineBlock(r.marineBlock).improvements?.length ?? 0) > 0],
-    ['Tax-deed status', r.taxDeedStatus.on_lands_available_list != null],
-    ['Zoning & future land use', r.zoningFacts?.field_status === 'present'],
-    ['Economic overlays', Object.values(r.economic ?? {}).some(v => v != null)],
-    ['Census / demographics', r.censusFacts?.field_status === 'present'],
-    ['Crime / safety statistics', false],
-    ['Neighborhood news (live)', false],
+  // completeness — reframed in §7 as a checklist of who-answers, not an apology
+  const completeness: Array<[string, boolean, string]> = [
+    ['Property basics', !!p.yearBuilt, ''],
+    ['Assessed & market values', (v.valuesFacts as any)?.just_value?.field_status === 'present', ''],
+    ['Tax & exemptions', tax.taxableValueCounty != null, ''],
+    ['Nearby amenities', r.amenities.length > 0, ''],
+    ['Assigned schools', r.schools.length > 0, 'the county school district'],
+    ['Permit history', (pb.count ?? 0) > 0, "the county / municipal building department"],
+    ['Ownership / sale history', (tb.count ?? 0) > 0, 'the county Clerk of Court'],
+    ['Elevation & land', r.groundElevation != null, ''],
+    ['Water & flood', fb.determination?.established === true, 'FEMA (msc.fema.gov)'],
+    ['Marine improvements', (marine?.improvements?.length ?? 0) > 0, 'the county Property Appraiser'],
+    ['Tax-deed status', r.taxDeedStatus.on_lands_available_list != null, 'the county Clerk'],
+    ['Zoning & future land use', r.zoningFacts?.field_status === 'present', 'the local planning department'],
+    ['Economic overlays', Object.values(r.economic ?? {}).some(x => x != null), ''],
+    ['Census / demographics', r.censusFacts?.field_status === 'present', 'the U.S. Census Bureau (ACS)'],
+    ['Crime / safety statistics', false, 'the county Sheriff / FDLE'],
+    ['Neighborhood news (live)', false, 'live web search'],
   ]
   const have = completeness.filter(c => c[1]).length
   const havePct = Math.round((have / completeness.length) * 100)
+  const gaps = completeness.filter(c => !c[1])
 
   return (
     <div className="pir-doc">
@@ -199,593 +223,551 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
         </div>
       </div>
 
-      {/* ═══ PAGE 1 — PROPERTY FACTS ═══ */}
-      <Sheet page={1} total={5} title="Property Facts" r={r}>
-        {/* Source limitations render FROM disclosuresView (lib/report-coverage) — the get_pir_report
-            `disclosures` array. A source/disclose defect is a FINDING with weight (a stated limit of the
-            county's public record), styled deliberately UNLIKE the muted .pir-note coverage-gap copy:
-            "the county doesn't publish this" is a different sentence from "we don't hold this layer".
-            report-coverage.test.mjs asserts the county scope (Volusia's 8.8% never leaks to another county). */}
-        {(() => { const dv = disclosuresView(r.disclosures); if (dv.mode !== 'source_limit') return null; return (
-          <div className="pir-disclosure" style={{
-            border: '1px solid var(--color-line, #d9d3c6)', borderLeft: '3px solid var(--color-ink, #2b2b2b)',
-            borderRadius: 6, padding: '13px 16px', marginBottom: 18, background: 'var(--color-paper-2, rgba(0,0,0,0.02))' }}>
-            <div style={{ fontSize: 10.5, letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 600, marginBottom: 6 }}>{dv.title}</div>
-            <div style={{ fontSize: 12.5, color: 'var(--color-sage)', marginBottom: 8 }}>{dv.note}</div>
-            <ul style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {dv.items.map((it, i) => <li key={i} style={{ fontSize: 14, lineHeight: 1.5 }}>{it.text}</li>)}
-            </ul>
+      <article className="pir-report">
+        <header className="pir-head">
+          <div>
+            <div className="addr">{titleCase(r.property.address ?? '—')}</div>
+            <div className="ref">{[titleCase(r.property.city), 'FL', r.property.zip].filter(Boolean).join(', ')}</div>
           </div>
-        ); })()}
-        <Section title="Property">
-          <div className="pir-grid">
-            <Fact l={ob.established && (ob.ownerCount?.value ?? 0) > 1 ? `Owners of record (${ob.ownerCount!.value})` : 'Owner of record'}
-              v={ob.established
-                ? <>{ob.owners.map((o: any) => titleCase(o.name)).filter(Boolean).join('; ')} {p.ownerOccupied ? riskChip('Owner-occupied', true) : null}</>
-                : <span style={{ color: 'var(--color-sage)' }}>{ob.coverageNote ?? 'Not established'}</span>} />
-            <Fact l="Use" v={titleCase(p.propertyType?.replace('_', ' ')) || '—'} />
-            <Fact l="Year built" v={p.yearBuilt ? `${p.yearBuilt}${p.effectiveYearBuilt ? ` (eff. ${p.effectiveYearBuilt})` : ''}` : '—'} />
-            <Fact l="Living area" v={p.livingSqft ? `${num(p.livingSqft)} sq ft` : '—'} />
-            <Fact l="Total under roof" v={p.totalSqft ? `${num(p.totalSqft)} sq ft` : '—'} />
-            <Fact l="Beds / baths" v={p.bedrooms != null ? `${p.bedrooms} bd · ${p.bathrooms} ba` : '—'} />
-            <Fact l="Stories / buildings" v={`${p.stories ?? '—'} / ${p.numBuildings ?? '—'}`} />
-            <Fact l="Lot (GIS-calc)" v={p.gisAcres != null ? `${p.gisAcres.toFixed(2)} ac` : '—'} />
-            <Fact l="Subdivision" v={titleCase(p.subdivision) || '—'} />
-            <Fact l="Neighborhood" v={titleCase(p.neighborhood) || '—'} />
-            <Fact l="Jurisdiction" v={`${p.incorporation ?? ''} ${p.jurisdiction ?? ''}`.trim() || '—'} />
-            <Fact l="Sec-Twp-Rng" v={[p.section, p.township, p.range].filter(Boolean).join('-') || '—'} />
+          <div style={{ textAlign: 'right' }}>
+            <div className="ref">Parcel {r.meta.parcelId} · {r.meta.countyName} County</div>
+            <div className="ref">Property Intelligence Report · {today()}</div>
           </div>
-          <div className="pir-note">Legal: {p.legal ?? '—'}.{p.livingAreaSource ? ` Living area from ${p.livingAreaSource}.` : ''}</div>
-        </Section>
+        </header>
 
-        {/* Ownership renders FROM the fact index (get_parcel_owner_facts). ONE row per owner — each with
-            its own OWNSEQ, PCTOWN (as recorded, NEVER normalized), tenancy type, and per-source as_of. The
-            parcel's owner_count is stated. as_of is load-bearing: CAMA is the live file; a DOR/NAL owner is
-            a 1-January snapshot that can lag a recorded deed by ~19 months. A coverage gap is about our
-            data, not the parcel. */}
-        {ob.established ? (
-          <Section title="Ownership"
-            note={<>{ob.ownerCount?.note}{ob.tenancy?.form ? ` Tenancy on file: ${ob.tenancy.form}.` : ''}</>}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {ob.owners.map((o: any, i: number) => (
-                <div key={o.ownseq ?? i} style={{ border: '1px solid var(--color-line, #d9d3c6)', borderRadius: 6, padding: '9px 12px' }}>
-                  <div style={{ fontSize: 14, fontWeight: 600 }}>
-                    {titleCase(o.name)}
-                    {o.pctOwn != null ? <span style={{ fontWeight: 400, color: 'var(--color-sage)' }}> — {o.pctOwn}% as recorded</span> : null}
-                    {o.ownershipType ? <span style={{ fontWeight: 400, color: 'var(--color-sage)' }}> · {o.ownershipType}</span> : null}
-                    <TierBadge tier={o.provenance?.tier} />
-                  </div>
-                  {o.nameDetail ? <div style={{ fontSize: 12.5, color: 'var(--color-sage)', marginTop: 2 }}>{titleCase(o.nameDetail)}</div> : null}
-                  <div style={{ fontSize: 11.5, color: 'var(--color-sage)', marginTop: 3 }}>{o.provenance?.as_of}</div>
-                </div>
-              ))}
+        <div className="pir-body">
+          {/* THE LEAD — frame + the single most consequential regulatory fact (contamination-first). */}
+          <div className="pir-lead">
+            <div className="pir-lead-id">{lead.identity}.</div>
+            <div className="pir-lead-reg">
+              {lead.none
+                ? 'No federal or state regulatory constraint is recorded on this parcel in the layers we hold. That is not a clearance — see section 7 for exactly what was and was not checked.'
+                : `It is ${lead.regulatory}.`}
             </div>
-            {ob.tenancy?.note ? <div className="pir-note" style={{ marginTop: 8 }}>{ob.tenancy.note}</div> : null}
-          </Section>
-        ) : (
-          <Section title="Ownership" note="Owner of record from the county/state record.">
-            <div className="pir-note">{ob.coverageNote}</div>
-          </Section>
-        )}
+          </div>
 
-        {/* Values render FROM the fact index (get_parcel_values_facts, surfaced as values.valuesFacts).
-            Each dollar figure carries its OWN per-field roll year + authority (CAMA 2026 vs NAL 2025) —
-            a block-level year would MISDATE a field when the coalesce mixes sources, so the asymmetry is
-            surfaced in the section note, never silently reconciled. Absent field → the fixed NULL string,
-            never a number. corroborators are [] by design (CAMA/NAL share DOR lineage — not independent). */}
-        {(() => {
-          const vb = renderValuesBlock(v.valuesFacts)
-          const byKey = (k: string) => vb.fields.find((f: any) => f.key === k)
-          const valTile = (l: string, key: string) => {
-            const f = byKey(key)
-            if (!f) return <Tile key={key} l={l} v="—" />
-            const rd = f.rendered
-            // A COMPUTED value declares itself: improvement_value carries a derivation naming its inputs on the
-            // NAL branch (just − land − special), so the reader sees where the number came from, not just the total.
-            const deriv = rd.provenance?.derivation
-            return <Tile key={key} l={l}
-              v={rd.hasValue ? rd.label : <span style={{ color: 'var(--color-sage)' }}>{rd.label}</span>}
-              sub={rd.hasValue ? <>{f.asOf}<TierBadge tier={rd.provenance?.tier} />
-                {deriv?.formula ? <div className="pir-note" style={{ marginTop: 2, fontStyle: 'normal' }}>= {String(deriv.formula).replace(/_/g, ' ')}</div> : null}</> : null} />
-          }
-          return (
-            <Section title="Assessed values"
-              note={<>Improvement value = just value − land − special-feature value.{vb.rollSpan?.mixed ? ` ${vb.rollSpan.note}` : ''}</>}>
-              <div className="pir-tiles">
-                {valTile('Just (market) value', 'justValue')}
-                {valTile('Assessed value', 'assessedValue')}
-                {valTile('Land value', 'landValue')}
-                {/* Special features is now a fact (its own source + roll year), not a bare number */}
-                {valTile('Special features', 'specialFeatureValue')}
-                {valTile('Improvement value', 'improvementValue')}
+          {/* ═══ 1 — WHAT THIS IS ═══ */}
+          <Grp n={1} title="What this is">
+            {dv.mode === 'source_limit' ? (
+              <div className="pir-disclosure" style={{
+                border: '1px solid var(--color-line, #d9d3c6)', borderLeft: '3px solid var(--color-ink, #2b2b2b)',
+                borderRadius: 6, padding: '13px 16px', marginBottom: 18, background: 'var(--color-paper-2, rgba(0,0,0,0.02))' }}>
+                <div style={{ fontSize: 10.5, letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 600, marginBottom: 6 }}>{dv.title}</div>
+                <div style={{ fontSize: 12.5, color: 'var(--color-sage)', marginBottom: 8 }}>{dv.note}</div>
+                <ul style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {dv.items.map((it, i) => <li key={i} style={{ fontSize: 14, lineHeight: 1.5 }}>{it.text}</li>)}
+                </ul>
+              </div>
+            ) : null}
+            <Section title="Property">
+              <div className="pir-grid">
+                <Fact l={ob.established && (ob.ownerCount?.value ?? 0) > 1 ? `Owners of record (${ob.ownerCount!.value})` : 'Owner of record'}
+                  v={ob.established
+                    ? <>{ob.owners.map((o: any) => titleCase(o.name)).filter(Boolean).join('; ')} {p.ownerOccupied ? riskChip('Owner-occupied', true) : null}</>
+                    : <span style={{ color: 'var(--color-sage)' }}>{ob.coverageNote ?? 'Not established'}</span>} />
+                <Fact l="Use" v={titleCase(p.propertyType?.replace('_', ' ')) || '—'} />
+                <Fact l="Year built" v={p.yearBuilt ? `${p.yearBuilt}${p.effectiveYearBuilt ? ` (eff. ${p.effectiveYearBuilt})` : ''}` : '—'} />
+                <Fact l="Living area" v={p.livingSqft ? `${num(p.livingSqft)} sq ft` : '—'} />
+                <Fact l="Total under roof" v={p.totalSqft ? `${num(p.totalSqft)} sq ft` : '—'} />
+                <Fact l="Beds / baths" v={p.bedrooms != null ? `${p.bedrooms} bd · ${p.bathrooms} ba` : '—'} />
+                <Fact l="Stories / buildings" v={`${p.stories ?? '—'} / ${p.numBuildings ?? '—'}`} />
+                <Fact l="Lot (GIS-calc)" v={p.gisAcres != null ? `${p.gisAcres.toFixed(2)} ac` : '—'} />
+                <Fact l="Subdivision" v={titleCase(p.subdivision) || '—'} />
+                <Fact l="Neighborhood" v={titleCase(p.neighborhood) || '—'} />
+                <Fact l="Jurisdiction" v={`${p.incorporation ?? ''} ${p.jurisdiction ?? ''}`.trim() || '—'} />
+                <Fact l="Sec-Twp-Rng" v={[p.section, p.township, p.range].filter(Boolean).join('-') || '—'} />
+              </div>
+              <div className="pir-note">Legal: {p.legal ?? '—'}.{p.livingAreaSource ? ` Living area from ${p.livingAreaSource}.` : ''}</div>
+            </Section>
+
+            {ob.established ? (
+              <Section title="Ownership"
+                note={<>{ob.ownerCount?.note}{ob.tenancy?.form ? ` Tenancy on file: ${ob.tenancy.form}.` : ''}</>}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {ob.owners.map((o: any, i: number) => (
+                    <div key={o.ownseq ?? i} style={{ border: '1px solid var(--color-line, #d9d3c6)', borderRadius: 6, padding: '9px 12px' }}>
+                      <div style={{ fontSize: 14, fontWeight: 600 }}>
+                        {titleCase(o.name)}
+                        {o.pctOwn != null ? <span style={{ fontWeight: 400, color: 'var(--color-sage)' }}> — {o.pctOwn}% as recorded</span> : null}
+                        {o.ownershipType ? <span style={{ fontWeight: 400, color: 'var(--color-sage)' }}> · {o.ownershipType}</span> : null}
+                        <TierBadge tier={o.provenance?.tier} />
+                      </div>
+                      {o.nameDetail ? <div style={{ fontSize: 12.5, color: 'var(--color-sage)', marginTop: 2 }}>{titleCase(o.nameDetail)}</div> : null}
+                      <div style={{ fontSize: 11.5, color: 'var(--color-sage)', marginTop: 3 }}>{o.provenance?.as_of}</div>
+                    </div>
+                  ))}
+                </div>
+                {ob.tenancy?.note ? <div className="pir-note" style={{ marginTop: 8 }}>{ob.tenancy.note}</div> : null}
+              </Section>
+            ) : (
+              <Section title="Ownership" note="Owner of record from the county/state record.">
+                <div className="pir-note">{ob.coverageNote}</div>
+              </Section>
+            )}
+
+            <Section title="Parcel boundary"
+              note="Subject parcel (gold) and neighbouring parcels within ~150 ft, drawn from real county parcel geometry.">
+              <PropertyReportMap coNo={co} parcelId={parcelId} layer="parcels" height={300} />
+            </Section>
+          </Grp>
+
+          {/* ═══ 2 — WHAT LEGALLY BINDS THIS PROPERTY (regulatory only; no distances) ═══ */}
+          <Grp n={2} title="What legally binds this property">
+            {/* Flood: THE finding is the SFHA determination (federal_regulatory). A coverage gap renders
+                "not established — about our data", NEVER "not in a flood zone" (the St Pete failure). */}
+            <Section title="Flood determination" note="The FEMA determination is the finding; zone and base flood elevation are supporting detail. This is a containment fact about the parcel, not a distance.">
+              <div className="pir-maprow">
+                <PropertyReportMap coNo={co} parcelId={parcelId} layer="flood" />
+                <div>
+                  <Legend entries={floodLegend} />
+                  <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <div style={{ border: '1px solid var(--color-line, #d9d3c6)', borderLeft: `3px solid ${fb.determination?.inSfha ? 'var(--color-terracotta, #b5502f)' : 'var(--color-sage)'}`, borderRadius: 6, padding: '10px 13px' }}>
+                      <div style={{ fontSize: 14, fontWeight: 600 }}>{fb.determination?.label}<TierBadge tier={fb.determination?.tier} /></div>
+                      {fb.determination?.headline ? <div style={{ fontSize: 12.5, color: 'var(--color-sage)', marginTop: 4 }}>{fb.determination.headline}</div> : null}
+                    </div>
+                    {fb.bfe ? <Fact l="Base flood elevation" v={fb.bfe.label} /> : null}
+                    {fb.zones.length ? <Fact l="Flood zones (share of parcel)" v={fb.zones.map((z: any) => `${z.zone}${z.in_sfha ? ' · SFHA' : ''}${z.pct_of_parcel != null ? ` ${z.pct_of_parcel}%` : ''}`).join('   ·   ')} /> : null}
+                    {fb.elevationComparison?.withheld ? <p className="pir-note" style={{ marginTop: 2 }}>Elevation vs. BFE — {fb.elevationComparison.reason}</p> : null}
+                  </div>
+                </div>
               </div>
             </Section>
-          )
-        })()}
 
-        <Section title="Tax & exemptions"
-          note="This dataset carries taxable values by authority and exemptions on file; it does not include the computed annual tax bill or per-authority millage, so those are not shown rather than estimated.">
-          <div className="pir-grid">
-            <Fact l="Homestead" v={tax.homesteadExempt ? riskChip('Homestead exemption on file', true) : 'None on file'} />
-            <Fact l="Homestead exemption" v={tax.homesteadExemption1 != null ? `${usd(tax.homesteadExemption1)} + ${usd(tax.homesteadExemption2)}` : '—'} />
-            <Fact l="Taxable — county" v={usd(tax.taxableValueCounty)} />
-            <Fact l="Taxable — school" v={usd(tax.taxableValueSchool)} />
-            <Fact l="Taxing authority" v={tax.taxAuthorityCode ?? '—'} />
-          </div>
-        </Section>
-
-        <Section title="Parcel boundary"
-          note="Subject parcel (gold) and neighbouring parcels within ~150 ft, drawn from real county parcel geometry.">
-          <PropertyReportMap coNo={co} parcelId={parcelId} layer="parcels" height={300} />
-        </Section>
-
-        <Section title="Nearby amenities"
-          note="One compass badge per amenity type with data for this county. Absent categories (grocery, transit, library, parks…) are not yet in the county coverage layer — their absence is shown honestly, not filled in.">
-          {amenityBadges.length ? <CompassBadgeGrid badges={amenityBadges} /> : <div className="pir-note">No covered amenity types returned for this parcel.</div>}
-        </Section>
-
-        <Section title="Assigned schools"
-          note={`Zoned attendance schools for this parcel (Volusia County School District)${r.schools.length ? ': ' + r.schools.map(s => `${s.level} — ${titleCase(s.name)}`).join(' · ') : ''}. Distance and bearing are to each school's location.`}>
-          {schoolBadges.length ? <CompassBadgeGrid badges={schoolBadges} /> : <div className="pir-note">No school assignment on file for this parcel.</div>}
-        </Section>
-
-        <Section title="Listing & agent"
-          note={r.salesAgent?.[0]
-            ? 'Self-reported by a licensed agent from firsthand knowledge, corroborated to a recorded sale where one attached — not from an MLS and not the county record’s own fact. Verify at the Clerk with the instrument number.'
-            : undefined}>
-          {r.salesAgent?.[0] ? (() => {
-            const a = r.salesAgent![0]
-            return (
-              <div className="pir-grid">
-                <Fact l="Sales agent (self-reported)" v={titleCase(a.value) || '—'} />
-                <Fact l="FL licence" v={a.license_number ?? '—'} />
-                <Fact l="Represented a party in" v={a.sale_date ? `${fmtDate(a.sale_date)} sale${a.sale_price != null ? ` · ${usd(a.sale_price)}` : ''}` : '—'} />
-                <Fact l="Recorded instrument" v={[a.sale_instrument, a.sale_instr_no].filter(Boolean).join(' ') || '—'} />
-              </div>
-            )
-          })() : (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 13, color: 'var(--color-ink)' }}>The county record does not name a sales agent, and no licensed agent has claimed this property.</span>
-              <span className="no-print" style={{ background: 'var(--color-bronze)', color: '#fff', padding: '6px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600 }}>Claim this listing →</span>
-            </div>
-          )}
-        </Section>
-      </Sheet>
-
-      {/* ═══ PAGE 2 — PROPERTY HISTORY ═══ */}
-      <Sheet page={2} total={5} title="Property History" r={r}>
-        {/* Permits render FROM the fact index (get_parcel_permit_facts). Subject is the PERMIT
-            (attaches_by_key). Closeout is a disclosure: a dated completion => finaled; otherwise
-            "closeout not recorded" is an affirmative line (an authorized-but-unfinaled permit can be
-            inherited at closing), never "open"/"closed" — the numeric STATUS code is opaque and NOT
-            decoded. AMOUNT is declared value, not cost. The contractor licence is checked AS OF THE
-            PERMIT DATE against DBPR (a different agency): active = independent corroboration, inactive =
-            a finding. Marine build-year cross-exam is NOT duplicated here — it lives in Marine. */}
-        {pb.established ? (
-          <Section title={`Permit history — ${pb.count} on record`}
-            note={pb.closeoutNotRecordedCount > 0
-              ? `${pb.closeoutNotRecordedCount} of ${pb.count} permits have no recorded closeout — the county record does not confirm they were signed off. Any open permit can transfer to a buyer at closing; verify with the building department.`
-              : 'Every permit on file is listed; the count matches the list.'}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {pb.permits.map((pm: any, i: number) => (
-                <div key={i} style={permitCard}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
-                    <span style={{ fontFamily: 'Georgia, serif', fontWeight: 700, color: 'var(--color-navy)', fontSize: 14 }}>{titleCase(pm.workDescription) || 'Permit'}</span>
-                    <span style={{ fontSize: 12, color: 'var(--color-sage)' }}>#{pm.number}{pm.issuingAuthority ? ` · ${pm.issuingAuthority}` : ''}</span>
-                  </div>
-                  <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', marginTop: 6, fontSize: 12, color: 'var(--color-ink)' }}>
-                    <span><b>Filed</b> {fmtDate(pm.date)}</span>
-                    {pm.declaredValueLabel ? <span><b>Value</b> {pm.declaredValueLabel}</span> : null}
-                    {pm.contractor ? <span><b>Contractor</b> {titleCase(pm.contractor)}</span> : null}
-                  </div>
-                  <div style={{ marginTop: 6 }}>
-                    {pm.closeout.finaled
-                      ? riskChip(`Finaled ${fmtDate(pm.closeout.finaledDate)}`, true)
-                      : <span style={{ fontSize: 12, color: 'var(--color-terracotta, #b5502f)' }}>{pm.closeout.disclosure}</span>}
-                  </div>
-                  {pm.contractorLicence?.matched && pm.contractorLicence.finding
-                    ? <div className="pir-note" style={{ marginTop: 6, color: 'var(--color-terracotta, #b5502f)' }}>Contractor licence: {pm.contractorLicence.finding}</div> : null}
-                  {pm.contractorLicence?.matched && pm.contractorLicence.corroboration
-                    ? <div className="pir-note" style={{ marginTop: 6 }}>Contractor licence: {pm.contractorLicence.corroboration}<TierBadge tier="analysis_inference" /></div> : null}
-                  {pm.contractorLicence && pm.contractorLicence.matched === false
-                    ? <div className="pir-note" style={{ marginTop: 6 }}>{pm.contractorLicence.note}</div> : null}
-                </div>
-              ))}
-            </div>
-          </Section>
-        ) : (
-          <Section title="Permit history" note="Permits from the county building record.">
-            <div className="pir-note">{pb.coverageNote}</div>
-          </Section>
-        )}
-
-        {/* Transactions render FROM the fact index (get_parcel_transaction_facts). Qualification GATES the
-            money: a market sale (qualified warranty deed) shows a SALE PRICE; a quit-claim / certificate of
-            title / unqualified / nominal transfer shows CONSIDERATION and says why — the number is never
-            presented as value. The whole deed chain is kept (the $100 transfers pair ownership; deleting
-            them breaks the chain). The county's qualification and OUR market-signal reading are distinct;
-            where we downgrade a technically-qualified sale, that note is visibly ours. */}
-        <Section title={`Ownership & sale history — ${tb.count} on record`}
-          note="Only sales the county qualifies as arm’s-length are shown as a sale price. Quit-claims, certificates of title, and nominal transfers are real conveyances shown as consideration — never as value.">
-          {tb.established && tb.lastMarketSale ? (
-            <div style={{ border: '1px solid var(--color-line, #d9d3c6)', borderLeft: '3px solid var(--color-bronze, #9a6a3a)', borderRadius: 6, padding: '10px 13px', marginBottom: 12 }}>
-              <div style={{ fontSize: 14, fontWeight: 600 }}>Last qualified market sale: {tb.lastMarketSale.amountLabel} · {fmtDate(tb.lastMarketSale.date)} · {tb.lastMarketSale.instrumentType}<TierBadge tier="analysis_inference" /></div>
-              <div style={{ fontSize: 12.5, color: 'var(--color-sage)', marginTop: 3 }}>The most recent sale we read as an arm’s-length market transaction — the value-relevant one. {tb.lastMarketSale.legalCrossReference ? 'The county’s legal description cites this same deed.' : ''}</div>
-            </div>
-          ) : tb.established ? (
-            <div className="pir-note" style={{ marginBottom: 12 }}>{tb.coverageNote}</div>
-          ) : null}
-          {tb.established && tb.conveyances.length ? (
-            <table style={tableStyle}>
-              <thead><tr>{['Date', 'Amount', 'Instrument', 'Grantor → Grantee'].map(h => <th key={h} style={thStyle}>{h}</th>)}</tr></thead>
-              <tbody>
-                {tb.conveyances.map((c: any, i: number) => (
-                  <tr key={i}>
-                    <td style={tdStyle}>{fmtDate(c.date)}</td>
-                    <td style={tdStyle}>
-                      {c.amountLabel ?? '—'}{c.multiParcel ? <span style={{ color: 'var(--color-terracotta, #b5502f)' }}> · {c.parcelsOnInstrument}-parcel sale</span> : null}
-                    </td>
-                    <td style={tdStyle}>
-                      {c.instrumentType ?? '—'}
-                      {c.marketSignal === 'non_market' && c.nominalReason ? <div style={{ fontSize: 11, color: 'var(--color-sage)', marginTop: 2 }}>{c.nominalReason}</div> : null}
-                      {c.ourNote ? <div style={{ fontSize: 11, color: 'var(--color-terracotta, #b5502f)', marginTop: 2 }}>{c.ourNote}</div> : null}
-                    </td>
-                    <td style={tdStyle}>{c.grantor || c.grantee ? `${titleCase(c.grantor) ?? '—'} → ${titleCase(c.grantee) ?? '—'}` : 'Parties not on file'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : <div className="pir-note">{tb.coverageNote ?? 'No recorded transfers on file.'}</div>}
-        </Section>
-      </Sheet>
-
-      {/* ═══ PAGE 3 — ENVIRONMENTAL ═══ */}
-      <Sheet page={3} total={5} title="Environmental Facts" r={r}>
-        {/* Flood renders from floodView (lib/report-coverage) — the FEMA NFHL coverage-aware shape.
-            not_available / parcel_not_resolved is a COVERAGE GAP, never "not in a flood zone" (the
-            St Pete incident). report-coverage.test.mjs asserts the gap copy. */}
-        {/* Flood renders FROM the fact index (get_parcel_flood_block via renderFloodBlock). THE finding is
-            the SFHA determination (federal_regulatory tier); a coverage gap renders "not established —
-            about our data, not the parcel", NEVER "not in a flood zone" (the St Pete failure). Datum is
-            surfaced; the elevation-vs-BFE comparison is withheld with its reason visible. */}
-        {(() => { const fb = renderFloodBlock(r.floodBlock); const det = fb.determination; return (
-        <Section title="Flood & area — 5-mile radius" note="The FEMA determination is the finding; zone and base flood elevation are supporting detail.">
-          <div className="pir-maprow">
-            <PropertyReportMap coNo={co} parcelId={parcelId} layer="flood" />
-            <div>
-              <Legend entries={floodLegend} />
-              <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <div style={{ border: '1px solid var(--color-line, #d9d3c6)', borderLeft: `3px solid ${det?.inSfha ? 'var(--color-terracotta, #b5502f)' : 'var(--color-sage)'}`, borderRadius: 6, padding: '10px 13px' }}>
-                  <div style={{ fontSize: 14, fontWeight: 600 }}>{det?.label}<TierBadge tier={det?.tier} /></div>
-                  {det?.headline ? <div style={{ fontSize: 12.5, color: 'var(--color-sage)', marginTop: 4 }}>{det.headline}</div> : null}
-                </div>
-                {fb.bfe ? <Fact l="Base flood elevation" v={fb.bfe.label} /> : null}
-                {fb.zones.length ? <Fact l="Flood zones (share of parcel)" v={fb.zones.map((z: any) => `${z.zone}${z.in_sfha ? ' · SFHA' : ''}${z.pct_of_parcel != null ? ` ${z.pct_of_parcel}%` : ''}`).join('   ·   ')} /> : null}
-                {fb.elevationComparison?.withheld ? <p className="pir-note" style={{ marginTop: 2 }}>Elevation vs. BFE — {fb.elevationComparison.reason}</p> : null}
-                <Fact l="Area repetitive loss" v={
-                  r.floodBlock?.areaRepetitiveLoss && r.floodBlock.areaRepetitiveLoss.field_status === 'present'
-                    ? `${num(r.floodBlock.areaRepetitiveLoss.properties)} properties · ${num(r.floodBlock.areaRepetitiveLoss.totalLosses)} losses (county context)`
-                    : <span style={{ color: 'var(--color-sage)' }}>Not held for this county</span>} />
-              </div>
-            </div>
-          </div>
-        </Section>
-        ); })()}
-
-        {/* Air + Wind removed 2026-07-29 — every property_environmental (v_env) air field AND
-            every property_hazard_risk (v_haz) wind field was a single fabricated value statewide,
-            including the FBC design wind speed (130/zone II everywhere). Both stripped from
-            get_pir_report; see anchor §9. */}
-
-        {/* radon / sinkhole / water service / lead service line removed 2026-07-29 — fabricated
-            v_env constants (single value across all 313,578 rows), not per-parcel facts. Only
-            elevation (USGS) and the gopher-tortoise overlay (real spatial) remain. */}
-        <Section title="Land"
-          note="Ground elevation is a USGS-derived property fact and the gopher-tortoise overlay is a mapped spatial layer. Soil type & drainage classification is not sourced for Volusia and is omitted rather than guessed.">
-          <div className="pir-grid">
-            {/* Elevation VALUE is withheld (get_ground_elevation_fact): parcel_elevations carries no vertical
-                datum, so a foot-level figure would imply precision we lack — the 5th fabrication. Renders the
-                asymmetry, never the number. */}
-            <Fact l="Ground elevation" v={<span style={{ color: 'var(--color-sage)' }}>{renderFact(r.groundElevation).label}</span>} />
-            <Fact l="Sewer / septic" v={<span style={{ color: 'var(--color-sage)' }}>Not evaluated — no parcel-level sewer/septic determination in the record</span>} />
-            <Fact l="Protected species" v={r.land.gopherTortoiseInside ? riskChip('Within gopher tortoise habitat overlay', false) : r.land.gopherTortoiseNearestM != null ? `Nearest habitat ${mi(r.land.gopherTortoiseNearestM)}` : 'None mapped nearby'} />
-            {/* Sinkhole renders FROM the fact index (get_parcel_sinkhole_facts): DOCUMENTED FGS subsidence
-                incidents near the parcel — area context, never a per-parcel risk score (the purged
-                fabrication), never "no risk" where we hold no layer. */}
-            {(() => {
-              const sb = renderSinkholeBlock(r.sinkholeFacts)
-              if (!sb.established) return <Fact l="Sinkhole incidents" v={<span style={{ color: 'var(--color-sage)' }}>{sb.coverageNote}</span>} />
-              return <Fact l="Sinkhole incidents (FGS)" v={<>
-                {sb.nearest
-                  ? <>Nearest documented incident <b>{num(sb.nearest.distanceFt)} ft</b> away{sb.nearest.eventDate ? ` (${fmtDate(sb.nearest.eventDate)})` : ''} — {sb.nearest.verifiedLabel}. {sb.within1mi} within 1 mi{sb.verifiedWithin1mi ? `, ${sb.verifiedWithin1mi} confirmed` : ''}.</>
-                  : <>The county incident layer is held but shows none near this parcel.</>}
-                <div className="pir-note" style={{ marginTop: 2 }}>Documented reports (Florida Geological Survey), not a prediction this parcel will subside; zero nearby is not a guarantee of stability.</div>
-              </>} />
-            })()}
-          </div>
-        </Section>
-
-        <Section title="Water" note="One badge per off-property water feature and boat ramp within range. Flood-zone designation is folded into this page (above), not a separate section.">
-          <Fact l="Nearest water" v={mi(r.water.nearestWaterM)} />
-          <div style={{ marginTop: 12 }}>
-            {waterBadges.length ? <CompassBadgeGrid badges={waterBadges} /> : <div className="pir-note">No mapped water features within range.</div>}
-          </div>
-        </Section>
-
-        {/* Marine improvements (Tier 1 #1) + Tax-deed status (#36) render FROM lib/report-coverage
-            (marineView / taxDeedView) — the module report-coverage.test.mjs asserts — so a coverage
-            gap (not_available) can never read as "no dock" / "no tax exposure". */}
-        {/* Contamination facilities render FROM the fact index (get_parcel_contamination_facilities). On-parcel
-            and ACTIVE-remediation facilities are NAMED (not folded into an "N tanks nearby" count); null cleanup
-            renders as a question, never blank. report-coverage.test.mjs asserts these. Item 82 / 316 Main St. */}
-        {(() => { const cf = renderContaminationFacilities(r.contaminationFacilities); if (!cf.facilities.length && !cf.areaContext) return null; return (
-          <Section title="Contamination — on & near this parcel" note="On-parcel and active-remediation facilities are named individually; the surrounding count is area context only.">
-            {cf.facilities.map((f: any, i: number) => {
-              const flag = f.onParcel || /ACTIVE/i.test(f.remediation || '')
-              return (
-                <div key={i} style={{ marginBottom: 10, borderLeft: `3px solid ${flag ? 'var(--color-terracotta, #b5502f)' : 'var(--color-line, #d9d3c6)'}`, paddingLeft: 12 }}>
-                  <div style={{ fontWeight: 600 }}>{titleCase(f.name)} {f.onParcel ? riskChip('On this parcel', false) : null} {/ACTIVE/i.test(f.remediation || '') ? riskChip('Active remediation', false) : null}</div>
-                  <div className="pir-note" style={{ fontStyle: 'normal' }}>
-                    {[f.type, f.status, f.where, f.remediation].filter(Boolean).join(' · ')}. {f.cleanup}.
-                    {f.documentsUrl ? <> <a href={f.documentsUrl} target="_blank" rel="noopener noreferrer">FDEP file</a></> : null}
-                    {f.watchUrl ? <> · <a href={f.watchUrl} target="_blank" rel="noopener noreferrer">monitor</a></> : null}
-                  </div>
-                </div>
-              )
-            })}
-            {cf.areaContext ? <p className="pir-note">Area context (not on-parcel): {cf.areaContext.tanks} storage-tank facilities and {cf.areaContext.cleanups} cleanup site(s) within ~1,600 ft.</p> : null}
-          </Section>
-        ); })()}
-        {/* Land-use RESTRICTIONS render FROM the fact index (get_parcel_restrictions via renderRestrictionsBlock).
-            A delineated Groundwater Contamination Area (Ch. 62-524) is a state_regulatory CONSTRAINT — a criminal-
-            penalty bar on new potable wells, treated like the flood mandate (containment, not distance). UNLIKE
-            contamination facilities, this section renders EVEN WHEN EMPTY: the honest "not a clearance — historic
-            use isn't in any register" absence statement is itself the finding. fact-render.test.mjs asserts it. */}
-        {(() => {
-          const rb = renderRestrictionsBlock(r.landRestrictions)
-          return (
-            <Section title="Recorded land-use restrictions" note="State/federal constraints recorded against this location — groundwater-contamination areas, institutional controls, regulated on-parcel wells. A containment test, not a distance.">
+            {/* Recorded land-use restrictions (get_parcel_restrictions): GWCA well prohibition, institutional
+                controls, regulated on-parcel wells. Renders EVEN WHEN EMPTY — the honest "not a clearance"
+                absence statement is itself the finding. A containment test, not a distance. */}
+            <Section title="Recorded land-use restrictions" note="State/federal constraints recorded against this location — groundwater-contamination areas, institutional controls, regulated on-parcel wells.">
               {rb.established ? rb.items.map((it: any, i: number) => (
                 <div key={i} style={{ marginBottom: 10, borderLeft: '3px solid var(--color-terracotta, #b5502f)', paddingLeft: 12 }}>
                   <div style={{ fontWeight: 600 }}>{it.label} {riskChip(it.relation === 'contains' ? 'On this parcel' : 'Overlapping', false)} <TierBadge tier="government_derived" /></div>
                   <div className="pir-note" style={{ fontStyle: 'normal' }}>
-                    {it.value}{it.authority ? ` — ${it.authority}` : ''}{it.asOf ? ` (${it.asOf})` : ''}.
-                    {it.caveat ? <> {it.caveat}</> : null}
+                    {it.value}{it.authority ? ` — ${it.authority}` : ''}{it.asOf ? ` (${it.asOf})` : ''}.{it.caveat ? <> {it.caveat}</> : null}
                   </div>
                 </div>
               )) : (
                 <div className="pir-note">{rb.absenceNote}</div>
               )}
             </Section>
-          )
-        })()}
-        {/* Marine improvements render FROM the fact index (get_parcel_marine_block via renderMarineBlock).
-            The cross-examination headline (permit vs. assessor) leads; the improvements are context. Three
-            provenance tiers stay visually distinct (county / derived / OUR estimate). A coverage gap
-            (non-Volusia) never reads as "no dock". report-coverage.test.mjs asserts these. */}
-        {(() => {
-          const mb = r.marineBlock
-          const st = mb?.field_status
-          if (!mb || st === 'not_available') return (
-            <Section title="Marine improvements" note="Coverage gap, not a finding — the county other-improvements file is held for Volusia only.">
-              <div className="pir-note">Whether this parcel has waterfront structures (dock, seawall, lift, boat house) is not known here — its absence is not evidence either way.</div>
+
+            <Section title="Disclosure & designation duties">
+              <div className="pir-grid">
+                <Fact l="Lead-paint disclosure" v={
+                  p.yearBuilt == null
+                    ? <span style={{ color: 'var(--color-sage)' }}>Year built not recorded — the pre-1978 disclosure duty cannot be determined here; ask the seller</span>
+                    : p.yearBuilt < 1978
+                      ? riskChip(`Pre-1978 (${p.yearBuilt}) — federal lead-paint disclosure duty applies on sale or lease`, false)
+                      : `Built ${p.yearBuilt} — post-1978, no federal lead-paint disclosure duty`} />
+                {idf?.signals?.historic_on_parcel === true
+                  ? <Fact l="Historic designation" v={riskChip('National Register listing on this parcel — commonly triggers local review; affects historic tax-credit eligibility', false)} />
+                  : null}
+              </div>
+              <div className="pir-note" style={{ marginTop: 10 }}>
+                <strong>Universal (every Florida parcel):</strong> Florida ss. 872.02 / 872.05 protect unmarked human burials statewide; the statute applies to all land, so its applicability here is a standing rule, not a finding about this property.
+              </div>
             </Section>
-          )
-          if (st === 'none_recorded') return (
-            <Section title="Marine improvements" note="The county appraiser has assessed no marine improvement on this parcel.">
-              <div className="pir-note">Unassessed, unpermitted or newly built structures may still exist.</div>
-            </Section>
-          )
-          const rb = renderMarineBlock(mb)
-          return (
-            <Section title="Marine improvements" note="Every figure is a sourced assessor fact; build years are cross-examined against county building permits.">
-              {rb.openQuestions.headline ? (
-                <div style={{ border: '1px solid var(--color-line, #d9d3c6)', borderLeft: '3px solid var(--color-terracotta, #b5502f)', borderRadius: 6, padding: '12px 15px', marginBottom: 16, background: 'var(--color-paper-2, rgba(0,0,0,0.02))' }}>
-                  <div style={{ fontSize: 10.5, letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 600, marginBottom: 6 }}>Cross-examination — permit vs. assessor</div>
-                  <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 6 }}>{rb.openQuestions.headline}</div>
-                  <ul style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                    {rb.openQuestions.items.map((q: string, i: number) => <li key={i} style={{ fontSize: 13, lineHeight: 1.5 }}>{q}</li>)}
-                  </ul>
-                </div>
-              ) : null}
-              {rb.improvements.map((imp: any, i: number) => (
-                <div key={i} style={{ marginBottom: 14 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6 }}>{titleCase(imp.improvement)} · built {imp.built}</div>
-                  <div className="pir-grid">
-                    {Object.entries(imp.rendered).filter(([, f]: [string, any]) => f.hasValue).map(([pred, f]: [string, any]) => (
-                      <Fact key={pred} l={MARINE_PRED_LABEL[pred] ?? pred} v={<>{f.label} <TierBadge tier={f.provenance?.tier} /></>} />
-                    ))}
+          </Grp>
+
+          {/* ═══ 3 — WHAT'S ON OR UNDER THIS PARCEL (contains relation only; no distances) ═══ */}
+          <Grp n={3} title="What's on or under this parcel">
+            {cfOn.length ? (
+              <Section title="Contamination — on this parcel" note="On-parcel and active-remediation facilities, named individually. Nearby sites are area context in section 4.">
+                {cfOn.map((f: any, i: number) => (
+                  <div key={i} style={{ marginBottom: 10, borderLeft: '3px solid var(--color-terracotta, #b5502f)', paddingLeft: 12 }}>
+                    <div style={{ fontWeight: 600 }}>{titleCase(f.name)} {f.onParcel ? riskChip('On this parcel', false) : null} {/ACTIVE/i.test(f.remediation || '') ? riskChip('Active remediation', false) : null}</div>
+                    <div className="pir-note" style={{ fontStyle: 'normal' }}>
+                      {[f.type, f.status, f.where, f.remediation].filter(Boolean).join(' · ')}. {f.cleanup}.
+                      {f.documentsUrl ? <> <a href={f.documentsUrl} target="_blank" rel="noopener noreferrer">FDEP file</a></> : null}
+                      {f.watchUrl ? <> · <a href={f.watchUrl} target="_blank" rel="noopener noreferrer">monitor</a></> : null}
+                    </div>
                   </div>
-                  {(imp.rendered.built_year?.corroboration ?? []).map((c: any, j: number) => (
-                    <p key={j} className="pir-note" style={{ marginTop: 6 }}>Permit cross-check: {c.text} — <strong>{c.independence}</strong>{c.gloss ? ` — ${c.gloss}` : ''}</p>
-                  ))}
-                </div>
-              ))}
-              {rb.material ? <p className="pir-note" style={{ marginTop: 8 }}>{rb.material.text}</p> : null}
-            </Section>
-          )
-        })()}
+                ))}
+              </Section>
+            ) : null}
 
-        {(() => { const tv = taxDeedView(r.taxDeedStatus); return (
-          <Section title={tv.title}
-            note={tv.mode === 'present'
-              ? `County Lands Available for Taxes register — snapshot ${tv.asOf}. Confirm current status with the county clerk before relying on it.`
-              : tv.note}>
-            {tv.mode === 'present' ? (
-              <>
-                <div className="pir-grid">
-                  <Fact l="On Lands Available list" v={riskChip('County-held — unsold at tax-deed auction', false)} />
-                  {tv.openingBid != null ? <Fact l="Opening bid" v={usd(tv.openingBid)} /> : null}
-                  {tv.certificate ? <Fact l="Certificate no." v={tv.certificate} /> : null}
-                  {tv.dateAvailable ? <Fact l="Available to public" v={tv.dateAvailable} /> : null}
-                  <Fact l="Snapshot date" v={tv.asOf ?? '—'} />
-                </div>
-                <p className="pir-note" style={{ marginTop: 10 }}>{tv.meaning}</p>
-                <p className="pir-note">{tv.staleness} {tv.notLegalAdvice}</p>
-              </>
-            ) : <div className="pir-note">{tv.body}</div>}
-          </Section>
-        ); })()}
-      </Sheet>
-
-      {/* ═══ PAGE 4 — NEIGHBORHOOD ═══ */}
-      <Sheet page={4} total={5} title="Neighborhood Data" r={r}>
-        <Section title="Zoning & future land use — 5-mile radius"
-          note="Boundaries are real county geometry, dissolved to the standard land-use colour categories. Legend to the side.">
-          <div className="pir-maprow">
-            <PropertyReportMap coNo={co} parcelId={parcelId} layer="zoning" />
-            <div>
-              <Legend entries={zoningLegend} />
-              {/* Zoning renders FROM the fact index (get_parcel_zoning_facts). Zoning (what may be built
-                  now) and future land use (what the plan says it should become) are SEPARATE facts, never
-                  merged. Codes are the jurisdiction's OWN vocabulary — never normalized (B-5 in Ocala != B-5
-                  in DeLand). Municipal zoning governs inside city limits. A code with no definition shows
-                  the caveat + a pointer to the land development code, never an invented meaning. */}
-              {(() => {
-                const zb = renderZoningBlock(r.zoningFacts)
-                if (!zb.established) return <div className="pir-note" style={{ marginTop: 12 }}>{zb.coverageNote}</div>
-                const zf = (f: any, label: string) => f ? (
-                  f.municipalNotHeld ? (
-                    <Fact l={label} v={<span style={{ color: 'var(--color-sage)' }}>{f.coverageNote}</span>} />
-                  ) :
-                  <Fact l={label} v={<>
-                    <b>{f.code}</b>{f.description ? ` · ${titleCase(f.description)}` : ''}
-                    {f.jurisdictionLevel === 'municipal' ? <span style={{ color: 'var(--color-sage)' }}> · {f.jurisdiction}</span> : null}
-                    <TierBadge tier="government_derived" />
-                    {f.definitionNote ? <div className="pir-note" style={{ marginTop: 2 }}>{f.definitionNote}{f.definitionUrl ? <> — <a href={f.definitionUrl}>code definition</a></> : null}</div> : null}
-                    {/* unconfirmed placeholder: value shown verbatim above, caveat said HERE (in the output, not just the registry) */}
-                    {f.unconfirmedNote ? <div className="pir-note" style={{ marginTop: 2, color: 'var(--color-clay)' }}>⚠ {f.unconfirmedNote}</div> : null}
-                    {f.municipalNote ? <div className="pir-note" style={{ marginTop: 2 }}>{f.municipalNote}</div> : null}
-                  </>} />
-                ) : null
-                return (
-                  <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {zf(zb.zoning, 'Zoning (what may be built now)')}
-                    {zf(zb.futureLandUse, 'Future land use (what the plan says)')}
-                    {zb.relationship ? <div className="pir-note" style={{ marginTop: 4 }}>{zb.relationship}</div> : null}
+            {marine ? (
+              <Section title="Marine improvements" note="Every figure is a sourced assessor fact. The permit-vs-assessor cross-examination is in section 6.">
+                {marine.improvements.map((imp: any, i: number) => (
+                  <div key={i} style={{ marginBottom: 14 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6 }}>{titleCase(imp.improvement)} · built {imp.built}</div>
+                    <div className="pir-grid">
+                      {Object.entries(imp.rendered).filter(([, f]: [string, any]) => f.hasValue).map(([pred, f]: [string, any]) => (
+                        <Fact key={pred} l={MARINE_PRED_LABEL[pred] ?? pred} v={<>{f.label} <TierBadge tier={f.provenance?.tier} /></>} />
+                      ))}
+                    </div>
                   </div>
-                )
-              })()}
-            </div>
-          </div>
-        </Section>
+                ))}
+                {marine.material ? <p className="pir-note" style={{ marginTop: 8 }}>{marine.material.text}</p> : null}
+              </Section>
+            ) : mbSt === 'not_available' ? null : (
+              <Section title="Marine improvements" note="The county appraiser has assessed no marine improvement on this parcel.">
+                <div className="pir-note">Unassessed, unpermitted or newly built structures may still exist.</div>
+              </Section>
+            )}
 
-        <Section title="Economic zones"
-          note="Confirmed Volusia economic-development layers. Where the parcel falls inside one it is marked “Within”; otherwise the nearest of each is given as area context — absence is itself informative.">
-          <div className="pir-grid">
-            <Fact l="Opportunity Zone" v={overlayLine(r.economic.opportunityZone, 'Within Opportunity Zone')} />
-            <Fact l="HUB Zone" v={overlayLine(r.economic.hubZone, 'Within HUB Zone')} />
-            <Fact l="Community Redevelopment Area" v={overlayLine(r.economic.cra, 'Within a CRA')} />
-            <Fact l="Enterprise Zone" v={overlayLine(r.economic.enterpriseZone, 'Within Enterprise Zone')} />
-            {/* Brownfield renders FROM the fact index (get_parcel_brownfield_facts), statewide (49 counties) —
-                the report previously read volusia_brownfield_areas (28 rows, Volusia-only) so this reached no
-                buyer outside Volusia. It is a FINDING that pairs with contamination: inside a designated AREA
-                is the finding; nearby SITES are area context; a null remediation status shows WHY, never blank;
-                absence is not a clearance. fact-render.test.mjs asserts these. */}
+            <Section title="Land"
+              note="Ground elevation is a USGS-derived property fact; the gopher-tortoise overlay is a mapped spatial layer. Soil type & drainage is not sourced and is omitted rather than guessed.">
+              <div className="pir-grid">
+                <Fact l="Ground elevation" v={<span style={{ color: 'var(--color-sage)' }}>{renderFact(r.groundElevation).label}</span>} />
+                <Fact l="Sewer / septic" v={<span style={{ color: 'var(--color-sage)' }}>Not evaluated — no parcel-level sewer/septic determination in the record</span>} />
+                <Fact l="Protected species" v={r.land.gopherTortoiseInside ? riskChip('Within gopher tortoise habitat overlay', false) : r.land.gopherTortoiseNearestM != null ? `Nearest habitat ${mi(r.land.gopherTortoiseNearestM)}` : 'None mapped nearby'} />
+              </div>
+            </Section>
+          </Grp>
+
+          {/* ═══ 4 — WHAT'S NEARBY (everything with a distance) ═══ */}
+          <Grp n={4} title="What's nearby">
+            {(cfNear.length || cf.areaContext) ? (
+              <Section title="Contamination — nearby" note="Sites near, but not on, this parcel. Ranked by status then distance — an active remediation outranks a closed site.">
+                {cfNear.map((f: any, i: number) => (
+                  <div key={i} style={{ marginBottom: 10, borderLeft: '3px solid var(--color-line, #d9d3c6)', paddingLeft: 12 }}>
+                    <div style={{ fontWeight: 600 }}>{titleCase(f.name)}</div>
+                    <div className="pir-note" style={{ fontStyle: 'normal' }}>
+                      {[f.type, f.status, f.where, f.remediation].filter(Boolean).join(' · ')}. {f.cleanup}.
+                      {f.documentsUrl ? <> <a href={f.documentsUrl} target="_blank" rel="noopener noreferrer">FDEP file</a></> : null}
+                    </div>
+                  </div>
+                ))}
+                {cf.areaContext ? <p className="pir-note">Area context: {cf.areaContext.tanks} storage-tank facilities and {cf.areaContext.cleanups} cleanup site(s) within ~1,600 ft.</p> : null}
+              </Section>
+            ) : null}
+
             {(() => {
-              const bf = renderBrownfieldBlock(r.economic.brownfield)
-              if (!bf.established) return <Fact l="Brownfield" v={<span className="pir-note" style={{ fontStyle: 'normal' }}>{bf.coverageNote}</span>} />
-              const ia = bf.insideArea, ns = bf.sites
+              const sb = renderSinkholeBlock(r.sinkholeFacts)
               return (
-                <div style={{ borderLeft: `3px solid ${ia ? 'var(--color-terracotta, #b5502f)' : 'var(--color-line, #d9d3c6)'}`, paddingLeft: 12 }}>
-                  <div style={{ fontWeight: 600 }}>
-                    {ia ? <>Within the {titleCase(ia.name)} brownfield area {riskChip('Designated brownfield', false)}</>
-                        : bf.nearestArea ? <>Nearest brownfield area: {titleCase(bf.nearestArea.name)} ({bf.nearestArea.distanceFt?.toLocaleString()} ft)</>
-                        : 'FDEP brownfield sites nearby'}
-                    <TierBadge tier="government_derived" />
-                  </div>
-                  <div className="pir-note" style={{ fontStyle: 'normal' }}>
-                    {ia ? <>{[ia.acreageAc ? `${ia.acreageAc.toLocaleString()} ac` : null, ia.resolutionNumber ? `resolution ${ia.resolutionNumber}` : null, ia.resolutionDate].filter(Boolean).join(' · ')}. </> : null}
-                    {ns ? <>{ns.countWithin1mi} FDEP brownfield site{ns.countWithin1mi === 1 ? '' : 's'} within 1 mile{ns.nearest ? <> — nearest {titleCase(ns.nearest.name)} at {ns.nearest.distanceFt?.toLocaleString()} ft{ns.nearest.remediationStatus ? ` (${titleCase(ns.nearest.remediationStatus)})` : ''}</> : null}. {ns.nearest?.remediationStatusNote ? <span style={{ color: 'var(--color-clay)' }}>{ns.nearest.remediationStatusNote}</span> : null}</> : null}
-                    {bf.note ? <div style={{ marginTop: 2 }}>{bf.note}</div> : null}
-                  </div>
-                </div>
+                <Section title="Sinkhole incidents (FGS)" note="Documented reports (Florida Geological Survey) near the parcel — area context, never a per-parcel prediction, never a risk score.">
+                  {!sb.established
+                    ? <div className="pir-note">{sb.coverageNote}</div>
+                    : <div className="pir-note" style={{ fontStyle: 'normal' }}>{sb.nearest
+                        ? <>Nearest documented incident <b>{num(sb.nearest.distanceFt)} ft</b> away{sb.nearest.eventDate ? ` (${fmtDate(sb.nearest.eventDate)})` : ''} — {sb.nearest.verifiedLabel}. {sb.within1mi} within 1 mi{sb.verifiedWithin1mi ? `, ${sb.verifiedWithin1mi} confirmed` : ''}. Zero nearby is not a guarantee of stability.</>
+                        : <>The county incident layer is held but shows none near this parcel.</>}</div>}
+                </Section>
               )
             })()}
-          </div>
-        </Section>
 
-        {/* Census renders FROM the fact index (get_parcel_census_facts). The SUBJECT IS THE BLOCK GROUP,
-            not the parcel — the geography is NAMED and the parcel's contained_within relationship stated,
-            so a figure never reads as "this property's income" (DEF-014). Tier federal_statistical (a
-            5-year SAMPLE estimate); the un-carried MOE is stated, never invented; the vintage shows its
-            unconfirmed status; a coverage gap is about our data, not the parcel. */}
-        {(() => {
-          const cb = renderCensusBlock(r.censusFacts)
-          if (!cb.established) {
-            return (
-              <Section title="Census & demographics" note="These figures describe the surrounding census block group, not the parcel itself.">
-                <div className="pir-note">{cb.coverageNote}</div>
-              </Section>
-            )
-          }
-          const fig = (key: string) => cb.fields.find((f: any) => f.key === key)?.rendered
-          const tile = (l: string, key: string, sub: React.ReactNode) => {
-            const rd = fig(key)
-            return <Tile l={l}
-              v={rd?.hasValue ? rd.label : <span style={{ color: 'var(--color-sage)' }}>{rd?.label ?? '—'}</span>}
-              sub={sub} />
-          }
-          const mhiNote = fig('medianHouseholdIncome')?.provenance?.note
-          return (
-            <Section title="Census & demographics"
-              note={<>These figures describe <strong>the census block group (GEOID {cb.geography.geoid})</strong> that contains this parcel — area estimates, not parcel facts. {cb.vintage?.asOf ?? 'American Community Survey.'}</>}>
-              <div className="pir-note" style={{ marginBottom: 10 }}>
-                This parcel is contained within {cb.geography.name}
-                {cb.containment ? <> (established by point-in-polygon on {cb.containment.source}<TierBadge tier={cb.containment.tier} />)</> : null}.
-              </div>
-              <div className="pir-tiles">
-                {tile('Median household income', 'medianHouseholdIncome', <>block group<TierBadge tier="federal_statistical" /></>)}
-                {tile('Population', 'population', 'block group')}
-                {tile('Housing units', 'housingUnits', 'block group')}
-              </div>
-              {mhiNote ? <div className="pir-note" style={{ marginTop: 8 }}>{mhiNote}</div> : null}
+            <Section title="Nearby amenities"
+              note="One compass badge per amenity type with data for this county. Absent categories are shown honestly, not filled in.">
+              {amenityBadges.length ? <CompassBadgeGrid badges={amenityBadges} /> : <div className="pir-note">No covered amenity types returned for this parcel.</div>}
             </Section>
-          )
-        })()}
-      </Sheet>
 
-      {/* ═══ PAGE 5 — SUPPORTING INFORMATION ═══ */}
-      <Sheet page={5} total={5} title="Supporting Information" r={r}>
-        <Section title="Data completeness"
-          note="The report's primary trust signal: what is populated from confirmed records versus not yet sourced. Nothing here is inferred to fill a gap. The two figures below measure different things and are not expected to match.">
-          <div style={{ marginBottom: 10, fontSize: 13, lineHeight: 1.6 }}>
-            <div><b>Report coverage:</b> {have} of {completeness.length} sections populated ({havePct}%).</div>
-            <div><b>Source-record quality:</b> {r.meta.dataQualityScore ?? '—'}/100 — the county appraiser record's own completeness/confidence score for this parcel, independent of how many report sections are shown.</div>
-          </div>
-          <div className="pir-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))' }}>
-            {completeness.map(([label, ok]) => (
-              <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5 }}>
-                <span style={{ color: ok ? '#3f5a3f' : '#b08968', fontWeight: 700 }}>{ok ? '●' : '○'}</span>
-                <span style={{ color: ok ? 'var(--color-ink)' : 'var(--color-sage)' }}>{label}</span>
+            <Section title="Water" note="One badge per off-property water feature and boat ramp within range.">
+              <Fact l="Nearest water" v={mi(r.water.nearestWaterM)} />
+              <div style={{ marginTop: 12 }}>
+                {waterBadges.length ? <CompassBadgeGrid badges={waterBadges} /> : <div className="pir-note">No mapped water features within range.</div>}
               </div>
-            ))}
-          </div>
-        </Section>
+            </Section>
 
-        <Section title="Crime & safety"
-          note="Honest gap. Confirmed real sources exist (Volusia Sheriff active-calls feed; CrimeMapping Volusia hub; FDLE statewide stolen-property/wanted feed) but a machine-readable, victim-privacy-filtered integration is not yet wired in. Sensitive categories (sex offenses, domestic disturbance and similar) are excluded by policy before anything appears here — matching official practice — so nothing is shown rather than shown unfiltered.">
-          <div className="pir-note" style={{ fontStyle: 'normal' }}>Not yet integrated for this jurisdiction.</div>
-        </Section>
+            <Section title="Assigned schools"
+              note={`Zoned attendance schools for this parcel${r.schools.length ? ': ' + r.schools.map(s => `${s.level} — ${titleCase(s.name)}`).join(' · ') : ''}. Distance and bearing are to each school's location.`}>
+              {schoolBadges.length ? <CompassBadgeGrid badges={schoolBadges} /> : <div className="pir-note">No school assignment on file for this parcel.</div>}
+            </Section>
+          </Grp>
 
-        <Section title="Neighborhood news"
-          note="Populated by live web search at report-generation time (new retail, transit changes, development announcements within ~5 mi), paraphrased and cited by outlet — never reproduced at length. Live search is not wired into this checkpoint build, so no items are shown rather than placeholder headlines.">
-          <div className="pir-note" style={{ fontStyle: 'normal' }}>No items retrieved.</div>
-        </Section>
+          {/* ═══ 5 — THE RECORD (facts with their as_of) ═══ */}
+          <Grp n={5} title="The record">
+            {(() => {
+              const vb = renderValuesBlock(v.valuesFacts)
+              const byKey = (k: string) => vb.fields.find((f: any) => f.key === k)
+              const valTile = (l: string, key: string) => {
+                const f = byKey(key)
+                if (!f) return <Tile key={key} l={l} v="—" />
+                const rd = f.rendered
+                const deriv = rd.provenance?.derivation
+                return <Tile key={key} l={l}
+                  v={rd.hasValue ? rd.label : <span style={{ color: 'var(--color-sage)' }}>{rd.label}</span>}
+                  sub={rd.hasValue ? <>{f.asOf}<TierBadge tier={rd.provenance?.tier} />
+                    {deriv?.formula ? <div className="pir-note" style={{ marginTop: 2, fontStyle: 'normal' }}>= {String(deriv.formula).replace(/_/g, ' ')}</div> : null}</> : null} />
+              }
+              return (
+                <Section title="Assessed values"
+                  note={<>Improvement value = just value − land − special-feature value.{vb.rollSpan?.mixed ? ` ${vb.rollSpan.note}` : ''}</>}>
+                  <div className="pir-tiles">
+                    {valTile('Just (market) value', 'justValue')}
+                    {valTile('Assessed value', 'assessedValue')}
+                    {valTile('Land value', 'landValue')}
+                    {valTile('Special features', 'specialFeatureValue')}
+                    {valTile('Improvement value', 'improvementValue')}
+                  </div>
+                </Section>
+              )
+            })()}
 
-        <Section title="Sources & disclaimer">
-          <div style={{ fontSize: 11.5, color: 'var(--color-sage)', lineHeight: 1.6 }}>
-            <p style={{ margin: '0 0 8px' }}>
-              Sources: County Property Appraiser & GIS (parcel, values, permits, zoning, future land use, economic overlays, boundaries);
-              State DOR (assessment roll, use codes); Federal — FEMA (flood), NOAA (climate & storms), EPA (air, radon, water),
-              USGS (elevation), U.S. Census/ACS (demographics).
-            </p>
-            <p style={{ margin: 0, color: 'var(--color-ink)' }}>
-              This report reflects public records as drawn on {today()}. This is not a certified or verified record of ownership or title.
-            </p>
-          </div>
-        </Section>
-      </Sheet>
+            <Section title="Tax & exemptions"
+              note="Taxable values by authority and exemptions on file; the computed annual bill and per-authority millage are not in this dataset, so they are not shown rather than estimated.">
+              <div className="pir-grid">
+                <Fact l="Homestead" v={tax.homesteadExempt ? riskChip('Homestead exemption on file', true) : 'None on file'} />
+                <Fact l="Homestead exemption" v={tax.homesteadExemption1 != null ? `${usd(tax.homesteadExemption1)} + ${usd(tax.homesteadExemption2)}` : '—'} />
+                <Fact l="Taxable — county" v={usd(tax.taxableValueCounty)} />
+                <Fact l="Taxable — school" v={usd(tax.taxableValueSchool)} />
+                <Fact l="Taxing authority" v={tax.taxAuthorityCode ?? '—'} />
+              </div>
+            </Section>
+
+            <Section title={`Ownership & sale history — ${tb.count} on record`}
+              note="Only sales the county qualifies as arm’s-length are shown as a sale price. Quit-claims, certificates of title, and nominal transfers are real conveyances shown as consideration — never as value.">
+              {tb.established && tb.lastMarketSale ? (
+                <div style={{ border: '1px solid var(--color-line, #d9d3c6)', borderLeft: '3px solid var(--color-bronze, #9a6a3a)', borderRadius: 6, padding: '10px 13px', marginBottom: 12 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600 }}>Last qualified market sale: {tb.lastMarketSale.amountLabel} · {fmtDate(tb.lastMarketSale.date)} · {tb.lastMarketSale.instrumentType}<TierBadge tier="analysis_inference" /></div>
+                  <div style={{ fontSize: 12.5, color: 'var(--color-sage)', marginTop: 3 }}>The most recent sale we read as an arm’s-length market transaction — the value-relevant one. {tb.lastMarketSale.legalCrossReference ? 'The county’s legal description cites this same deed.' : ''}</div>
+                </div>
+              ) : tb.established ? (
+                <div className="pir-note" style={{ marginBottom: 12 }}>{tb.coverageNote}</div>
+              ) : null}
+              {tb.established && tb.conveyances.length ? (
+                <table style={tableStyle}>
+                  <thead><tr>{['Date', 'Amount', 'Instrument', 'Grantor → Grantee'].map(h => <th key={h} style={thStyle}>{h}</th>)}</tr></thead>
+                  <tbody>
+                    {tb.conveyances.map((c: any, i: number) => (
+                      <tr key={i}>
+                        <td style={tdStyle}>{fmtDate(c.date)}</td>
+                        <td style={tdStyle}>{c.amountLabel ?? '—'}{c.multiParcel ? <span style={{ color: 'var(--color-terracotta, #b5502f)' }}> · {c.parcelsOnInstrument}-parcel sale</span> : null}</td>
+                        <td style={tdStyle}>
+                          {c.instrumentType ?? '—'}
+                          {c.marketSignal === 'non_market' && c.nominalReason ? <div style={{ fontSize: 11, color: 'var(--color-sage)', marginTop: 2 }}>{c.nominalReason}</div> : null}
+                          {c.ourNote ? <div style={{ fontSize: 11, color: 'var(--color-terracotta, #b5502f)', marginTop: 2 }}>{c.ourNote}</div> : null}
+                        </td>
+                        <td style={tdStyle}>{c.grantor || c.grantee ? `${titleCase(c.grantor) ?? '—'} → ${titleCase(c.grantee) ?? '—'}` : 'Parties not on file'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : <div className="pir-note">{tb.coverageNote ?? 'No recorded transfers on file.'}</div>}
+            </Section>
+
+            {pb.established ? (
+              <Section title={`Permit history — ${pb.count} on record`}
+                note={pb.closeoutNotRecordedCount > 0
+                  ? `${pb.closeoutNotRecordedCount} of ${pb.count} permits have no recorded closeout — the county record does not confirm they were signed off. Any open permit can transfer to a buyer at closing; verify with the building department.`
+                  : 'Every permit on file is listed; the count matches the list.'}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {pb.permits.map((pm: any, i: number) => (
+                    <div key={i} style={permitCard}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+                        <span style={{ fontFamily: 'Georgia, serif', fontWeight: 700, color: 'var(--color-navy)', fontSize: 14 }}>{titleCase(pm.workDescription) || 'Permit'}</span>
+                        <span style={{ fontSize: 12, color: 'var(--color-sage)' }}>#{pm.number}{pm.issuingAuthority ? ` · ${pm.issuingAuthority}` : ''}</span>
+                      </div>
+                      <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', marginTop: 6, fontSize: 12, color: 'var(--color-ink)' }}>
+                        <span><b>Filed</b> {fmtDate(pm.date)}</span>
+                        {pm.declaredValueLabel ? <span><b>Value</b> {pm.declaredValueLabel}</span> : null}
+                        {pm.contractor ? <span><b>Contractor</b> {titleCase(pm.contractor)}</span> : null}
+                      </div>
+                      <div style={{ marginTop: 6 }}>
+                        {pm.closeout.finaled
+                          ? riskChip(`Finaled ${fmtDate(pm.closeout.finaledDate)}`, true)
+                          : <span style={{ fontSize: 12, color: 'var(--color-terracotta, #b5502f)' }}>{pm.closeout.disclosure}</span>}
+                      </div>
+                      {pm.contractorLicence?.matched && pm.contractorLicence.finding
+                        ? <div className="pir-note" style={{ marginTop: 6, color: 'var(--color-terracotta, #b5502f)' }}>Contractor licence: {pm.contractorLicence.finding}</div> : null}
+                      {pm.contractorLicence?.matched && pm.contractorLicence.corroboration
+                        ? <div className="pir-note" style={{ marginTop: 6 }}>Contractor licence: {pm.contractorLicence.corroboration}<TierBadge tier="analysis_inference" /></div> : null}
+                      {pm.contractorLicence && pm.contractorLicence.matched === false
+                        ? <div className="pir-note" style={{ marginTop: 6 }}>{pm.contractorLicence.note}</div> : null}
+                    </div>
+                  ))}
+                </div>
+              </Section>
+            ) : (
+              <Section title="Permit history" note="Permits from the county building record.">
+                <div className="pir-note">{pb.coverageNote}</div>
+              </Section>
+            )}
+
+            <Section title="Zoning & future land use"
+              note="Zoning (what may be built now) and future land use (what the plan says it should become) are SEPARATE facts. Codes are the jurisdiction's own vocabulary — never normalized. Municipal zoning governs inside city limits.">
+              <div className="pir-maprow">
+                <PropertyReportMap coNo={co} parcelId={parcelId} layer="zoning" />
+                <div>
+                  <Legend entries={zoningLegend} />
+                  {(() => {
+                    const zb = renderZoningBlock(r.zoningFacts)
+                    if (!zb.established) return <div className="pir-note" style={{ marginTop: 12 }}>{zb.coverageNote}</div>
+                    const zf = (f: any, label: string) => f ? (
+                      f.municipalNotHeld ? (
+                        <Fact l={label} v={<span style={{ color: 'var(--color-sage)' }}>{f.coverageNote}</span>} />
+                      ) :
+                      <Fact l={label} v={<>
+                        <b>{f.code}</b>{f.description ? ` · ${titleCase(f.description)}` : ''}
+                        {f.jurisdictionLevel === 'municipal' ? <span style={{ color: 'var(--color-sage)' }}> · {f.jurisdiction}</span> : null}
+                        <TierBadge tier="government_derived" />
+                        {f.definitionNote ? <div className="pir-note" style={{ marginTop: 2 }}>{f.definitionNote}{f.definitionUrl ? <> — <a href={f.definitionUrl}>code definition</a></> : null}</div> : null}
+                        {f.unconfirmedNote ? <div className="pir-note" style={{ marginTop: 2, color: 'var(--color-clay)' }}>⚠ {f.unconfirmedNote}</div> : null}
+                        {f.municipalNote ? <div className="pir-note" style={{ marginTop: 2 }}>{f.municipalNote}</div> : null}
+                      </>} />
+                    ) : null
+                    return (
+                      <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {zf(zb.zoning, 'Zoning (what may be built now)')}
+                        {zf(zb.futureLandUse, 'Future land use (what the plan says)')}
+                        {zb.relationship ? <div className="pir-note" style={{ marginTop: 4 }}>{zb.relationship}</div> : null}
+                      </div>
+                    )
+                  })()}
+                </div>
+              </div>
+            </Section>
+
+            <Section title="Economic zones"
+              note="Where the parcel falls inside one it is marked “Within”; otherwise the nearest of each is given as area context.">
+              <div className="pir-grid">
+                <Fact l="Opportunity Zone" v={overlayLine(r.economic.opportunityZone, 'Within Opportunity Zone')} />
+                <Fact l="HUB Zone" v={overlayLine(r.economic.hubZone, 'Within HUB Zone')} />
+                <Fact l="Community Redevelopment Area" v={overlayLine(r.economic.cra, 'Within a CRA')} />
+                <Fact l="Enterprise Zone" v={overlayLine(r.economic.enterpriseZone, 'Within Enterprise Zone')} />
+                {(() => {
+                  const bf = renderBrownfieldBlock(r.economic.brownfield)
+                  if (!bf.established) return <Fact l="Brownfield" v={<span className="pir-note" style={{ fontStyle: 'normal' }}>{bf.coverageNote}</span>} />
+                  const ia = bf.insideArea, ns = bf.sites
+                  return (
+                    <div style={{ borderLeft: `3px solid ${ia ? 'var(--color-terracotta, #b5502f)' : 'var(--color-line, #d9d3c6)'}`, paddingLeft: 12 }}>
+                      <div style={{ fontWeight: 600 }}>
+                        {ia ? <>Within the {titleCase(ia.name)} brownfield area {riskChip('Designated brownfield', false)}</>
+                            : bf.nearestArea ? <>Nearest brownfield area: {titleCase(bf.nearestArea.name)} ({bf.nearestArea.distanceFt?.toLocaleString()} ft)</>
+                            : 'FDEP brownfield sites nearby'}
+                        <TierBadge tier="government_derived" />
+                      </div>
+                      <div className="pir-note" style={{ fontStyle: 'normal' }}>
+                        {ia ? <>{[ia.acreageAc ? `${ia.acreageAc.toLocaleString()} ac` : null, ia.resolutionNumber ? `resolution ${ia.resolutionNumber}` : null, ia.resolutionDate].filter(Boolean).join(' · ')}. </> : null}
+                        {ns ? <>{ns.countWithin1mi} FDEP brownfield site{ns.countWithin1mi === 1 ? '' : 's'} within 1 mile{ns.nearest ? <> — nearest {titleCase(ns.nearest.name)} at {ns.nearest.distanceFt?.toLocaleString()} ft{ns.nearest.remediationStatus ? ` (${titleCase(ns.nearest.remediationStatus)})` : ''}</> : null}. {ns.nearest?.remediationStatusNote ? <span style={{ color: 'var(--color-clay)' }}>{ns.nearest.remediationStatusNote}</span> : null}</> : null}
+                        {bf.note ? <div style={{ marginTop: 2 }}>{bf.note}</div> : null}
+                      </div>
+                    </div>
+                  )
+                })()}
+              </div>
+            </Section>
+
+            {(() => { const tv = taxDeedView(r.taxDeedStatus); return (
+              <Section title={tv.title}
+                note={tv.mode === 'present'
+                  ? `County Lands Available for Taxes register — snapshot ${tv.asOf}. Confirm current status with the county clerk before relying on it.`
+                  : tv.note}>
+                {tv.mode === 'present' ? (
+                  <>
+                    <div className="pir-grid">
+                      <Fact l="On Lands Available list" v={riskChip('County-held — unsold at tax-deed auction', false)} />
+                      {tv.openingBid != null ? <Fact l="Opening bid" v={usd(tv.openingBid)} /> : null}
+                      {tv.certificate ? <Fact l="Certificate no." v={tv.certificate} /> : null}
+                      {tv.dateAvailable ? <Fact l="Available to public" v={tv.dateAvailable} /> : null}
+                      <Fact l="Snapshot date" v={tv.asOf ?? '—'} />
+                    </div>
+                    <p className="pir-note" style={{ marginTop: 10 }}>{tv.meaning}</p>
+                    <p className="pir-note">{tv.staleness} {tv.notLegalAdvice}</p>
+                  </>
+                ) : <div className="pir-note">{tv.body}</div>}
+              </Section>
+            ); })()}
+
+            {(() => {
+              const cb = renderCensusBlock(r.censusFacts)
+              if (!cb.established) return (
+                <Section title="Census & demographics" note="These figures describe the surrounding census block group, not the parcel itself.">
+                  <div className="pir-note">{cb.coverageNote}</div>
+                </Section>
+              )
+              const fig = (key: string) => cb.fields.find((f: any) => f.key === key)?.rendered
+              const tile = (l: string, key: string, sub: React.ReactNode) => {
+                const rd = fig(key)
+                return <Tile l={l} v={rd?.hasValue ? rd.label : <span style={{ color: 'var(--color-sage)' }}>{rd?.label ?? '—'}</span>} sub={sub} />
+              }
+              const mhiNote = fig('medianHouseholdIncome')?.provenance?.note
+              return (
+                <Section title="Census & demographics"
+                  note={<>These figures describe <strong>the census block group (GEOID {cb.geography.geoid})</strong> that contains this parcel — area estimates, not parcel facts. {cb.vintage?.asOf ?? 'American Community Survey.'}</>}>
+                  <div className="pir-note" style={{ marginBottom: 10 }}>
+                    This parcel is contained within {cb.geography.name}
+                    {cb.containment ? <> (established by point-in-polygon on {cb.containment.source}<TierBadge tier={cb.containment.tier} />)</> : null}.
+                  </div>
+                  <div className="pir-tiles">
+                    {tile('Median household income', 'medianHouseholdIncome', <>block group<TierBadge tier="federal_statistical" /></>)}
+                    {tile('Population', 'population', 'block group')}
+                    {tile('Housing units', 'housingUnits', 'block group')}
+                  </div>
+                  {mhiNote ? <div className="pir-note" style={{ marginTop: 8 }}>{mhiNote}</div> : null}
+                </Section>
+              )
+            })()}
+          </Grp>
+
+          {/* ═══ 6 — OPEN QUESTIONS (what doesn't add up; who to ask) ═══ */}
+          <Grp n={6} title="Open questions & due diligence">
+            {idf?.triggers?.length ? (
+              <Section title="What the record raises" note="Each is a question the record itself surfaces — a contradiction, an anomaly, or an identity worth confirming — with where to look.">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {idf.triggers.map((t: any, i: number) => (
+                    <div key={i} style={{ borderLeft: '3px solid var(--color-bronze, #9a6a3a)', paddingLeft: 12 }}>
+                      <div style={{ fontWeight: 600, fontSize: 13.5 }}>{titleCase(String(t.observation ?? ''))}</div>
+                      <div className="pir-note" style={{ fontStyle: 'normal' }}>Ask: {t.query}{t.target ? <> — <span style={{ color: 'var(--color-sage)' }}>{t.target}</span></> : null}</div>
+                    </div>
+                  ))}
+                </div>
+              </Section>
+            ) : null}
+
+            {marine?.openQuestions?.headline ? (
+              <Section title="Cross-examination — permit vs. assessor">
+                <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 6 }}>{marine.openQuestions.headline}</div>
+                <ul style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  {marine.openQuestions.items.map((q: string, i: number) => <li key={i} style={{ fontSize: 13, lineHeight: 1.5 }}>{q}</li>)}
+                </ul>
+              </Section>
+            ) : null}
+
+            {marine ? marine.improvements.map((imp: any, i: number) => (
+              (imp.rendered.built_year?.corroboration ?? []).length
+                ? <div key={i} className="pir-note" style={{ fontStyle: 'normal' }}>{imp.rendered.built_year.corroboration.map((c: any, j: number) => (
+                    <div key={j}>Permit cross-check ({titleCase(imp.improvement)}): {c.text} — <strong>{c.independence}</strong>{c.gloss ? ` — ${c.gloss}` : ''}</div>
+                  ))}</div>
+                : null
+            )) : null}
+
+            {(!idf?.triggers?.length && !marine?.openQuestions?.headline)
+              ? <Section title="What the record raises"><div className="pir-note">The record surfaces no anomaly or contradiction on this parcel that we can compute. Absence of a computed open question is not a warranty; the checklist in section 7 lists what was not evaluated.</div></Section>
+              : null}
+          </Grp>
+
+          {/* ═══ 7 — WHAT WE COULDN'T TELL YOU (a service, not an apology — who answers) ═══ */}
+          <Grp n={7} title="What we couldn't tell you">
+            <Section title="Not evaluated — and who can answer"
+              note={<>Report coverage: {have} of {completeness.length} sections populated ({havePct}%). Source-record quality: {r.meta.dataQualityScore ?? '—'}/100 (the county appraiser's own completeness score for this parcel). These measure different things and are not expected to match.</>}>
+              {gaps.length ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                  {gaps.map(([label, , who]) => (
+                    <div key={label} style={{ display: 'flex', alignItems: 'baseline', gap: 8, fontSize: 12.5 }}>
+                      <span style={{ color: '#b08968', fontWeight: 700 }}>○</span>
+                      <span><strong style={{ color: 'var(--color-ink)' }}>{label}</strong>{who ? <span style={{ color: 'var(--color-sage)' }}> — not held here; ask {who}.</span> : <span style={{ color: 'var(--color-sage)' }}> — not yet sourced for this parcel.</span>}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : <div className="pir-note">Every section we track is populated for this parcel.</div>}
+            </Section>
+          </Grp>
+
+          {/* ═══ 8 — FURTHER DUE DILIGENCE (web, tier-separated) ═══ */}
+          <Grp n={8} title="Further due diligence">
+            <Section title="Crime & safety"
+              note="Confirmed real sources exist (county Sheriff active-calls; FDLE statewide feed) but a victim-privacy-filtered integration is not yet wired in. Sensitive categories are excluded by policy before anything appears — so nothing is shown rather than shown unfiltered.">
+              <div className="pir-note" style={{ fontStyle: 'normal' }}>Not yet integrated for this jurisdiction — the county Sheriff and FDLE hold it.</div>
+            </Section>
+            <Section title="Neighborhood news & web"
+              note="Government findings (.gov: agendas, project records) are reported as findings with their date; listing/market results are Tier-4 dated observations, separate. Live web search is not wired into this checkpoint build.">
+              <div className="pir-note" style={{ fontStyle: 'normal' }}>No web items retrieved at generation time.</div>
+            </Section>
+          </Grp>
+
+          {/* ═══ 9 — SOURCES ═══ */}
+          <Grp n={9} title="Sources">
+            <div style={{ fontSize: 11.5, color: 'var(--color-sage)', lineHeight: 1.6 }}>
+              <p style={{ margin: '0 0 8px' }}>
+                Sources: County Property Appraiser & GIS (parcel, values, permits, zoning, future land use, economic overlays, boundaries);
+                State DOR (assessment roll, use codes, statewide building descriptors); Federal — FEMA (flood), EPA/FDEP (contamination, Superfund, brownfield),
+                USGS (elevation), NPS (National Register), U.S. Census/ACS (demographics).
+              </p>
+              <p style={{ margin: 0, color: 'var(--color-ink)' }}>
+                This report reflects public records as drawn on {today()}. This is not a certified or verified record of ownership or title.
+              </p>
+            </div>
+          </Grp>
+        </div>
+      </article>
 
       <div className="pir-toolbar no-print" style={{ paddingBottom: 40 }}>
         <span style={{ fontSize: 11, color: 'var(--color-sage)' }}>Generated {fmtDate(r.meta.generatedAt)} · source {r.meta.source ?? '—'}</span>
@@ -808,15 +790,19 @@ const tdStyle: React.CSSProperties = { padding: '7px 8px', borderBottom: '1px so
 const CSS = `
 .pir-doc { background: var(--color-cream); min-height: 100vh; padding: 22px 12px; }
 .pir-toolbar { max-width: 840px; margin: 0 auto 18px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
-.pir-sheet { max-width: 840px; margin: 0 auto 24px; background: #fff; border: 1px solid var(--color-light-gray); border-radius: 8px; box-shadow: 0 4px 22px rgba(0,0,0,0.06); overflow: hidden; }
+.pir-report { max-width: 840px; margin: 0 auto 24px; background: #fff; border: 1px solid var(--color-light-gray); border-radius: 8px; box-shadow: 0 4px 22px rgba(0,0,0,0.06); overflow: hidden; }
 .pir-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 13px 28px; border-bottom: 2px solid var(--color-navy); background: var(--color-cream); flex-wrap: wrap; }
 .pir-head .addr { font-family: Georgia, serif; font-weight: 700; color: var(--color-navy); font-size: 15px; }
 .pir-head .ref { font-size: 11px; color: var(--color-sage); line-height: 1.5; }
 .pir-body { padding: 20px 28px 28px; }
-.pir-pageno { font-size: 10px; color: var(--color-sage); text-transform: uppercase; letter-spacing: 0.08em; white-space: nowrap; }
-.pir-h2 { font-family: Georgia, serif; color: var(--color-navy); font-size: 19px; margin: 0; }
-.pir-section { margin-bottom: 24px; }
-.pir-section > h3 { font-family: Georgia, serif; color: var(--color-navy); font-size: 13px; margin: 0 0 12px; padding-bottom: 5px; border-bottom: 1px solid var(--color-light-gray); text-transform: uppercase; letter-spacing: 0.05em; }
+.pir-lead { border: 1px solid var(--color-navy); border-left: 4px solid var(--color-navy); border-radius: 8px; padding: 16px 20px; margin-bottom: 26px; background: var(--color-cream); page-break-inside: avoid; }
+.pir-lead-id { font-family: Georgia, serif; font-size: 18px; font-weight: 700; color: var(--color-navy); line-height: 1.35; }
+.pir-lead-reg { font-size: 14px; color: var(--color-ink); margin-top: 8px; line-height: 1.5; }
+.pir-group { margin-bottom: 30px; page-break-inside: auto; }
+.pir-grouphead { font-family: Georgia, serif; color: var(--color-navy); font-size: 20px; margin: 0 0 16px; padding-bottom: 8px; border-bottom: 2px solid var(--color-navy); page-break-after: avoid; }
+.pir-grpn { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; margin-right: 12px; border-radius: 50%; background: var(--color-navy); color: #fff; font-size: 14px; vertical-align: middle; }
+.pir-section { margin-bottom: 24px; page-break-inside: avoid; }
+.pir-section > h3 { font-family: Georgia, serif; color: var(--color-navy); font-size: 13px; margin: 0 0 12px; padding-bottom: 5px; border-bottom: 1px solid var(--color-light-gray); text-transform: uppercase; letter-spacing: 0.05em; page-break-after: avoid; }
 .pir-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px 20px; }
 .pir-fact .l { font-size: 10.5px; color: var(--color-sage); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 2px; }
 .pir-fact .v { font-size: 13.5px; color: var(--color-ink); font-weight: 600; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
@@ -830,8 +816,7 @@ const CSS = `
 @media print {
   .pir-doc { background: #fff; padding: 0; }
   .no-print { display: none !important; }
-  .pir-sheet { box-shadow: none; border: none; border-radius: 0; margin: 0; max-width: none; page-break-after: always; }
-  /* Swap the live WebGL canvas for its baked snapshot so the PDF captures a rendered map. */
+  .pir-report { box-shadow: none; border: none; border-radius: 0; margin: 0; max-width: none; }
   .pir-map-live { display: none !important; }
   .pir-map-snapshot { display: block !important; }
 }
