@@ -358,7 +358,9 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
                       ? riskChip(`Pre-1978 (${p.yearBuilt}) — federal lead-paint disclosure duty applies on sale or lease`, false)
                       : `Built ${p.yearBuilt} — post-1978, no federal lead-paint disclosure duty`} />
                 {idf?.signals?.historic_on_parcel === true
-                  ? <Fact l="Historic designation" v={riskChip('National Register listing on this parcel — commonly triggers local review; affects historic tax-credit eligibility', false)} />
+                  ? <Fact l="Historic designation" v={idf.signals.historic_relation === 'district_membership'
+                      ? riskChip('Within a listed National Register historic district — an indication to confirm against the NPS record (boundaries are nomination-derived, not survey); it constrains alteration/demolition and gates rehabilitation tax credits', false)
+                      : riskChip('National Register resource on this parcel — commonly triggers local review; affects historic tax-credit eligibility', false)} />
                   : null}
               </div>
               <div className="pir-note" style={{ marginTop: 10 }}>

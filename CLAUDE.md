@@ -54,6 +54,28 @@ The maintainer (Murphy) has detailed knowledge from prior research sessions abou
 6. **empty ≠ done.** Skip/resume predicates test `count(*) > 0`, never table existence.
    Assert non-zero after every load. Maintain an explicit FAILED list.
    Never print a summary that implies success.
+7. The Supabase pooler enforces a **2-minute `statement_timeout`** and **strips client
+   startup options** (`PGOPTIONS`, connection-string `options=-c ...`) — but honors an
+   **in-session `SET statement_timeout = 0`**. This applies to every query, incl. ad-hoc
+   validation queries. It is why ogr2ogr can never load large data here (it can't issue a
+   mid-connection SET) and a psycopg2 loader can. For any big load/validation: connect,
+   `SET statement_timeout = 0`, then proceed. See memory `pooler-statement-timeout`.
+8. A county-name match in a layer/dataset title is **NOT** sufficient to attribute a source
+   to that county. Verify a sampled feature's coordinates fall inside Florida **AND** inside
+   the target county's boundary — a **point-in-polygon** test against `fl_county_boundaries`
+   (`ST_Contains`), not a bbox. Global search bit us twice: Marion→Oregon (lon −122°),
+   Charlotte→NC, Monroe→NJ, Columbia→British Columbia; and even an in-FL match can be wrong —
+   "Lake" matched *Lake Mann* in Orange County. Prefer resolving each county's OWN official
+   GIS server; if a `<county>_parcels_govt_source` table exists we already pull it, so the
+   endpoint is internal (registry or harness config) — never re-derive it by search.
+   See memory `county-export-survey` and `county-source-resolution`.
+9. Every pull must **UPSERT on the source's natural key**, never a blind `INSERT`. A re-run
+   without an upsert duplicates the whole table: the NRHP boundary loader had no upsert and a
+   second run **tripled** `nrhp_boundaries_fl` to 918 rows before it was deduplicated. The
+   natural key is the source's stable id (`nris_refnum` for NRHP, the OID field for a REST
+   layer, `co_no+parcel_id` for cadastral). `INSERT … ON CONFLICT (natural_key) DO UPDATE`, and
+   assert `count(*) == count(DISTINCT natural_key)` after every load. A pull that can't be run
+   twice safely is not done. See §10 invariant 6 (empty≠done) — this is its idempotence twin.
 
 Full findings and evidence: docs/DATA_JOIN_FINDINGS.md
 Compliance framework: docs/PROVIDER_REASONABLE_PROCEDURES.md
