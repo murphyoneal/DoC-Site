@@ -367,6 +367,28 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
                 <strong>Universal (every Florida parcel):</strong> Florida ss. 872.02 / 872.05 protect unmarked human burials statewide; the statute applies to all land, so its applicability here is a standing rule, not a finding about this property.
               </div>
             </Section>
+
+            {/* Construction-defect repose window (get_parcel_repose_window): computed from act_yr_blt + FL
+                s.95.11(3)(b) 7-year repose. Rights-first, and it states ONLY whether the statutory WINDOW has
+                or has not closed — NEVER that a claim exists. "Approximately" is load-bearing (act_yr_blt is the
+                assessor year, not the CO date). Builder AS RECORDED, related-by-name. */}
+            {(() => {
+              const rw: any = (r as any).reposeWindow
+              if (rw?.field_status !== 'present') return null
+              const open = rw.window_status === 'open'
+              return (
+                <Section title="Construction-defect window (Florida)">
+                  <div style={{ border: '1px solid var(--color-line, #d9d3c6)', borderLeft: `3px solid ${open ? 'var(--color-bronze, #9a6a3a)' : 'var(--color-line, #d9d3c6)'}`, borderRadius: 6, padding: '11px 14px' }}>
+                    <div style={{ fontSize: 15, fontWeight: 600 }}>{rw.headline}</div>
+                    <div style={{ fontSize: 13, marginTop: 6, color: 'var(--color-ink)' }}>{rw.body}</div>
+                    {rw.presuit ? <div className="pir-note" style={{ fontStyle: 'normal', marginTop: 6 }}>{rw.presuit}</div> : null}
+                    {rw.builder_note ? <div className="pir-note" style={{ marginTop: 4 }}>{rw.builder_note}</div> : null}
+                    <div className="pir-note" style={{ marginTop: 6 }}>{rw.note}</div>
+                    <div className="pir-note" style={{ marginTop: 4 }}>{rw.who_can_answer ? <>Who can answer: {rw.who_can_answer}. </> : null}{rw.repose_cite ? <>Authority: {rw.repose_cite}.</> : null}</div>
+                  </div>
+                </Section>
+              )
+            })()}
           </Grp>
 
           {/* ═══ 3 — WHAT'S ON OR UNDER THIS PARCEL (contains relation only; no distances) ═══ */}

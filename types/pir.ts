@@ -501,6 +501,10 @@ export interface PirReport {
   // wetland_types drives the finding; a mapped NWI hit is a regional inventory, not a jurisdictional
   // delineation (the delineation gap renders in §7). identityFrame carries the frame; both read via cast.
   wetland?: Record<string, unknown> | null
+  // Construction-defect repose window (get_parcel_repose_window): computed from act_yr_blt + FL s.95.11(3)(b)
+  // 7-year repose. States ONLY whether the statutory window has/hasn't closed — never that a claim exists.
+  // Builder from the original NEW-construction permit (Volusia), name AS RECORDED, related-by-name.
+  reposeWindow?: Record<string, unknown> | null
   salesAgent?: PirSalesAgent[] | null
 }
 
