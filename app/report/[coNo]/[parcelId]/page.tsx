@@ -414,6 +414,26 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
                 <Fact l="Protected species" v={r.land.gopherTortoiseInside ? riskChip('Within gopher tortoise habitat overlay', false) : r.land.gopherTortoiseNearestM != null ? `Nearest habitat ${mi(r.land.gopherTortoiseNearestM)}` : 'None mapped nearby'} />
               </div>
             </Section>
+
+            {/* Wetland (get_parcel_wetland): CONTAINMENT, Deepwater + open-water Lake EXCLUDED by category
+                (the sentinel catch). The TYPE is the finding — different types carry different permitting/
+                development consequences. Both regimes cited in parallel. The regional-inventory-vs-delineation
+                gap renders in §7 (who answers). Renders only when a real wetland type is present. */}
+            {(() => {
+              const wl: any = (r as any).wetland
+              if (wl?.field_status !== 'present') return null
+              const types: string[] = Array.isArray(wl.wetland_types) ? wl.wetland_types : []
+              return (
+                <Section title="Wetland (NWI)" note="Mapped in the USFWS National Wetlands Inventory. Deepwater and open-water lakes are excluded — these are wetland categories. This is a regional inventory, not a jurisdictional delineation (section 7).">
+                  <div style={{ borderLeft: '3px solid var(--color-terracotta, #b5502f)', paddingLeft: 12 }}>
+                    <div style={{ fontWeight: 600 }}>{riskChip('Mapped wetland on this parcel', false)} {types.map(t => titleCase(t)).join(' · ')}<TierBadge tier="government_derived" /></div>
+                    <div className="pir-note" style={{ fontStyle: 'normal' }}>
+                      The wetland <strong>type</strong> drives permitting and development — {types.join(', ')} carry different Environmental Resource Permit and mitigation consequences. Regulated under BOTH regimes in parallel: <strong>Florida s.373 Part IV</strong> (state Environmental Resource Permit — FDEP / Water Management District) and <strong>Section 404 of the Clean Water Act</strong> (federal — U.S. Army Corps of Engineers). A buyer needs both.
+                    </div>
+                  </div>
+                </Section>
+              )
+            })()}
           </Grp>
 
           {/* ═══ 4 — WHAT'S NEARBY (everything with a distance) ═══ */}
@@ -740,6 +760,14 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
                   ))}
                 </div>
               ) : <div className="pir-note">Every section we track is populated for this parcel.</div>}
+              {/* The wetland DELINEATION gap — the most consequential caveat in the NWI layer: mapped ≠
+                  jurisdictional. Appears when a wetland is mapped; routes to who produces a determination. */}
+              {(r as any).wetland?.field_status === 'present' ? (
+                <div style={{ marginTop: 14, borderTop: '1px solid var(--color-line, #d9d3c6)', paddingTop: 12, fontSize: 12.5 }}>
+                  <strong style={{ color: 'var(--color-ink)' }}>Wetland — mapped, not delineated.</strong>{' '}
+                  <span style={{ color: 'var(--color-sage)' }}>The wetland above is a USFWS National Wetlands Inventory hit — a <em>regional inventory</em>, which USFWS states is not for project-level analysis. It means &ldquo;mapped as wetland,&rdquo; not &ldquo;is a wetland.&rdquo; A jurisdictional determination — the line that governs what may be built — requires a field <strong>delineation</strong> by a qualified wetland delineator, confirmed through the state Environmental Resource Permit (FDEP / Water Management District, s.373 Part IV) and the federal Section 404 process (U.S. Army Corps of Engineers).</span>
+                </div>
+              ) : null}
             </Section>
           </Grp>
 

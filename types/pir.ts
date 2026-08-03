@@ -497,6 +497,10 @@ export interface PirReport {
   // institutional controls, regulated on-parcel wells. An ARRAY of restriction findings; [] = checked,
   // none in the layers we hold (the render turns that into the honest historic-use absence statement).
   landRestrictions?: Record<string, unknown>[] | null
+  // NWI wetland finding (get_parcel_wetland): containment, Deepwater + Lake (open water) EXCLUDED by category.
+  // wetland_types drives the finding; a mapped NWI hit is a regional inventory, not a jurisdictional
+  // delineation (the delineation gap renders in §7). identityFrame carries the frame; both read via cast.
+  wetland?: Record<string, unknown> | null
   salesAgent?: PirSalesAgent[] | null
 }
 
