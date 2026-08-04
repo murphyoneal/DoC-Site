@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import dynamic from 'next/dynamic'
 import FilterChips from './FilterChips'
+import AddressAutocomplete from './AddressAutocomplete'
 
 // Dynamic import — Mapbox only runs in browser
 const ContractorMap = dynamic(() => import('./ContractorMap'), {
@@ -34,6 +35,26 @@ export default function HomeMapShell() {
 
   return (
     <div className="flex flex-col" style={{ height: 'calc(100vh - 96px)' }}>
+      {/* Property lookup — the entry point: an address resolves to that parcel's full
+          report. Searches our own roll, so every suggestion has a report behind it; a
+          non-match says so honestly rather than "not found". Relative + high z-index so
+          the suggestion dropdown renders above the Mapbox canvas below. */}
+      <div
+        className="px-4 py-3 border-b"
+        style={{ background: 'var(--color-light-gray)', borderColor: 'var(--color-light-gray)', position: 'relative', zIndex: 30 }}
+      >
+        <div className="max-w-3xl mx-auto">
+          <label
+            htmlFor="property-address-search"
+            className="text-xs font-semibold uppercase tracking-wide block mb-1.5"
+            style={{ color: 'var(--color-bronze)' }}
+          >
+            Look up a property
+          </label>
+          <AddressAutocomplete placeholder="Enter a Florida property address…" />
+        </div>
+      </div>
+
       {/* Filter bar */}
       <div
         className="px-4 py-2.5 border-b"

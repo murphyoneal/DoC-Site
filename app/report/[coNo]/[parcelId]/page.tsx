@@ -1,6 +1,9 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { pirSocket } from '@/lib/sockets/pir'
+import { purchaseSocket } from '@/lib/sockets/purchase'
+import ReportPaywall from '@/app/components/ReportPaywall'
+import ReportError from '@/app/components/ReportError'
 import { CompassBadgeGrid, type CompassBadgeData } from '@/app/components/AmenityCompass'
 import PropertyReportMap from '@/app/components/PropertyReportMap'
 import PrintButton from '@/app/components/PrintButton'
@@ -21,6 +24,10 @@ const fmtDate = (d?: string | null) => {
   return isNaN(dt.getTime()) ? d : dt.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
 }
 const today = () => new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+
+// Per-request: the purchase gate must reflect a just-completed payment immediately,
+// and the payload is built on view so it always shows the current data vintage.
+export const dynamic = 'force-dynamic'
 
 export async function generateMetadata({ params }: { params: Promise<{ coNo: string; parcelId: string }> }) {
   const { parcelId } = await params
@@ -145,8 +152,30 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
   const co = Number(coNo)
   if (isNaN(co) || !parcelId) notFound()
 
-  const r = await pirSocket.forParcel(co, parcelId)
-  if (!r) notFound()
+  const [r, unlocked] = await Promise.all([
+    pirSocket.forParcel(co, parcelId),
+    purchaseSocket.isUnlocked(co, parcelId),
+  ])
+
+  // FAILURE CASE: if the buyer paid but the report failed to build, never show a blank
+  // page or a 404 — their purchase is safe in the ledger, and generation is retryable.
+  if (!r) {
+    if (unlocked) return <ReportError />
+    notFound()
+  }
+
+  // GATE: not purchased → preview + buy at this same URL. Buying unlocks the full report
+  // here (per-parcel), so a shared link works and the recipient buys their own parcel.
+  if (!unlocked) {
+    return (
+      <ReportPaywall
+        coNo={co}
+        parcelId={parcelId}
+        address={titleCase(r.property.address ?? '')}
+        identity={buildLead(r).identity}
+      />
+    )
+  }
 
   const p = r.property, v = r.values, tax = r.tax
   const idf: any = (r as any).identityFrame ?? null
@@ -385,6 +414,15 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
                     {rw.builder_note ? <div className="pir-note" style={{ marginTop: 4 }}>{rw.builder_note}</div> : null}
                     <div className="pir-note" style={{ marginTop: 6 }}>{rw.note}</div>
                     <div className="pir-note" style={{ marginTop: 4 }}>{rw.who_can_answer ? <>Who can answer: {rw.who_can_answer}. </> : null}{rw.repose_cite ? <>Authority: {rw.repose_cite}.</> : null}</div>
+                    {/* Conversion path: the deadline finding is the moment a reader wants to know what it means
+                        for them. get_parcel_repose_window is FL-gated, so "present" ⇒ Florida ⇒ always among the
+                        verified 21 (never a 404). A future multi-state PIR should derive this slug from the parcel
+                        and fall back to /rights (the hub, whose spread stands on its own) for any unverified state. */}
+                    <div style={{ marginTop: 9 }}>
+                      <Link href="/rights/florida" style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--color-bronze, #9a6a3a)' }}>
+                        What this means for you — your rights as a Florida homeowner →
+                      </Link>
+                    </div>
                   </div>
                 </Section>
               )
