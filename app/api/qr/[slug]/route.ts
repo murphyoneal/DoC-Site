@@ -13,6 +13,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import QRCode from 'qrcode'
 import { contractorSocket } from '@/lib/sockets/contractors'
+import { SITE_URL } from '@/lib/site'
 
 const SCREEN_MAX = 512
 const PRINT_MAX  = 1200
@@ -51,7 +52,7 @@ export async function GET(
   }
 
   // Build target URL
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://departmentofconstruction.com'
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? SITE_URL
   const targetUrl = ref
     ? `${baseUrl}/c/${slug}?ref=${encodeURIComponent(ref)}`
     : `${baseUrl}/c/${slug}`

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { contractorSocket } from '@/lib/sockets/contractors'
+import { SITE_URL } from '@/lib/site'
 
 export async function GET(
   req: NextRequest,
@@ -16,7 +17,7 @@ export async function GET(
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://departmentofconstruction.com'
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? SITE_URL
 
   const lines = [
     'BEGIN:VCARD',
