@@ -12,12 +12,10 @@ export const metadata: Metadata = {
 const FLORIDA_COUNTIES = [
   { name: 'Volusia County',  slug: 'volusia',   city: 'Daytona Beach' },
   { name: 'Orange County',   slug: 'orange',    city: 'Orlando' },
-  { name: 'Broward County',  slug: 'broward',   city: 'Fort Lauderdale' },
+  { name: 'Seminole County', slug: 'seminole',  city: 'Sanford' },
+  { name: 'Osceola County',  slug: 'osceola',   city: 'Kissimmee' },
+  { name: 'Lake County',     slug: 'lake',      city: 'Tavares' },
   { name: 'Miami-Dade',      slug: 'miami-dade', city: 'Miami' },
-  { name: 'Palm Beach',      slug: 'palm-beach', city: 'West Palm Beach' },
-  { name: 'Hillsborough',    slug: 'hillsborough', city: 'Tampa' },
-  { name: 'Pinellas County', slug: 'pinellas',  city: 'St. Petersburg' },
-  { name: 'Duval County',    slug: 'duval',     city: 'Jacksonville' },
 ]
 
 export default async function FloridaPage() {
