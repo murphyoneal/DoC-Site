@@ -416,9 +416,25 @@ export interface PirZoningFacts {
 // PirZoning (zoneCode/pudName/futureLandUse*) REMOVED with the legacy `zoning` payload key — it was a
 // Volusia-only duplicate of zoningFacts. Zoning + future land use live on PirZoningFacts only.
 
-// inside === false with a distanceM ⇒ "nearest, not adjacent" context.
-// A whole overlay being null ⇒ none within range at all.
-export interface PirEconOverlay { inside: boolean; distanceM: number; name?: string; tract?: string; zone?: string }
+// Item 112: economic overlays are resolved by get_parcel_econzone_facts with an EXPLICIT
+// coverage state, so the report distinguishes four genuinely different things:
+//   present            parcel is inside a mapped zone (inside === true)
+//   none_intersecting  county IS covered, parcel just isn't in a zone — a REAL negative (inside === false, distanceM to nearest)
+//   not_available      we don't hold that overlay for this county — a COVERAGE GAP (routes to §7 via who_can_answer)
+//   not_established    parcel geometry could not be resolved
+// A null overlay must NEVER be read as "not in a zone" — that was the pre-112 false negative.
+export type PirCoverageStatus = 'present' | 'none_intersecting' | 'not_available' | 'not_established'
+export interface PirEconOverlay {
+  field_status: PirCoverageStatus
+  inside?: boolean | null
+  distanceM?: number
+  name?: string | null
+  tract?: string | null
+  zone?: string | null
+  who_can_answer?: string
+  coverage_note?: string
+  note?: string
+}
 export interface PirEconomic {
   opportunityZone: PirEconOverlay | null
   hubZone: PirEconOverlay | null

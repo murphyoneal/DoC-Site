@@ -97,11 +97,27 @@ function Legend({ entries }: { entries: Array<{ color: string; label: string }> 
   )
 }
 
-function overlayLine(o: PirEconOverlay | null, insideLabel: string): string {
-  if (!o) return 'None mapped within 5 mi'
-  if (o.inside) return insideLabel
+function overlayLine(o: PirEconOverlay | null, insideLabel: string): React.ReactNode {
+  // Item 112: a coverage gap is NOT a negative finding. Never say "None mapped" when the
+  // truth is we don't hold that overlay for this county — that reads as "not in a zone".
+  if (!o || o.field_status === 'not_available' || o.field_status === 'not_established') {
+    return <span style={{ color: 'var(--color-sage)' }}>Not evaluated{o?.who_can_answer ? <> — ask {o.who_can_answer}</> : null}</span>
+  }
+  if (o.field_status === 'present' || o.inside) {
+    const name = o.name ?? o.tract ?? o.zone
+    return `${insideLabel}${name ? ` (${name})` : ''}`
+  }
+  // none_intersecting — a real negative in a covered county
   const name = o.name ?? o.tract ?? o.zone
-  return `Not within — nearest ${mi(o.distanceM)}${name ? ` (${name})` : ''}`
+  return o.distanceM != null
+    ? `Not within — nearest ${mi(o.distanceM)}${name ? ` (${name})` : ''}`
+    : 'Not within any we hold for this county'
+}
+
+// "Covered" = we could actually answer: parcel is in a zone, or the county is covered and it
+// genuinely isn't (a real negative). not_available / not_established are coverage gaps -> §7.
+function econCovered(o: PirEconOverlay | null | undefined): boolean {
+  return o?.field_status === 'present' || o?.field_status === 'none_intersecting'
 }
 
 function riskChip(text: string, good: boolean) {
@@ -231,7 +247,12 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
     ['Marine improvements', (marine?.improvements?.length ?? 0) > 0, 'the county Property Appraiser'],
     ['Tax-deed status', r.taxDeedStatus.on_lands_available_list != null, 'the county Clerk'],
     ['Zoning & future land use', r.zoningFacts?.field_status === 'present', 'the local planning department'],
-    ['Economic overlays', Object.values(r.economic ?? {}).some(x => x != null), ''],
+    // Item 112: one row per overlay. "Covered" = we could actually answer (present OR a real
+    // none_intersecting negative). not_available/not_established falls to §7 with who-answers.
+    ['Opportunity Zone', econCovered(r.economic?.opportunityZone), r.economic?.opportunityZone?.who_can_answer ?? 'the U.S. Treasury CDFI Fund'],
+    ['HUBZone', econCovered(r.economic?.hubZone), r.economic?.hubZone?.who_can_answer ?? 'the U.S. Small Business Administration'],
+    ['Enterprise Zone', econCovered(r.economic?.enterpriseZone), r.economic?.enterpriseZone?.who_can_answer ?? 'Florida Commerce'],
+    ['Community Redevelopment Area', econCovered(r.economic?.cra), r.economic?.cra?.who_can_answer ?? 'the local Community Redevelopment Agency'],
     ['Census / demographics', r.censusFacts?.field_status === 'present', 'the U.S. Census Bureau (ACS)'],
     ['Crime / safety statistics', false, 'the county Sheriff / FDLE'],
     ['Neighborhood news (live)', false, 'live web search'],
