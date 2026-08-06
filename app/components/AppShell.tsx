@@ -21,12 +21,24 @@ export default function AppShell({ userEmail, children }: { userEmail: string; c
       background: path === href ? 'var(--color-navy)' : 'transparent',
     }}>{label}</a>
   )
+  // A tab for a function that isn't built yet — a standing reminder in the UI, not a dead link.
+  // Non-navigating (no page); marked "soon". Listing pre-flight = run a draft listing against the
+  // public record before posting (the agent-side discrepancy report).
+  const soon = (label: string) => (
+    <span title="Coming soon — run your listing against the public record before you post" style={{
+      fontSize: 13, padding: '4px 8px', borderRadius: 8, color: 'var(--color-sage)', opacity: 0.7,
+      cursor: 'default', display: 'inline-flex', alignItems: 'center', gap: 5, userSelect: 'none',
+    }}>{label}<span style={{
+      fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em',
+      padding: '1px 5px', borderRadius: 999, border: '1px solid var(--color-light-gray)', color: 'var(--color-sage)',
+    }}>soon</span></span>
+  )
   return (
     <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column' }}>
       <nav style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 14px',
         borderBottom: '1px solid var(--color-light-gray)', background: 'var(--color-white)' }}>
         <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--color-navy)' }}>Department of Property</span>
-        <div style={{ display: 'flex', gap: 4 }}>{link('/roz', 'Roz')}{link('/agent', 'My properties')}{link('/roz/account', 'Account')}</div>
+        <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>{link('/roz', 'Roz')}{link('/agent', 'My properties')}{soon('Listing check')}{link('/roz/account', 'Account')}</div>
         <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--color-sage)' }}>{userEmail}</span>
         <button onClick={signOut} style={{ fontSize: 12, padding: '5px 12px', borderRadius: 8, cursor: 'pointer',
           border: '1px solid var(--color-light-gray)', background: 'var(--color-white)', color: 'var(--color-ink)' }}>Sign out</button>
