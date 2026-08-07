@@ -97,11 +97,27 @@ function Legend({ entries }: { entries: Array<{ color: string; label: string }> 
   )
 }
 
-function overlayLine(o: PirEconOverlay | null, insideLabel: string): string {
-  if (!o) return 'None mapped within 5 mi'
-  if (o.inside) return insideLabel
+function overlayLine(o: PirEconOverlay | null, insideLabel: string): React.ReactNode {
+  // Item 112: a coverage gap is NOT a negative finding. Never say "None mapped" when the
+  // truth is we don't hold that overlay for this county — that reads as "not in a zone".
+  if (!o || o.field_status === 'not_available' || o.field_status === 'not_established') {
+    return <span style={{ color: 'var(--color-sage)' }}>Not evaluated{o?.who_can_answer ? <> — ask {o.who_can_answer}</> : null}</span>
+  }
+  if (o.field_status === 'present' || o.inside) {
+    const name = o.name ?? o.tract ?? o.zone
+    return `${insideLabel}${name ? ` (${name})` : ''}`
+  }
+  // none_intersecting — a real negative in a covered county
   const name = o.name ?? o.tract ?? o.zone
-  return `Not within — nearest ${mi(o.distanceM)}${name ? ` (${name})` : ''}`
+  return o.distanceM != null
+    ? `Not within — nearest ${mi(o.distanceM)}${name ? ` (${name})` : ''}`
+    : 'Not within any we hold for this county'
+}
+
+// "Covered" = we could actually answer: parcel is in a zone, or the county is covered and it
+// genuinely isn't (a real negative). not_available / not_established are coverage gaps -> §7.
+function econCovered(o: PirEconOverlay | null | undefined): boolean {
+  return o?.field_status === 'present' || o?.field_status === 'none_intersecting'
 }
 
 function riskChip(text: string, good: boolean) {
@@ -223,7 +239,10 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
     ['Assessed & market values', (v.valuesFacts as any)?.just_value?.field_status === 'present', ''],
     ['Tax & exemptions', tax.taxableValueCounty != null, ''],
     ['Nearby amenities', r.amenities.length > 0, ''],
-    ['Assigned schools', r.schools.length > 0, 'the county school district'],
+    // Item 112: keyed on schoolsCoverage, not schools.length — a [] off-Volusia is a coverage gap
+    // (we hold no assignment layer), NOT "no assigned schools".
+    ['Assigned schools', r.schoolsCoverage?.field_status === 'assigned', r.schoolsCoverage?.who_can_answer ?? 'the county school district'],
+    ['Protected species / habitat', r.land.gopherTortoiseCoverage === 'covered', 'the Florida Fish & Wildlife Conservation Commission'],
     ['Permit history', (pb.count ?? 0) > 0, "the county / municipal building department"],
     ['Ownership / sale history', (tb.count ?? 0) > 0, 'the county Clerk of Court'],
     ['Elevation & land', r.groundElevation != null, ''],
@@ -231,7 +250,12 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
     ['Marine improvements', (marine?.improvements?.length ?? 0) > 0, 'the county Property Appraiser'],
     ['Tax-deed status', r.taxDeedStatus.on_lands_available_list != null, 'the county Clerk'],
     ['Zoning & future land use', r.zoningFacts?.field_status === 'present', 'the local planning department'],
-    ['Economic overlays', Object.values(r.economic ?? {}).some(x => x != null), ''],
+    // Item 112: one row per overlay. "Covered" = we could actually answer (present OR a real
+    // none_intersecting negative). not_available/not_established falls to §7 with who-answers.
+    ['Opportunity Zone', econCovered(r.economic?.opportunityZone), r.economic?.opportunityZone?.who_can_answer ?? 'the U.S. Treasury CDFI Fund'],
+    ['HUBZone', econCovered(r.economic?.hubZone), r.economic?.hubZone?.who_can_answer ?? 'the U.S. Small Business Administration'],
+    ['Enterprise Zone', econCovered(r.economic?.enterpriseZone), r.economic?.enterpriseZone?.who_can_answer ?? 'Florida Commerce'],
+    ['Community Redevelopment Area', econCovered(r.economic?.cra), r.economic?.cra?.who_can_answer ?? 'the local Community Redevelopment Agency'],
     ['Census / demographics', r.censusFacts?.field_status === 'present', 'the U.S. Census Bureau (ACS)'],
     ['Crime / safety statistics', false, 'the county Sheriff / FDLE'],
     ['Neighborhood news (live)', false, 'live web search'],
@@ -471,7 +495,12 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
               <div className="pir-grid">
                 <Fact l="Ground elevation" v={<span style={{ color: 'var(--color-sage)' }}>{renderFact(r.groundElevation).label}</span>} />
                 <Fact l="Sewer / septic" v={<span style={{ color: 'var(--color-sage)' }}>Not evaluated — no parcel-level sewer/septic determination in the record</span>} />
-                <Fact l="Protected species" v={r.land.gopherTortoiseInside ? riskChip('Within gopher tortoise habitat overlay', false) : r.land.gopherTortoiseNearestM != null ? `Nearest habitat ${mi(r.land.gopherTortoiseNearestM)}` : 'None mapped nearby'} />
+                <Fact l="Protected species" v={
+                  r.land.gopherTortoiseCoverage === 'not_available'
+                    ? <span style={{ color: 'var(--color-sage)' }}>Not evaluated — habitat overlay held for Volusia only; ask the Florida Fish and Wildlife Conservation Commission</span>
+                    : r.land.gopherTortoiseInside ? riskChip('Within gopher tortoise habitat overlay', false)
+                    : r.land.gopherTortoiseNearestM != null ? `Nearest habitat ${mi(r.land.gopherTortoiseNearestM)}`
+                    : 'None mapped within 5 mi'} />
               </div>
             </Section>
 
@@ -540,7 +569,11 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
 
             <Section title="Assigned schools"
               note={`Zoned attendance schools for this parcel${r.schools.length ? ': ' + r.schools.map(s => `${s.level} — ${titleCase(s.name)}`).join(' · ') : ''}. Distance and bearing are to each school's location.`}>
-              {schoolBadges.length ? <CompassBadgeGrid badges={schoolBadges} /> : <div className="pir-note">No school assignment on file for this parcel.</div>}
+              {schoolBadges.length
+                ? <CompassBadgeGrid badges={schoolBadges} />
+                : <div className="pir-note">{r.schoolsCoverage?.field_status === 'not_available'
+                    ? <>Zoned-school assignments are not in the data we hold for this county — this is a coverage gap, not a finding that the parcel has no assigned schools. Ask {r.schoolsCoverage?.who_can_answer ?? 'the county school district'}.</>
+                    : 'No school assignment on file for this parcel.'}</div>}
             </Section>
           </Grp>
 

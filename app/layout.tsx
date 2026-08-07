@@ -1,15 +1,61 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import Link from 'next/link'
+import JsonLd from './components/JsonLd'
+import { SITE_URL } from '@/lib/site'
+
+const ORG_JSONLD = {
+  '@context': 'https://schema.org',
+  '@type': 'Organization',
+  name: 'Department of Construction',
+  url: SITE_URL,
+  logo: `${SITE_URL}/og-image.png`,
+  description:
+    'Licensed contractor search powered by official government registry data.',
+}
+
+const WEBSITE_JSONLD = {
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  name: 'Department of Construction',
+  url: SITE_URL,
+}
+
+const SITE_NAME = 'Department of Construction'
+const SITE_DESC =
+  'Search licensed contractors by trade and location. Verify licence status, find emergency services, and connect with local professionals — powered by official government registry data.'
 
 export const metadata: Metadata = {
   title: {
     default: 'Find Licensed Contractors Near You | Department of Construction',
     template: '%s | Department of Construction',
   },
-  description:
-    'Search licensed contractors by trade and location. Verify licence status, find emergency services, and connect with local professionals — powered by official government registry data.',
-  metadataBase: new URL('https://departmentofconstruction.com'),
+  description: SITE_DESC,
+  metadataBase: new URL(SITE_URL),
+  applicationName: SITE_NAME,
+  // Site-wide indexing kill-switch: everything is noindex until SITE_INDEXABLE
+  // === 'true'. Pairs with app/robots.ts so the meta tag and robots.txt agree.
+  // The four page-scoped `robots: { index: false }` entries (assistant,
+  // checkout, checkout/success, report/[coNo]/[parcelId]) override this object
+  // and therefore stay noindex even after the switch is flipped on.
+  robots:
+    process.env.SITE_INDEXABLE === 'true'
+      ? undefined
+      : { index: false, follow: false },
+  openGraph: {
+    type: 'website',
+    siteName: SITE_NAME,
+    title: 'Find Licensed Contractors Near You | Department of Construction',
+    description: SITE_DESC,
+    url: '/',
+    images: [{ url: '/og-image.png', width: 512, height: 512, alt: SITE_NAME }],
+  },
+  twitter: {
+    card: 'summary',
+    title: 'Find Licensed Contractors Near You | Department of Construction',
+    description: SITE_DESC,
+    images: ['/og-image.png'],
+  },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -22,6 +68,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body className="min-h-screen flex flex-col" style={{ backgroundColor: 'var(--color-cream)' }}>
+        <JsonLd data={ORG_JSONLD} />
+        <JsonLd data={WEBSITE_JSONLD} />
         <div className="disclaimer-banner">
           Department of Construction is a technology platform, not a licensing authority.
           Always verify licence status directly with the relevant government registry.{' '}

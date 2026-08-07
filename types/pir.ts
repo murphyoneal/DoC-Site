@@ -164,8 +164,16 @@ export interface PirLand {
   // elevationM/elevationFt intentionally REMOVED from the payload — a bare elevation figure with no
   // vertical datum was the recurring fabrication surface. Elevation is represented ONLY by the withheld
   // groundElevation fact (PirReport.groundElevation). Do not re-add these keys.
+  // Item 112: coverage tells "no habitat nearby in a county we hold" apart from "we hold no habitat
+  // data for this county". gopher tortoise overlay is Volusia-only, so off-Volusia is 'not_available'.
+  // Without this the Protected-species line rendered "None mapped nearby" for every non-Volusia parcel.
+  gopherTortoiseCoverage?: 'covered' | 'not_available'
   gopherTortoiseInside?: boolean; gopherTortoiseNearestM?: number
 }
+// Item 112: the county school-assignment layer is Volusia-only. 'assigned' = zoned schools returned;
+// 'none_on_file' = covered county, no assignment recorded; 'not_available' = we hold no assignment data
+// for this county. A `schools: []` must NOT read as "no assigned schools" off-Volusia.
+export interface PirSchoolsCoverage { field_status: 'assigned' | 'none_on_file' | 'not_available'; who_can_answer?: string }
 
 export interface PirWaterFeature { name: string | null; ftype: string | null; distanceM: number; bearingDegrees: number }
 export interface PirBoatRamp { name: string | null; waterbody: string | null; distanceM: number; bearingDegrees: number }
@@ -416,9 +424,25 @@ export interface PirZoningFacts {
 // PirZoning (zoneCode/pudName/futureLandUse*) REMOVED with the legacy `zoning` payload key — it was a
 // Volusia-only duplicate of zoningFacts. Zoning + future land use live on PirZoningFacts only.
 
-// inside === false with a distanceM ⇒ "nearest, not adjacent" context.
-// A whole overlay being null ⇒ none within range at all.
-export interface PirEconOverlay { inside: boolean; distanceM: number; name?: string; tract?: string; zone?: string }
+// Item 112: economic overlays are resolved by get_parcel_econzone_facts with an EXPLICIT
+// coverage state, so the report distinguishes four genuinely different things:
+//   present            parcel is inside a mapped zone (inside === true)
+//   none_intersecting  county IS covered, parcel just isn't in a zone — a REAL negative (inside === false, distanceM to nearest)
+//   not_available      we don't hold that overlay for this county — a COVERAGE GAP (routes to §7 via who_can_answer)
+//   not_established    parcel geometry could not be resolved
+// A null overlay must NEVER be read as "not in a zone" — that was the pre-112 false negative.
+export type PirCoverageStatus = 'present' | 'none_intersecting' | 'not_available' | 'not_established'
+export interface PirEconOverlay {
+  field_status: PirCoverageStatus
+  inside?: boolean | null
+  distanceM?: number
+  name?: string | null
+  tract?: string | null
+  zone?: string | null
+  who_can_answer?: string
+  coverage_note?: string
+  note?: string
+}
 export interface PirEconomic {
   opportunityZone: PirEconOverlay | null
   hubZone: PirEconOverlay | null
@@ -472,6 +496,7 @@ export interface PirReport {
   tax: PirTax
   amenities: PirAmenity[]
   schools: PirSchool[]
+  schoolsCoverage?: PirSchoolsCoverage | null
   permitFacts?: PirPermitFacts | null
   transactionFacts?: PirTransactionFacts | null
   land: PirLand

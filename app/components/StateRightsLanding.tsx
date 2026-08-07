@@ -1,8 +1,9 @@
 import Link from 'next/link'
 import JsonLd from './JsonLd'
 import type { LegalStateRow } from '@/lib/sockets/legal'
+import { SITE_URL } from '@/lib/site'
 
-const BASE = 'https://departmentofconstruction.com'
+const BASE = SITE_URL
 
 // State construction-defect rights landing page. Order is fixed by product rule
 // (website_copy.framing_rights_not_fear): RIGHTS first, then the DEADLINE, then

@@ -1,10 +1,11 @@
 import { MetadataRoute } from 'next'
 import { legalSocket } from '@/lib/sockets/legal'
+import { SITE_URL } from '@/lib/site'
 
 export const revalidate = 86400
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const base = 'https://departmentofconstruction.com'
+  const base = SITE_URL
 
   const COUNTY_SLUGS = ['volusia', 'miami-dade', 'orange', 'seminole', 'osceola', 'lake']
 
