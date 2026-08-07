@@ -45,6 +45,7 @@ import argparse
 import io
 import json
 import os
+import re
 import sys
 import zipfile
 from datetime import datetime, timezone
@@ -210,41 +211,57 @@ def _looks_html(resp):
     return b"<!doctype html" in head or b"<html" in head
 
 
-def resolve_index_link(page_url, html_bytes):
-    """Scrape an HTML index page for the CURRENT data-file link and return it absolute (or None).
+def resolve_index_link(page_url, html_bytes, pattern=None):
+    """Scrape an HTML index page for the CURRENT data-file link. Return (picked_url_or_None, diag).
     Reads the link at probe time, so rotating filenames / monthly GUIDs / ASP index pages survive.
-    Heuristic: prefer the parcel table, prefer archives, de-prioritise sales/tangible/sample/layout."""
+    A per-county `pattern` (regex, from the manifest) selects the right link when the generic heuristic
+    can't — the pattern IS the human signal, so a match is trusted even if it doesn't end in a data
+    extension. Without a pattern, the heuristic prefers the parcel table and archives and de-prioritises
+    sales/tangible/sample/layout. `diag` always reports the anchors seen + a sample, so a miss is
+    debuggable from the run (which is how Hillsborough/Polk/Miami-Dade get their real link structure)."""
     p = _LinkExtractor()
     try:
         p.feed(html_bytes.decode("latin-1", "replace"))
     except Exception:
-        return None
-    best = None
+        return None, {"anchors": 0, "considered": 0, "sample": [], "pattern": pattern, "picked": None}
+    rx = re.compile(pattern, re.I) if pattern else None
+    anchors = [h for h, _ in p.links if h]
+    cands = []
     for href, text in p.links:
         if not href:
             continue
         absu = urljoin(page_url, href)
         base = absu.lower().split("?")[0]
         low = (href + " " + text).lower()
-        is_asset = "getcontentasset" in low or "download" in low  # GUID/asset links carry no extension
-        if not base.endswith(DATA_EXTS) and not is_asset:
-            continue
+        if rx is not None:
+            if not (rx.search(href) or rx.search(text) or rx.search(absu)):
+                continue
+        else:
+            is_asset = "getcontentasset" in low or "download" in low  # GUID/asset links carry no extension
+            if not base.endswith(DATA_EXTS) and not is_asset:
+                continue
         score = 0
         if "parcel" in low: score += 5
         if any(k in low for k in ("real_estate", "real-estate", "propdata", "webdata", "cama", "property", "roll")): score += 3
         if base.endswith(".zip"): score += 2
         elif base.endswith((".csv", ".txt", ".dbf")): score += 1
         if any(k in low for k in ("sales", "tangible", "sample", "example", "readme", "layout", "aerial", "codes")): score -= 2
-        if best is None or score > best[0]:
-            best = (score, absu)
-    return best[1] if best and best[0] > 0 else None
+        cands.append((score, absu))
+    cands.sort(key=lambda t: t[0], reverse=True)
+    # A matched pattern is trusted at any score; the generic path still requires a positive score.
+    picked = cands[0][1] if cands and (rx is not None or cands[0][0] > 0) else None
+    diag = {"anchors": len(anchors), "considered": len(cands),
+            "sample": [urljoin(page_url, h) for h in anchors[:10]], "pattern": pattern, "picked": picked}
+    return picked, diag
 
 
-def extract_schema(url, fmt_hint, _depth=0):
+def extract_schema(url, fmt_hint, _depth=0, pattern=None):
     """Return (token_set, captured_schema_dict). Dispatch on the format hint / URL shape.
-    An HTML index page is scraped once for the current file link, then followed (_depth guard).
-    `captured` always carries a '_meta' diagnostic (content-type, bytes, final URL; zip member list) so a
-    zero-column outcome can report WHY the container was not understood — bytes arriving is not a schema."""
+    An HTML index page is scraped once (using the per-county `pattern` if given) for the current file
+    link, then followed (_depth guard). `captured` always carries a '_meta' diagnostic (content-type,
+    bytes, final URL; zip member list) so a zero-column outcome can report WHY the container was not
+    understood — bytes arriving is not a schema. On a followed index, captured also records the picked
+    link and the anchor diagnostic."""
     # A Nextcloud public share (Palm Beach) serves a preview app, not the file — it needs an
     # authenticated session / download token. Short-circuit honestly instead of hanging to timeout.
     if "clouddrive" in url.lower() or "/invitations/?share=" in url.lower():
@@ -262,11 +279,16 @@ def extract_schema(url, fmt_hint, _depth=0):
     # An HTML response is an index page (or a robots/WAF block page), never the data file itself.
     if _looks_html(resp):
         if _depth == 0:
-            target = resolve_index_link(url, body)
+            target, idiag = resolve_index_link(url, body, pattern)
             if not target:
-                raise ValueError(f"HTML index page; no direct data-file link found (JS/postback or session "
-                                 f"required) [content-type={ctype!r}, {len(body)} bytes]")
-            return extract_schema(target, fmt_hint, _depth=1)
+                raise ValueError(f"HTML index page; no data-file link found (JS/postback or session required) "
+                                 f"[content-type={ctype!r}, {len(body)} bytes, anchors={idiag['anchors']}, "
+                                 f"considered={idiag['considered']}, pattern={idiag['pattern']!r}, "
+                                 f"sample={idiag['sample'][:6]}]")
+            toks, cap = extract_schema(target, fmt_hint, _depth=1)
+            cap["_followed_link"] = target          # LOG which link was picked (Pinellas ask)
+            cap["_index_diag"] = idiag
+            return toks, cap
         # depth>0: the link we followed returned HTML, not a file — do NOT parse markup as columns.
         raise ValueError(f"followed link returned HTML, not a data file [content-type={ctype!r}, {len(body)} bytes]")
     try:
@@ -321,10 +343,11 @@ def probe_one(entry):
         return dict(outcome="pending", source_url=None, vendor_signature=None, loader_applies=None,
                     schema_captured=None, matched_signals=None, notes="no candidate export URL in manifest")
     try:
-        tokens, captured = extract_schema(url, entry.get("format_hint"))
+        tokens, captured = extract_schema(url, entry.get("format_hint"), pattern=entry.get("link_pattern"))
     except Exception as e:
         return dict(outcome="unreachable", source_url=url, vendor_signature=None, loader_applies=None,
                     schema_captured=None, matched_signals=None, notes=f"fetch/parse failed: {e}")
+    followed = (captured or {}).get("_followed_link") if isinstance(captured, dict) else None
     # FAIL CLOSED: a classification derived from zero columns is a verdict from no evidence. Bytes may have
     # arrived, but if the extractor read no schema the container was not understood — report WHY (content
     # type, size, zip member list) and return 'unreachable', NEVER a classification.
@@ -334,6 +357,8 @@ def probe_one(entry):
         diag = f"content-type={meta.get('content_type')!r}, {meta.get('bytes')} bytes"
         if members is not None:
             diag += f"; zip has {len(members)} members, e.g. {members[:40]}"
+        if followed:
+            diag += f"; followed index link -> {followed}"
         return dict(outcome="unreachable", source_url=url, vendor_signature=None, loader_applies=None,
                     schema_captured=json.dumps(captured)[:200000] if captured else None, matched_signals=None,
                     notes=f"0 columns read — extractor did not understand the container "
@@ -341,7 +366,7 @@ def probe_one(entry):
     outcome, sig, loader, signals = classify(tokens)
     return dict(outcome=outcome, source_url=url, vendor_signature=sig, loader_applies=loader,
                 schema_captured=json.dumps(captured)[:200000], matched_signals=signals,
-                notes=f"{len(tokens)} distinct columns read")
+                notes=f"{len(tokens)} distinct columns read" + (f"; followed {followed}" if followed else ""))
 
 
 def write_result(conn, entry, result):
