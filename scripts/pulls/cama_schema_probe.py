@@ -102,24 +102,54 @@ def schema_tokens_from_arcgis(url):
     return {str(f.get("name", "")).upper() for f in fields}, {"arcgis_layer": [f.get("name") for f in fields]}
 
 
+_CANDIDATE_DELIMS = {"\t": "tab", "|": "pipe", ",": "comma", ";": "semicolon"}
+
+
+def _split_header(header):
+    """Identify the delimiter that best explains the header; return (columns, delimiter_name).
+    Returns ([], None) when NO candidate delimiter yields a table (>= 2 fields). A fixed-width or
+    single-column file is an UNPARSED file, not a 1-column table — this is the structural guard:
+    we hand back columns only for a delimiter we actually identified, never a guessed whole-line token."""
+    header = header.lstrip("﻿").strip()
+    best_cols, best_name, best_n = [], None, 1
+    for ch, name in _CANDIDATE_DELIMS.items():
+        if ch not in header:
+            continue
+        cols = [c.strip().strip('"').upper() for c in header.split(ch) if c.strip()]
+        if len(cols) > best_n:
+            best_cols, best_name, best_n = cols, name, len(cols)
+    return (best_cols, best_name) if best_n >= 2 else ([], None)
+
+
 def schema_tokens_from_zip(content):
-    """A ZIP of CSV/DBF/TXT exports: read the header row of each tabular member; capture per-file columns."""
-    tokens, captured = set(), {}
+    """A ZIP of CSV/DBF/TXT exports: read the header of each tabular member; capture per-file columns.
+    A delimited member is accepted only if a delimiter was identified (>= 2 fields); otherwise it is
+    recorded as skipped (unparsed) — never guessed into a 1-column table."""
+    tokens, captured, skipped = set(), {}, {}
     with zipfile.ZipFile(io.BytesIO(content)) as z:
         captured["_zip_members"] = z.namelist()  # diagnostic: reveals .mdb/.accdb/.gdb/.xlsx we don't parse
         for name in z.namelist():
             low = name.lower()
             if low.endswith((".csv", ".txt", ".tab")):
                 with z.open(name) as fh:
-                    header = fh.readline().decode("latin-1", "replace").strip()
-                delim = "\t" if "\t" in header else ("|" if "|" in header else ",")
-                cols = [c.strip().strip('"').upper() for c in header.split(delim) if c.strip()]
-                tokens |= set(cols)
-                captured[name] = cols
+                    header = fh.readline().decode("latin-1", "replace")
+                cols, delim = _split_header(header)
+                if cols:
+                    tokens |= set(cols)
+                    captured[name] = {"columns": cols, "delimiter": delim}
+                else:
+                    skipped[name] = "no delimiter identified (fixed-width or single-column)"
             elif low.endswith(".dbf"):
                 cols = _dbf_columns(z.read(name))
-                tokens |= set(cols)
-                captured[name] = cols
+                if cols:
+                    tokens |= set(cols)
+                    captured[name] = {"columns": cols, "delimiter": "dbf-header"}
+                else:
+                    skipped[name] = "dbf header unreadable"
+            else:
+                skipped[name] = "non-tabular member (not .csv/.txt/.tab/.dbf)"
+    if skipped:
+        captured["_skipped"] = skipped
     return tokens, captured
 
 
@@ -143,10 +173,13 @@ def _dbf_columns(data):
 
 
 def schema_tokens_from_csv(content):
-    header = content.split(b"\n", 1)[0].decode("latin-1", "replace").strip()
-    delim = "\t" if "\t" in header else ("|" if "|" in header else ",")
-    cols = [c.strip().strip('"').upper() for c in header.split(delim) if c.strip()]
-    return set(cols), {"csv": cols}
+    header = content.split(b"\n", 1)[0].decode("latin-1", "replace")
+    cols, delim = _split_header(header)
+    if not cols:
+        return set(), {"_container": "text", "_delimiter": None,
+                       "_note": "no delimiter identified (tab/pipe/comma/semicolon) — fixed-width or "
+                                "single-column file, not parsed as a table"}
+    return set(cols), {"_container": "csv", "_delimiter": delim, "columns": cols}
 
 
 class _LinkExtractor(HTMLParser):
@@ -252,7 +285,11 @@ def extract_schema(url, fmt_hint, _depth=0):
                 cols = []
             toks, cap = {str(c).upper() for c in cols}, {"json": cols}
         else:
-            toks, cap = schema_tokens_from_csv(body)  # last resort: treat as a header row
+            # Structural guard: the container was not identified. Do NOT guess by treating bytes as a
+            # header row — return no columns so the zero-guard fails closed with a diagnostic.
+            toks, cap = set(), {"_container": None,
+                                "_note": f"unidentified container (content-type {ctype!r}, "
+                                         f"head {body[:16].hex()}) — not parsed"}
     except Exception as e:
         raise ValueError(f"{type(e).__name__}: {e} "
                          f"[content-type={ctype!r}, {len(body)} bytes, head={body[:32]!r}]") from e
