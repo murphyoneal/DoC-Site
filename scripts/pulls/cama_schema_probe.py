@@ -106,6 +106,7 @@ def schema_tokens_from_zip(content):
     """A ZIP of CSV/DBF/TXT exports: read the header row of each tabular member; capture per-file columns."""
     tokens, captured = set(), {}
     with zipfile.ZipFile(io.BytesIO(content)) as z:
+        captured["_zip_members"] = z.namelist()  # diagnostic: reveals .mdb/.accdb/.gdb/.xlsx we don't parse
         for name in z.namelist():
             low = name.lower()
             if low.endswith((".csv", ".txt", ".tab")):
@@ -170,8 +171,10 @@ class _LinkExtractor(HTMLParser):
 def _looks_html(resp):
     if "html" in resp.headers.get("content-type", "").lower():
         return True
-    head = resp.content[:512].lstrip().lower()
-    return head.startswith(b"<!doctype html") or head.startswith(b"<html")
+    # substring, not startswith — a robots/WAF block page (Collier) can lead with a BOM, whitespace, or a
+    # <meta> refresh before <html>, and must still route to the HTML path rather than the zip parser.
+    head = resp.content[:1024].lstrip().lower()
+    return b"<!doctype html" in head or b"<html" in head
 
 
 def resolve_index_link(page_url, html_bytes):
@@ -206,42 +209,64 @@ def resolve_index_link(page_url, html_bytes):
 
 def extract_schema(url, fmt_hint, _depth=0):
     """Return (token_set, captured_schema_dict). Dispatch on the format hint / URL shape.
-    An HTML index page is scraped once for the current file link, then followed (_depth guard)."""
+    An HTML index page is scraped once for the current file link, then followed (_depth guard).
+    `captured` always carries a '_meta' diagnostic (content-type, bytes, final URL; zip member list) so a
+    zero-column outcome can report WHY the container was not understood — bytes arriving is not a schema."""
     # A Nextcloud public share (Palm Beach) serves a preview app, not the file — it needs an
     # authenticated session / download token. Short-circuit honestly instead of hanging to timeout.
     if "clouddrive" in url.lower() or "/invitations/?share=" in url.lower():
         raise ValueError("Nextcloud public share — needs an authenticated session / download token; deferred")
     if fmt_hint == "arcgis" or "/arcgis/rest/" in url.lower() or url.lower().rstrip("/").endswith(("mapserver", "featureserver")) or "/query" in url.lower():
-        return schema_tokens_from_arcgis(url)
+        toks, cap = schema_tokens_from_arcgis(url)
+        cap.setdefault("_meta", {"kind": "arcgis", "final_url": url})
+        return toks, cap
     resp = http_get(url)
     body = resp.content
-    ctype = resp.headers.get("content-type", "").lower()
-    # The "not a zip" symptom: the URL was an HTML index page, not the file. Scrape for the real link.
-    if _depth == 0 and _looks_html(resp):
-        target = resolve_index_link(url, body)
-        if not target:
-            raise ValueError("HTML index page; no direct data-file link found (JS/postback or session required)")
-        return extract_schema(target, fmt_hint, _depth=1)
-    if fmt_hint == "zip" or url.lower().endswith(".zip") or body[:2] == b"PK":
-        return schema_tokens_from_zip(body)
-    if fmt_hint == "csv" or url.lower().endswith((".csv", ".txt")) or "csv" in ctype or "text/plain" in ctype:
-        return schema_tokens_from_csv(body)
-    if "json" in ctype or fmt_hint == "json":
-        data = json.loads(body)
-        # ArcGIS-style fields, or a records array whose first object's keys are the columns
-        if isinstance(data, dict) and data.get("fields"):
-            cols = [f.get("name") for f in data["fields"]]
-        elif isinstance(data, list) and data and isinstance(data[0], dict):
-            cols = list(data[0].keys())
+    ctype = resp.headers.get("content-type", "")
+    ctl = ctype.lower()
+    meta = {"content_type": ctype, "bytes": len(body),
+            "final_url": getattr(resp, "url", url), "head_hex": body[:16].hex()}
+    # An HTML response is an index page (or a robots/WAF block page), never the data file itself.
+    if _looks_html(resp):
+        if _depth == 0:
+            target = resolve_index_link(url, body)
+            if not target:
+                raise ValueError(f"HTML index page; no direct data-file link found (JS/postback or session "
+                                 f"required) [content-type={ctype!r}, {len(body)} bytes]")
+            return extract_schema(target, fmt_hint, _depth=1)
+        # depth>0: the link we followed returned HTML, not a file — do NOT parse markup as columns.
+        raise ValueError(f"followed link returned HTML, not a data file [content-type={ctype!r}, {len(body)} bytes]")
+    try:
+        if fmt_hint == "zip" or url.lower().endswith(".zip") or body[:2] == b"PK":
+            toks, cap = schema_tokens_from_zip(body)
+        elif fmt_hint == "csv" or url.lower().endswith((".csv", ".txt")) or "csv" in ctl or "text/plain" in ctl:
+            toks, cap = schema_tokens_from_csv(body)
+        elif "json" in ctl or fmt_hint == "json":
+            data = json.loads(body)
+            # ArcGIS-style fields, or a records array whose first object's keys are the columns
+            if isinstance(data, dict) and data.get("fields"):
+                cols = [f.get("name") for f in data["fields"]]
+            elif isinstance(data, list) and data and isinstance(data[0], dict):
+                cols = list(data[0].keys())
+            else:
+                cols = []
+            toks, cap = {str(c).upper() for c in cols}, {"json": cols}
         else:
-            cols = []
-        return {str(c).upper() for c in cols}, {"json": cols}
-    # last resort: treat as a header row
-    return schema_tokens_from_csv(body)
+            toks, cap = schema_tokens_from_csv(body)  # last resort: treat as a header row
+    except Exception as e:
+        raise ValueError(f"{type(e).__name__}: {e} "
+                         f"[content-type={ctype!r}, {len(body)} bytes, head={body[:32]!r}]") from e
+    cap["_meta"] = meta
+    return toks, cap
 
 
 def classify(tokens):
-    """Return (outcome, vendor_signature, loader_applies, matched_signals)."""
+    """Return (outcome, vendor_signature, loader_applies, matched_signals).
+    A verdict REQUIRES columns. Zero columns is a broken read, never a finding — fail closed here so no
+    caller can turn an empty schema into a classification (the flood-layer 'not in an SFHA, from a layer
+    it never read' defect class). probe_one guards this too; this is the backstop that cannot be bypassed."""
+    if not tokens:
+        raise ValueError("classify() received 0 columns — an empty read is a broken-query sentinel, never a verdict")
     ias_hits = sorted(tokens & IASWORLD_TOKENS)
     if len(ias_hits) >= IASWORLD_MIN_HITS:
         return ("iasworld", "iasWorld (PARID/OWNSEQ/PCTOWN/MICODE/INSTRTYP)", True, ",".join(ias_hits))
@@ -263,6 +288,19 @@ def probe_one(entry):
     except Exception as e:
         return dict(outcome="unreachable", source_url=url, vendor_signature=None, loader_applies=None,
                     schema_captured=None, matched_signals=None, notes=f"fetch/parse failed: {e}")
+    # FAIL CLOSED: a classification derived from zero columns is a verdict from no evidence. Bytes may have
+    # arrived, but if the extractor read no schema the container was not understood — report WHY (content
+    # type, size, zip member list) and return 'unreachable', NEVER a classification.
+    if not tokens:
+        meta = (captured or {}).get("_meta", {}) if isinstance(captured, dict) else {}
+        members = (captured or {}).get("_zip_members") if isinstance(captured, dict) else None
+        diag = f"content-type={meta.get('content_type')!r}, {meta.get('bytes')} bytes"
+        if members is not None:
+            diag += f"; zip has {len(members)} members, e.g. {members[:40]}"
+        return dict(outcome="unreachable", source_url=url, vendor_signature=None, loader_applies=None,
+                    schema_captured=json.dumps(captured)[:200000] if captured else None, matched_signals=None,
+                    notes=f"0 columns read — extractor did not understand the container "
+                          f"(broken-query sentinel, not a finding). [{diag}]")
     outcome, sig, loader, signals = classify(tokens)
     return dict(outcome=outcome, source_url=url, vendor_signature=sig, loader_applies=loader,
                 schema_captured=json.dumps(captured)[:200000], matched_signals=signals,
