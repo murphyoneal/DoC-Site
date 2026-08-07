@@ -164,8 +164,16 @@ export interface PirLand {
   // elevationM/elevationFt intentionally REMOVED from the payload — a bare elevation figure with no
   // vertical datum was the recurring fabrication surface. Elevation is represented ONLY by the withheld
   // groundElevation fact (PirReport.groundElevation). Do not re-add these keys.
+  // Item 112: coverage tells "no habitat nearby in a county we hold" apart from "we hold no habitat
+  // data for this county". gopher tortoise overlay is Volusia-only, so off-Volusia is 'not_available'.
+  // Without this the Protected-species line rendered "None mapped nearby" for every non-Volusia parcel.
+  gopherTortoiseCoverage?: 'covered' | 'not_available'
   gopherTortoiseInside?: boolean; gopherTortoiseNearestM?: number
 }
+// Item 112: the county school-assignment layer is Volusia-only. 'assigned' = zoned schools returned;
+// 'none_on_file' = covered county, no assignment recorded; 'not_available' = we hold no assignment data
+// for this county. A `schools: []` must NOT read as "no assigned schools" off-Volusia.
+export interface PirSchoolsCoverage { field_status: 'assigned' | 'none_on_file' | 'not_available'; who_can_answer?: string }
 
 export interface PirWaterFeature { name: string | null; ftype: string | null; distanceM: number; bearingDegrees: number }
 export interface PirBoatRamp { name: string | null; waterbody: string | null; distanceM: number; bearingDegrees: number }
@@ -488,6 +496,7 @@ export interface PirReport {
   tax: PirTax
   amenities: PirAmenity[]
   schools: PirSchool[]
+  schoolsCoverage?: PirSchoolsCoverage | null
   permitFacts?: PirPermitFacts | null
   transactionFacts?: PirTransactionFacts | null
   land: PirLand

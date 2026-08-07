@@ -239,7 +239,10 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
     ['Assessed & market values', (v.valuesFacts as any)?.just_value?.field_status === 'present', ''],
     ['Tax & exemptions', tax.taxableValueCounty != null, ''],
     ['Nearby amenities', r.amenities.length > 0, ''],
-    ['Assigned schools', r.schools.length > 0, 'the county school district'],
+    // Item 112: keyed on schoolsCoverage, not schools.length — a [] off-Volusia is a coverage gap
+    // (we hold no assignment layer), NOT "no assigned schools".
+    ['Assigned schools', r.schoolsCoverage?.field_status === 'assigned', r.schoolsCoverage?.who_can_answer ?? 'the county school district'],
+    ['Protected species / habitat', r.land.gopherTortoiseCoverage === 'covered', 'the Florida Fish & Wildlife Conservation Commission'],
     ['Permit history', (pb.count ?? 0) > 0, "the county / municipal building department"],
     ['Ownership / sale history', (tb.count ?? 0) > 0, 'the county Clerk of Court'],
     ['Elevation & land', r.groundElevation != null, ''],
@@ -492,7 +495,12 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
               <div className="pir-grid">
                 <Fact l="Ground elevation" v={<span style={{ color: 'var(--color-sage)' }}>{renderFact(r.groundElevation).label}</span>} />
                 <Fact l="Sewer / septic" v={<span style={{ color: 'var(--color-sage)' }}>Not evaluated — no parcel-level sewer/septic determination in the record</span>} />
-                <Fact l="Protected species" v={r.land.gopherTortoiseInside ? riskChip('Within gopher tortoise habitat overlay', false) : r.land.gopherTortoiseNearestM != null ? `Nearest habitat ${mi(r.land.gopherTortoiseNearestM)}` : 'None mapped nearby'} />
+                <Fact l="Protected species" v={
+                  r.land.gopherTortoiseCoverage === 'not_available'
+                    ? <span style={{ color: 'var(--color-sage)' }}>Not evaluated — habitat overlay held for Volusia only; ask the Florida Fish and Wildlife Conservation Commission</span>
+                    : r.land.gopherTortoiseInside ? riskChip('Within gopher tortoise habitat overlay', false)
+                    : r.land.gopherTortoiseNearestM != null ? `Nearest habitat ${mi(r.land.gopherTortoiseNearestM)}`
+                    : 'None mapped within 5 mi'} />
               </div>
             </Section>
 
@@ -561,7 +569,11 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
 
             <Section title="Assigned schools"
               note={`Zoned attendance schools for this parcel${r.schools.length ? ': ' + r.schools.map(s => `${s.level} — ${titleCase(s.name)}`).join(' · ') : ''}. Distance and bearing are to each school's location.`}>
-              {schoolBadges.length ? <CompassBadgeGrid badges={schoolBadges} /> : <div className="pir-note">No school assignment on file for this parcel.</div>}
+              {schoolBadges.length
+                ? <CompassBadgeGrid badges={schoolBadges} />
+                : <div className="pir-note">{r.schoolsCoverage?.field_status === 'not_available'
+                    ? <>Zoned-school assignments are not in the data we hold for this county — this is a coverage gap, not a finding that the parcel has no assigned schools. Ask {r.schoolsCoverage?.who_can_answer ?? 'the county school district'}.</>
+                    : 'No school assignment on file for this parcel.'}</div>}
             </Section>
           </Grp>
 
