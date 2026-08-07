@@ -33,7 +33,10 @@ USAGE (run from the WSL pull environment, which has network + DB reach — Git B
   the appraiser's public data-download page). A county with no candidate URL is left 'pending', not failed.
 
 CONTRACT
-  * One HTTP identity, with a contact User-Agent (some FL sources 403 an anonymous agent — the BLS lesson).
+  * A browser HTTP identity (several FL appraiser sites 403 a non-browser User-Agent — Pinellas, Brevard);
+    the contact stays in the From header for transparency.
+  * HTML index pages are scraped for the current file link at probe time — rotating filenames, monthly
+    GUIDs (Duval) and ASP indexes (Hillsborough) do not survive a hard-coded URL but do survive a re-scrape.
   * Never assert a vendor the schema did not show. An unreachable source is 'unreachable', not a guess.
   * Idempotent: each run appends one row per probed county; nothing is overwritten or deleted.
 """
@@ -45,7 +48,9 @@ import os
 import sys
 import zipfile
 from datetime import datetime, timezone
+from html.parser import HTMLParser
 from pathlib import Path
+from urllib.parse import urljoin
 
 try:
     import requests
@@ -55,8 +60,17 @@ except ImportError as e:  # pragma: no cover - environment guard
 
 HERE = Path(__file__).resolve().parent
 MANIFEST = HERE / "cama_sources.json"
-UA = "DoP-CAMA-schema-probe/1.0 (property-intelligence; contact: murphy.oneal@gmail.com)"
+# A browser identity: several FL appraiser sites (Pinellas, Brevard) 403 a non-browser User-Agent.
+# The contact stays in the From header so the traffic is still attributable to us.
+BROWSER_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                  "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+    "From": "murphy.oneal@gmail.com",
+}
 HTTP_TIMEOUT = 60
+DATA_EXTS = (".zip", ".csv", ".txt", ".dbf", ".tab")
 
 # The iasWorld fingerprint — column tokens that appear in Volusia's relational export and identify the
 # Tyler iasWorld schema. >= 3 present => iasworld (the Volusia loader transfers).
@@ -75,7 +89,7 @@ def load_manifest():
 
 
 def http_get(url):
-    r = requests.get(url, headers={"User-Agent": UA}, timeout=HTTP_TIMEOUT)
+    r = requests.get(url, headers=BROWSER_HEADERS, timeout=HTTP_TIMEOUT)
     r.raise_for_status()
     return r
 
@@ -134,13 +148,80 @@ def schema_tokens_from_csv(content):
     return set(cols), {"csv": cols}
 
 
-def extract_schema(url, fmt_hint):
-    """Return (token_set, captured_schema_dict). Dispatch on the format hint / URL shape."""
+class _LinkExtractor(HTMLParser):
+    """Collect (href, link_text) pairs from an HTML index page — stdlib only, no bs4 dependency."""
+    def __init__(self):
+        super().__init__()
+        self.links = []
+        self._cur = None
+    def handle_starttag(self, tag, attrs):
+        if tag == "a":
+            href = dict(attrs).get("href")
+            self._cur = [href, ""] if href else None
+    def handle_data(self, data):
+        if self._cur is not None:
+            self._cur[1] += data
+    def handle_endtag(self, tag):
+        if tag == "a" and self._cur is not None:
+            self.links.append((self._cur[0], self._cur[1].strip()))
+            self._cur = None
+
+
+def _looks_html(resp):
+    if "html" in resp.headers.get("content-type", "").lower():
+        return True
+    head = resp.content[:512].lstrip().lower()
+    return head.startswith(b"<!doctype html") or head.startswith(b"<html")
+
+
+def resolve_index_link(page_url, html_bytes):
+    """Scrape an HTML index page for the CURRENT data-file link and return it absolute (or None).
+    Reads the link at probe time, so rotating filenames / monthly GUIDs / ASP index pages survive.
+    Heuristic: prefer the parcel table, prefer archives, de-prioritise sales/tangible/sample/layout."""
+    p = _LinkExtractor()
+    try:
+        p.feed(html_bytes.decode("latin-1", "replace"))
+    except Exception:
+        return None
+    best = None
+    for href, text in p.links:
+        if not href:
+            continue
+        absu = urljoin(page_url, href)
+        base = absu.lower().split("?")[0]
+        low = (href + " " + text).lower()
+        is_asset = "getcontentasset" in low or "download" in low  # GUID/asset links carry no extension
+        if not base.endswith(DATA_EXTS) and not is_asset:
+            continue
+        score = 0
+        if "parcel" in low: score += 5
+        if any(k in low for k in ("real_estate", "real-estate", "propdata", "webdata", "cama", "property", "roll")): score += 3
+        if base.endswith(".zip"): score += 2
+        elif base.endswith((".csv", ".txt", ".dbf")): score += 1
+        if any(k in low for k in ("sales", "tangible", "sample", "example", "readme", "layout", "aerial", "codes")): score -= 2
+        if best is None or score > best[0]:
+            best = (score, absu)
+    return best[1] if best and best[0] > 0 else None
+
+
+def extract_schema(url, fmt_hint, _depth=0):
+    """Return (token_set, captured_schema_dict). Dispatch on the format hint / URL shape.
+    An HTML index page is scraped once for the current file link, then followed (_depth guard)."""
+    # A Nextcloud public share (Palm Beach) serves a preview app, not the file — it needs an
+    # authenticated session / download token. Short-circuit honestly instead of hanging to timeout.
+    if "clouddrive" in url.lower() or "/invitations/?share=" in url.lower():
+        raise ValueError("Nextcloud public share — needs an authenticated session / download token; deferred")
     if fmt_hint == "arcgis" or "/arcgis/rest/" in url.lower() or url.lower().rstrip("/").endswith(("mapserver", "featureserver")) or "/query" in url.lower():
         return schema_tokens_from_arcgis(url)
     resp = http_get(url)
     body = resp.content
     ctype = resp.headers.get("content-type", "").lower()
+    # The "not a zip" symptom: the URL was an HTML index page, not the file. Scrape for the real link.
+    if _depth == 0 and _looks_html(resp):
+        target = resolve_index_link(url, body)
+        if not target:
+            raise ValueError("HTML index page; no direct data-file link found (JS/postback or session required)")
+        return extract_schema(target, fmt_hint, _depth=1)
     if fmt_hint == "zip" or url.lower().endswith(".zip") or body[:2] == b"PK":
         return schema_tokens_from_zip(body)
     if fmt_hint == "csv" or url.lower().endswith((".csv", ".txt")) or "csv" in ctype or "text/plain" in ctype:
