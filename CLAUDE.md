@@ -123,6 +123,7 @@ PIR_SYSTEM_ARCHITECTURE.md is canonical and supersedes anything reconstructed fr
 - Verify, do not assert. Every claim comes from a query actually run.
 - Empty is a sentinel, not a finding. Never emit a verdict from zero rows.
 - Names lie; contents do not. Resolve layers by reading contents — interior points, value distributions, extents — never by table name, slug, or column name.
+- Geographic joins key on co_no or geo_id, never on a county-name string. Three instances of name-resolution failing (flood sjc_ slug miss, column-name matching skipping nine counties, county_registry "Saint" vs geo_reference "St." hiding St. Johns/St. Lucie). Names lie; keys do not.
 - Three coverage states, never two: present / none_recorded / not_available. A not_available returns null, never false, and never a downstream conclusion.
 - DONE means committed, pushed, and verified in production. Not tsc-clean, not dev-curl, not verified locally.
 - Never apply a payload-shape change to production ahead of the consuming front-end. Make it additive or hold the migration.
