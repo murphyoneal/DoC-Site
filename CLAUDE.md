@@ -129,6 +129,12 @@ PIR_SYSTEM_ARCHITECTURE.md is canonical and supersedes anything reconstructed fr
 - Never apply a payload-shape change to production ahead of the consuming front-end. Make it additive or hold the migration.
 - Report before implementing on any structural change. Audit, classify, wait for a ruling.
 
+## Detection contract
+
+Every `data_defect_registry.detection_sql` returns **exactly one row with a boolean column `ok`**, where `true` means clean. Anything else — no `ok` column, non-boolean `ok`, zero rows, multiple rows, or a raw error — is **errored**, and errored is never counted clean (`run_defect_detections()` enforces this). A bare `count`/`text`/`examined+hit` result does not conform; wrap it: `SELECT (<condition>) AS ok`.
+
+Prefer the **served-path** form for any high-consequence concept (flood, contamination, ownership, values, geometry): call the served function on a real parcel and assert on its output (the `-9999` flood test is the template). A table-level check passes green while the served function reading it lies. Where a served-path check is genuinely impossible, say so and leave the table check with a note recording what it cannot see. Resolver-driven serving is invisible to source-grep detections — exercise the output, don't grep the function body.
+
 ## Commit hygiene
 
 One concern per commit. Never sweep in pre-existing working-tree changes. Push before ending a session.
