@@ -10,7 +10,7 @@ import PrintButton from '@/app/components/PrintButton'
 import { FLOOD_STYLE, ZONING_STYLE } from '@/lib/pir-colors'
 import type { PirReport, PirEconOverlay } from '@/types/pir'
 import { formatDistance } from '@/lib/units'
-import { taxDeedView, disclosuresView } from '@/lib/report-coverage.mjs'
+import { taxDeedView, disclosuresView, selectLead } from '@/lib/report-coverage.mjs'
 import { renderMarineBlock, renderFloodBlock, renderFact, renderContaminationFacilities, renderValuesBlock, renderCensusBlock, renderOwnersBlock, renderTransactionsBlock, renderPermitsBlock, renderZoningBlock, renderSinkholeBlock, renderRestrictionsBlock, renderBrownfieldBlock } from '@/lib/fact-render.mjs'
 
 // ── formatting helpers ──────────────────────────────────────────────────────────
@@ -143,23 +143,18 @@ function buildLead(r: PirReport): { identity: string; regulatory: string; none: 
   const restr = rb.established ? rb.items : []
   const gwca = restr.find((it: any) => /well|62-524|groundwater/i.test(`${it.value ?? ''} ${it.label ?? ''}`))
   const ic = restr.find((it: any) => /institutional control/i.test(it.label ?? ''))
-  const contamOn = idf?.signals?.contamination_on_parcel === true
-  const inSfha = fb.determination?.inSfha === true
-  const leadPaint = !!(p.yearBuilt && p.yearBuilt < 1978)
-  const historic = idf?.signals?.historic_on_parcel === true
-
-  const clauses: string[] = []
-  if (contamOn) {
-    clauses.push('on a designated contamination site')
-    if (gwca) clauses.push('inside a groundwater-contamination area where new potable wells are prohibited')
-  }
-  if (clauses.length < 2 && inSfha) clauses.push(`in a FEMA Special Flood Hazard Area${fb.determination?.zone ? ` (Zone ${fb.determination.zone})` : ''} — flood insurance is mandated with a federally-backed mortgage`)
-  if (clauses.length < 2 && !contamOn && gwca) clauses.push('inside a groundwater-contamination area where new potable wells are prohibited')
-  if (clauses.length < 2 && ic) clauses.push('subject to a recorded institutional control limiting site use')
-  if (clauses.length < 2 && leadPaint) clauses.push(`built in ${p.yearBuilt} — pre-1978, so the federal lead-paint disclosure duty applies on sale or lease`)
-  if (clauses.length < 2 && historic) clauses.push('within a listed historic district, which commonly triggers local review')
-
-  return { identity, regulatory: clauses.slice(0, 2).join(', '), none: clauses.length === 0 }
+  // Ranking lives in report-coverage.mjs (selectLead) so it is unit-tested in plain node.
+  const sel = selectLead({
+    contamOn: idf?.signals?.contamination_on_parcel === true,
+    gwca: !!gwca,
+    ic: !!ic,
+    inSfha: fb.determination?.inSfha === true,
+    sfhaZone: fb.determination?.zone ?? null,
+    leadPaint: !!(p.yearBuilt && p.yearBuilt < 1978),
+    yearBuilt: p.yearBuilt,
+    historic: idf?.signals?.historic_on_parcel === true,
+  })
+  return { identity, regulatory: sel.regulatory, none: sel.none }
 }
 
 // =============================================================================
@@ -202,6 +197,14 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
   const fb = renderFloodBlock(r.floodBlock)
   const rb = renderRestrictionsBlock(r.landRestrictions)
   const dv = disclosuresView(r.disclosures)
+  const tv = taxDeedView(r.taxDeedStatus)
+  // Brownfield is a CONTAMINATION fact, not an incentive (ruling 74 C2). Split it: the designated
+  // area is §3 (on this parcel), the nearby FDEP sites + distances are §4 — never under an incentive heading.
+  const bf = renderBrownfieldBlock(r.economic.brownfield)
+  // Gopher-tortoise habitat: containment (inside/covered) is §3; the nearest-habitat DISTANCE is §4 (C1).
+  const gopherNearbyMi = (r.land.gopherTortoiseCoverage !== 'not_available'
+    && r.land.gopherTortoiseInside !== true && r.land.gopherTortoiseNearestM != null)
+    ? r.land.gopherTortoiseNearestM : null
 
   // Contamination SPLIT (rule: nothing above §4 carries a distance): on-parcel / active-remediation facilities
   // are §3 (a fact about this ground); everything else + the area-context count is §4 (proximity).
@@ -301,17 +304,8 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
 
           {/* ═══ 1 — WHAT THIS IS ═══ */}
           <Grp n={1} title="What this is">
-            {dv.mode === 'source_limit' ? (
-              <div className="pir-disclosure" style={{
-                border: '1px solid var(--color-line, #d9d3c6)', borderLeft: '3px solid var(--color-ink, #2b2b2b)',
-                borderRadius: 6, padding: '13px 16px', marginBottom: 18, background: 'var(--color-paper-2, rgba(0,0,0,0.02))' }}>
-                <div style={{ fontSize: 10.5, letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 600, marginBottom: 6 }}>{dv.title}</div>
-                <div style={{ fontSize: 12.5, color: 'var(--color-sage)', marginBottom: 8 }}>{dv.note}</div>
-                <ul style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {dv.items.map((it, i) => <li key={i} style={{ fontSize: 14, lineHeight: 1.5 }}>{it.text}</li>)}
-                </ul>
-              </div>
-            ) : null}
+            {/* Source limitations moved to §7 (ruling 74 C6) — a source-limit is not an identity fact
+                and must not be the first thing a reader meets. */}
             <Section title="Property">
               <div className="pir-grid">
                 <Fact l={ob.established && (ob.ownerCount?.value ?? 0) > 1 ? `Owners of record (${ob.ownerCount!.value})` : 'Owner of record'}
@@ -470,6 +464,19 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
               </Section>
             ) : null}
 
+            {/* Brownfield DESIGNATION on this parcel (ruling 74 C2) — a contamination fact, moved out of the
+                §5 "Economic zones" grid. The nearby FDEP sites + their distances render in §4. */}
+            {bf.established && bf.insideArea ? (
+              <Section title="Brownfield — on this parcel" note="An FDEP-designated brownfield area covers this parcel. A brownfield is a contamination-related designation that carries a cleanup and redevelopment framework — surfaced here as a fact about the ground, not an incentive.">
+                <div style={{ borderLeft: '3px solid var(--color-terracotta, #b5502f)', paddingLeft: 12 }}>
+                  <div style={{ fontWeight: 600 }}>Within the {titleCase(bf.insideArea.name)} brownfield area {riskChip('Designated brownfield', false)}<TierBadge tier="government_derived" /></div>
+                  <div className="pir-note" style={{ fontStyle: 'normal' }}>
+                    {[bf.insideArea.acreageAc ? `${bf.insideArea.acreageAc.toLocaleString()} ac` : null, bf.insideArea.resolutionNumber ? `resolution ${bf.insideArea.resolutionNumber}` : null, bf.insideArea.resolutionDate].filter(Boolean).join(' · ')}.{bf.note ? <> {bf.note}</> : null}
+                  </div>
+                </div>
+              </Section>
+            ) : null}
+
             {marine ? (
               <Section title="Marine improvements" note="Every figure is a sourced assessor fact. The permit-vs-assessor cross-examination is in section 6.">
                 {marine.improvements.map((imp: any, i: number) => (
@@ -495,12 +502,13 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
               <div className="pir-grid">
                 <Fact l="Ground elevation" v={<span style={{ color: 'var(--color-sage)' }}>{renderFact(r.groundElevation).label}</span>} />
                 <Fact l="Sewer / septic" v={<span style={{ color: 'var(--color-sage)' }}>Not evaluated — no parcel-level sewer/septic determination in the record</span>} />
+                {/* Containment only — the nearest-habitat DISTANCE lives in §4 (hard rule: no distance above §4). */}
                 <Fact l="Protected species" v={
                   r.land.gopherTortoiseCoverage === 'not_available'
                     ? <span style={{ color: 'var(--color-sage)' }}>Not evaluated — habitat overlay held for Volusia only; ask the Florida Fish and Wildlife Conservation Commission</span>
                     : r.land.gopherTortoiseInside ? riskChip('Within gopher tortoise habitat overlay', false)
-                    : r.land.gopherTortoiseNearestM != null ? `Nearest habitat ${mi(r.land.gopherTortoiseNearestM)}`
-                    : 'None mapped within 5 mi'} />
+                    : gopherNearbyMi != null ? <span style={{ color: 'var(--color-sage)' }}>Not on this parcel — nearest mapped habitat is in section 4</span>
+                    : 'None mapped on or near this parcel'} />
               </div>
             </Section>
 
@@ -575,6 +583,25 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
                     ? <>Zoned-school assignments are not in the data we hold for this county — this is a coverage gap, not a finding that the parcel has no assigned schools. Ask {r.schoolsCoverage?.who_can_answer ?? 'the county school district'}.</>
                     : 'No school assignment on file for this parcel.'}</div>}
             </Section>
+
+            {/* Brownfield — NEARBY (ruling 74 C2): FDEP sites and their distances belong in §4, never under
+                an incentive heading. The on-parcel designation, if any, is in §3. */}
+            {bf.established && (bf.sites || (!bf.insideArea && bf.nearestArea)) ? (
+              <Section title="Brownfield — nearby" note="FDEP-designated brownfield areas and sites near, but not on, this parcel.">
+                <div className="pir-note" style={{ fontStyle: 'normal' }}>
+                  {!bf.insideArea && bf.nearestArea ? <>Nearest brownfield area: {titleCase(bf.nearestArea.name)} ({bf.nearestArea.distanceFt?.toLocaleString()} ft). </> : null}
+                  {bf.sites ? <>{bf.sites.countWithin1mi} FDEP brownfield site{bf.sites.countWithin1mi === 1 ? '' : 's'} within 1 mile{bf.sites.nearest ? <> — nearest {titleCase(bf.sites.nearest.name)} at {bf.sites.nearest.distanceFt?.toLocaleString()} ft{bf.sites.nearest.remediationStatus ? ` (${titleCase(bf.sites.nearest.remediationStatus)})` : ''}</> : null}. {bf.sites.nearest?.remediationStatusNote ? <span style={{ color: 'var(--color-clay)' }}>{bf.sites.nearest.remediationStatusNote}</span> : null}</> : null}
+                </div>
+              </Section>
+            ) : null}
+
+            {/* Gopher-tortoise nearest-habitat DISTANCE (ruling 74 C1) — moved out of §3, where a distance
+                reads as "on the parcel". */}
+            {gopherNearbyMi != null ? (
+              <Section title="Protected species — nearby" note="Mapped gopher-tortoise habitat near, but not on, this parcel. It is a distance, so it belongs in section 4.">
+                <Fact l="Nearest gopher-tortoise habitat" v={mi(gopherNearbyMi)} />
+              </Section>
+            ) : null}
           </Grp>
 
           {/* ═══ 5 — THE RECORD (facts with their as_of) ═══ */}
@@ -727,30 +754,12 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
                 <Fact l="HUB Zone" v={overlayLine(r.economic.hubZone, 'Within HUB Zone')} />
                 <Fact l="Community Redevelopment Area" v={overlayLine(r.economic.cra, 'Within a CRA')} />
                 <Fact l="Enterprise Zone" v={overlayLine(r.economic.enterpriseZone, 'Within Enterprise Zone')} />
-                {(() => {
-                  const bf = renderBrownfieldBlock(r.economic.brownfield)
-                  if (!bf.established) return <Fact l="Brownfield" v={<span className="pir-note" style={{ fontStyle: 'normal' }}>{bf.coverageNote}</span>} />
-                  const ia = bf.insideArea, ns = bf.sites
-                  return (
-                    <div style={{ borderLeft: `3px solid ${ia ? 'var(--color-terracotta, #b5502f)' : 'var(--color-line, #d9d3c6)'}`, paddingLeft: 12 }}>
-                      <div style={{ fontWeight: 600 }}>
-                        {ia ? <>Within the {titleCase(ia.name)} brownfield area {riskChip('Designated brownfield', false)}</>
-                            : bf.nearestArea ? <>Nearest brownfield area: {titleCase(bf.nearestArea.name)} ({bf.nearestArea.distanceFt?.toLocaleString()} ft)</>
-                            : 'FDEP brownfield sites nearby'}
-                        <TierBadge tier="government_derived" />
-                      </div>
-                      <div className="pir-note" style={{ fontStyle: 'normal' }}>
-                        {ia ? <>{[ia.acreageAc ? `${ia.acreageAc.toLocaleString()} ac` : null, ia.resolutionNumber ? `resolution ${ia.resolutionNumber}` : null, ia.resolutionDate].filter(Boolean).join(' · ')}. </> : null}
-                        {ns ? <>{ns.countWithin1mi} FDEP brownfield site{ns.countWithin1mi === 1 ? '' : 's'} within 1 mile{ns.nearest ? <> — nearest {titleCase(ns.nearest.name)} at {ns.nearest.distanceFt?.toLocaleString()} ft{ns.nearest.remediationStatus ? ` (${titleCase(ns.nearest.remediationStatus)})` : ''}</> : null}. {ns.nearest?.remediationStatusNote ? <span style={{ color: 'var(--color-clay)' }}>{ns.nearest.remediationStatusNote}</span> : null}</> : null}
-                        {bf.note ? <div style={{ marginTop: 2 }}>{bf.note}</div> : null}
-                      </div>
-                    </div>
-                  )
-                })()}
+                {/* Brownfield removed from this incentive grid (ruling 74 C2) — it is a contamination fact:
+                    on-parcel designation renders in §3, nearby FDEP sites in §4. */}
               </div>
             </Section>
 
-            {(() => { const tv = taxDeedView(r.taxDeedStatus); return (
+            {(() => { return (
               <Section title={tv.title}
                 note={tv.mode === 'present'
                   ? `County Lands Available for Taxes register — snapshot ${tv.asOf}. Confirm current status with the county clerk before relying on it.`
@@ -775,7 +784,8 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
                       ? <p className="pir-note" style={{ marginTop: 10 }}>{tv.availabilityNote}</p> : null}
                     {(tv.openingBidNote || tv.estimatedPriceNote)
                       ? <p className="pir-note" style={{ marginTop: 10 }}>{tv.openingBidNote || tv.estimatedPriceNote}</p> : null}
-                    {tv.escheatNote ? <p className="pir-note">{tv.escheatNote}</p> : null}
+                    {/* The escheat QUESTION moved to §6 (ruling 74 C5) — status is a record fact here; the
+                        "does not add up, who to ask" belongs in Open questions. */}
                     <p className="pir-note" style={{ marginTop: 10 }}>{tv.meaning}</p>
                     <p className="pir-note">{tv.staleness} {tv.notLegalAdvice}</p>
                   </>
@@ -829,6 +839,18 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
               </Section>
             ) : null}
 
+            {/* Tax-deed escheat QUESTION (ruling 74 C5) — the status is a record fact in §5; when the
+                escheat is a computed claim rather than a confirmed status (e.g. still listed past its
+                computed date), the "what does not add up, who to ask" belongs here. */}
+            {tv.mode === 'present' && tv.escheatNote ? (
+              <Section title="Tax-deed escheat — a computed claim, not a confirmed status" note="This parcel is on the county Lands Available register (§5). When it escheats to the county is computed from the statute, not confirmed by the Clerk.">
+                <div style={{ borderLeft: '3px solid var(--color-bronze, #9a6a3a)', paddingLeft: 12 }}>
+                  <div className="pir-note" style={{ fontStyle: 'normal' }}>{tv.escheatNote}</div>
+                  {tv.countyContactName ? <div className="pir-note" style={{ marginTop: 4 }}>Ask: {tv.countyContactName}{tv.countyContactPhone ? ` (${tv.countyContactPhone})` : ''}.</div> : null}
+                </div>
+              </Section>
+            ) : null}
+
             {marine?.openQuestions?.headline ? (
               <Section title="Cross-examination — permit vs. assessor">
                 <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 6 }}>{marine.openQuestions.headline}</div>
@@ -846,7 +868,7 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
                 : null
             )) : null}
 
-            {(!idf?.triggers?.length && !marine?.openQuestions?.headline)
+            {(!idf?.triggers?.length && !marine?.openQuestions?.headline && !(tv.mode === 'present' && tv.escheatNote))
               ? <Section title="What the record raises"><div className="pir-note">The record surfaces no anomaly or contradiction on this parcel that we can compute. Absence of a computed open question is not a warranty; the checklist in section 7 lists what was not evaluated.</div></Section>
               : null}
           </Grp>
@@ -874,6 +896,17 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
                 </div>
               ) : null}
             </Section>
+
+            {/* Source limitations (ruling 74 C6) — moved here from §1. A stated limit of the public record
+                itself: what the county source does not publish. A finding about the data, distinct from a
+                coverage gap. This is exactly what §7 is for. */}
+            {dv.mode === 'source_limit' ? (
+              <Section title={dv.title} note={dv.note}>
+                <ul style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {dv.items.map((it, i) => <li key={i} style={{ fontSize: 14, lineHeight: 1.5 }}>{it.text}</li>)}
+                </ul>
+              </Section>
+            ) : null}
           </Grp>
 
           {/* ═══ 8 — FURTHER DUE DILIGENCE (web, tier-separated) ═══ */}
