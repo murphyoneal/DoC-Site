@@ -1,0 +1,31 @@
+-- =============================================================================
+-- P0 recurrence attempt (ruling 92) — AND ITS EMPIRICAL FAILURE, recorded honestly.
+--
+-- 103a closed the existing 97 functions; the concern was that the NEXT CREATE FUNCTION
+-- re-opens the hole. Ruling 92: do NOT reason about ACL semantics — TEST it. We are postgres
+-- (current_user=session_user=postgres); all 97 of ours are postgres-owned; the only
+-- supabase_admin-owned SECURITY DEFINER functions are the 3 PostGIS st_estimatedextent
+-- overloads, left untouched per ruling 92.
+--
+-- TEST 1 (before): a throwaway function created by postgres in public came back
+--   anon=TRUE, authenticated=TRUE, service_role=TRUE — the hole does silently reopen.
+--
+-- The two statements below were applied. The service_role GRANT records in pg_default_acl
+-- ({postgres=X, service_role=X}). BUT:
+--
+-- TEST 2..4 (after): THREE fresh throwaway functions created by postgres STILL come back with
+--   proacl = {=X/postgres, postgres=X/postgres, service_role=X/postgres} — i.e. PUBLIC=X is still
+--   granted (grantor postgres; NOT an event trigger — checked). So ALTER DEFAULT PRIVILEGES ...
+--   REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC is EMPIRICALLY A NO-OP for suppressing the built-in
+--   PUBLIC EXECUTE default in this database. New functions remain anon-callable.
+--
+-- CONCLUSION: the default-privilege lock does NOT prevent recurrence here. Kept the service_role
+-- default GRANT (forward-looking: if PUBLIC is ever suppressed — e.g. via an event trigger — new
+-- functions must still reach the app as service_role). The ACTUAL guard is the standing detection
+-- predicate 'anon-callable-secdef-functions' (expected 0, runs 07:00 daily). A ddl_command_end
+-- event trigger that revokes PUBLIC on new public functions is the durable PREVENTION — recommended
+-- to claude, NOT applied here (it is a DDL-global hook and wants a ruling).
+-- =============================================================================
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT EXECUTE ON FUNCTIONS TO service_role;
+-- REVOKE kept for intent/portability, but empirically a no-op here (see TEST 2..4 above):
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC, anon, authenticated;
