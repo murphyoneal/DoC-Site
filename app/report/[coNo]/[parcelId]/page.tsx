@@ -759,11 +759,23 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
                   <>
                     <div className="pir-grid">
                       <Fact l="On Lands Available list" v={riskChip('County-held — unsold at tax-deed auction', false)} />
-                      {tv.openingBid != null ? <Fact l="Opening bid" v={usd(tv.openingBid)} /> : null}
+                      {tv.availabilityStatus === 'listed_not_yet_available'
+                        ? <Fact l="Availability" v={riskChip('Listed — not yet purchasable', false)} />
+                        : (tv.dateAvailable ? <Fact l="Available to public" v={fmtDate(tv.dateAvailable)} /> : null)}
+                      {/* two DISTINCT money concepts — a floor vs an estimate — never rendered as a price */}
+                      {tv.openingBid != null ? <Fact l="Opening bid (a floor, not a price)" v={usd(tv.openingBid)} /> : null}
+                      {tv.estimatedPrice != null ? <Fact l="Est. purchase price (an estimate, not final)" v={usd(tv.estimatedPrice)} /> : null}
                       {tv.certificate ? <Fact l="Certificate no." v={tv.certificate} /> : null}
-                      {tv.dateAvailable ? <Fact l="Available to public" v={tv.dateAvailable} /> : null}
+                      {tv.publishedEscheat
+                        ? <Fact l="Escheat date (county-published)" v={fmtDate(tv.publishedEscheat)} />
+                        : (tv.computedEscheat ? <Fact l="Escheat date (computed, approx.)" v={fmtDate(tv.computedEscheat)} /> : null)}
                       <Fact l="Snapshot date" v={tv.asOf ?? '—'} />
                     </div>
+                    {tv.availabilityStatus === 'listed_not_yet_available' && tv.availabilityNote
+                      ? <p className="pir-note" style={{ marginTop: 10 }}>{tv.availabilityNote}</p> : null}
+                    {(tv.openingBidNote || tv.estimatedPriceNote)
+                      ? <p className="pir-note" style={{ marginTop: 10 }}>{tv.openingBidNote || tv.estimatedPriceNote}</p> : null}
+                    {tv.escheatNote ? <p className="pir-note">{tv.escheatNote}</p> : null}
                     <p className="pir-note" style={{ marginTop: 10 }}>{tv.meaning}</p>
                     <p className="pir-note">{tv.staleness} {tv.notLegalAdvice}</p>
                   </>
