@@ -101,13 +101,46 @@ CREATE INDEX IF NOT EXISTS nrhp_points_geom_gix  ON nrhp_points           USING 
 CREATE INDEX IF NOT EXISTS nrhp_poly_geom_gix    ON nrhp_district_polygons USING gist (geom);
 
 -- geometry validated ONCE, post-load (never per call — ST_MakeValid per call took a Marion report
--- from 4.98s to a 27.7s timeout). The loader (and the small-layer load) calls this after each table.
+-- from 4.98s to a 27.7s timeout). The loader calls this after each table.
+-- PATCHED IN THE DB by claude 2026-08-11 (WO111 correction); this file is SYNCED to match the deployed
+-- definition. The naive ST_MakeValid version aborted the load: on a self-intersecting polygon MakeValid
+-- returns a GEOMETRYCOLLECTION (repaired polygon + degenerate point/line slivers) that will not fit a
+-- typed Multi* column. This version resolves the column's own dimension from geometry_columns, extracts
+-- only the matching parts, and RE-CHECKS after repair — raising if any row is still invalid, so it can
+-- never return a success count over an unrepaired row.
 CREATE OR REPLACE FUNCTION public.repair_geometry_once(p_table regclass)
- RETURNS int LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public','pg_temp' AS $fn$
-DECLARE n int;
+ RETURNS integer LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public','pg_temp' AS $fn$
+DECLARE
+  n int;
+  dim int;
 BEGIN
-  EXECUTE format('UPDATE %s SET geom = ST_MakeValid(geom) WHERE geom IS NOT NULL AND NOT ST_IsValid(geom)', p_table);
-  GET DIAGNOSTICS n = ROW_COUNT; RETURN n;
+  select case
+           when type ilike '%POLYGON%'    then 3
+           when type ilike '%LINESTRING%' then 2
+           when type ilike '%POINT%'      then 1
+         end
+    into dim
+  from geometry_columns
+  where format('%I.%I', f_table_schema, f_table_name)::regclass = p_table
+    and f_geometry_column = 'geom'
+  limit 1;
+
+  if dim is null then
+    raise exception 'repair_geometry_once: could not resolve geometry dimension for %', p_table;
+  end if;
+
+  execute format(
+    'UPDATE %s SET geom = ST_Multi(ST_CollectionExtract(ST_MakeValid(geom), %s))
+       WHERE geom IS NOT NULL AND NOT ST_IsValid(geom)', p_table, dim);
+  get diagnostics n = ROW_COUNT;
+
+  execute format('SELECT count(*) FROM %s WHERE geom IS NOT NULL AND NOT ST_IsValid(geom)', p_table)
+    into dim;
+  if dim > 0 then
+    raise exception 'repair_geometry_once: % rows still invalid in % after repair', dim, p_table;
+  end if;
+
+  return n;
 END $fn$;
 
 -- ── SERVE-SIDE VIEWS (the exclusions live HERE, never in the load) ────────────
