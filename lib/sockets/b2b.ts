@@ -113,6 +113,9 @@ export const b2bSocket = {
         error: e.error,
         rows_returned: e.rowsReturned,
         db_query_ms: e.dbQueryMs,
+        ip_address: e.ipAddress,
+        user_agent: e.userAgent,
+        session_id: e.sessionId,
       }, 'return=minimal')
     } catch (err) {
       console.error('[b2b.logAssistantQuery]', err)

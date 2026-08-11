@@ -46,6 +46,11 @@ export interface AssistantQueryLogEntry {
   error: string | null
   rowsReturned: number | null
   dbQueryMs: number | null
+  // Session context — for observe-only anomaly detection (concurrent sessions,
+  // impossible travel, device/IP spread). Populated on every call, both paths.
+  ipAddress: string | null
+  userAgent: string | null
+  sessionId: string | null
 }
 
 // A cross-property / stats search result row (from search_properties).

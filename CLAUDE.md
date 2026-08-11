@@ -135,6 +135,8 @@ Every `data_defect_registry.detection_sql` returns **exactly one row with a bool
 
 Prefer the **served-path** form for any high-consequence concept (flood, contamination, ownership, values, geometry): call the served function on a real parcel and assert on its output (the `-9999` flood test is the template). A table-level check passes green while the served function reading it lies. Where a served-path check is genuinely impossible, say so and leave the table check with a note recording what it cannot see. Resolver-driven serving is invisible to source-grep detections — exercise the output, don't grep the function body.
 
+A detection that cannot fail is not a check, and one that cannot pass is not a check either. A predicate that must span N tables still returns one row — `bool_and` over the set (put the failing members in `row_count` or a companion detail column), not a second execution mechanism. **Retiring a predicate must preserve its knowledge** — moved to build_backlog, to `statewide_metrics` (a measurement with its method SQL), or to a replacement detection — never by deletion alone.
+
 ## Commit hygiene
 
 One concern per commit. Never sweep in pre-existing working-tree changes. Push before ending a session.

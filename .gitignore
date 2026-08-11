@@ -38,3 +38,8 @@ next-env.d.ts
 
 # Claude Code local state (worktrees, session data — never commit)
 .claude/
+nfhl_out/
+nhd_out/
+nrhp_out/
+coastal_out/
+pcpao_out/

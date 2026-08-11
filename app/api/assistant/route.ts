@@ -256,6 +256,11 @@ function systemPrompt(account: B2BAccount, county: string): string {
 function getIp(req: NextRequest): string {
   return req.headers.get('cf-connecting-ip') ?? req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
 }
+// inet column can't take 'unknown' or a malformed value — coerce to null so a bad
+// header never fails the (best-effort) telemetry insert.
+function ipOrNull(ip: string): string | null {
+  return ip && ip !== 'unknown' && /^[0-9a-fA-F:.]+$/.test(ip) ? ip : null
+}
 
 export async function POST(req: NextRequest) {
   if (!process.env.ANTHROPIC_API_KEY) {
@@ -274,6 +279,11 @@ export async function POST(req: NextRequest) {
   const incoming: { role: string; content: string }[] = Array.isArray(body.messages) ? body.messages : []
   if (!apiKey) return NextResponse.json({ error: 'Missing account API key.' }, { status: 401 })
   if (!incoming.length) return NextResponse.json({ error: 'No messages provided.' }, { status: 400 })
+
+  // Session context for observe-only anomaly detection (disclosed in privacy + fair use).
+  const sessionIp = ipOrNull(getIp(req))
+  const userAgent = req.headers.get('user-agent')
+  const sessionId = typeof body.sessionId === 'string' && body.sessionId ? body.sessionId.slice(0, 200) : null
 
   const account = await b2bSocket.getAccountByKey(apiKey)
   if (!account) return NextResponse.json({ error: 'Invalid or inactive account key.' }, { status: 401 })
@@ -338,6 +348,9 @@ export async function POST(req: NextRequest) {
       error: errorMsg,
       rowsReturned: dbHit ? rowsTotal : null,
       dbQueryMs: dbHit ? dbMsTotal : null,
+      ipAddress: sessionIp,
+      userAgent,
+      sessionId,
     })
     // Rolling-window guardrails (dedup-aware; include the row just written).
     const nowEnd = new Date()
