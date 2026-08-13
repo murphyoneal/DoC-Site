@@ -43,3 +43,9 @@ nhd_out/
 nrhp_out/
 coastal_out/
 pcpao_out/
+collier_out/
+pasco_out/
+
+# Python bytecode (pull scripts) — never commit
+__pycache__/
+*.pyc
