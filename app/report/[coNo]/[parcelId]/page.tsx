@@ -500,7 +500,23 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
             <Section title="Land"
               note="Ground elevation is a USGS-derived property fact; the gopher-tortoise overlay is a mapped spatial layer. Soil type & drainage is not sourced and is omitted rather than guessed.">
               <div className="pir-grid">
-                <Fact l="Ground elevation" v={<span style={{ color: 'var(--color-sage)' }}>{renderFact(r.groundElevation).label}</span>} />
+                <Fact l="Ground elevation" v={(() => {
+                  const ge: any = r.groundElevation || {}
+                  const rf = renderFact(r.groundElevation)
+                  // withheld / not_recorded -> the deterministic sentence, unchanged. present -> value in feet
+                  // (nearest foot) with source+datum, then the two-clause caveat and the surveyor-certificate
+                  // routing, EVERY render. No ground-vs-BFE difference is ever computed (ruling 212).
+                  if (ge.field_status !== 'present') {
+                    return <span style={{ color: 'var(--color-sage)' }}>{rf.label}</span>
+                  }
+                  return (
+                    <span style={{ color: 'var(--color-sage)' }}>
+                      <strong>{rf.label}</strong>{ge.vertical_datum ? ` (${ge.source ?? 'USGS EPQS'}, ${ge.vertical_datum})` : ''}
+                      {ge.caveat ? <span className="pir-note" style={{ display: 'block', marginTop: 4 }}>{ge.caveat}</span> : null}
+                      {ge.note ? <span className="pir-note" style={{ display: 'block' }}>{ge.note}</span> : null}
+                    </span>
+                  )
+                })()} />
                 <Fact l="Sewer / septic" v={<span style={{ color: 'var(--color-sage)' }}>Not evaluated — no parcel-level sewer/septic determination in the record</span>} />
                 {/* Containment only — the nearest-habitat DISTANCE lives in §4 (hard rule: no distance above §4). */}
                 <Fact l="Protected species" v={
