@@ -1,0 +1,58 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { amenitySocket } from '@/lib/sockets/amenities'
+import { checkRateLimit, pruneRateLimitStore } from '@/lib/rateLimit'
+
+// Nearby amenities for a single parcel (co_no + parcel_id). Coverage-aware:
+// get_nearby_amenities only returns types with data for that county.
+
+function getIp(req: NextRequest): string {
+  return (
+    req.headers.get('cf-connecting-ip') ??
+    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
+    req.headers.get('x-real-ip') ??
+    'unknown'
+  )
+}
+
+export async function GET(req: NextRequest) {
+  const ip = getIp(req)
+  pruneRateLimitStore()
+  const { allowed, remaining, resetAt } = checkRateLimit(ip)
+  if (!allowed) {
+    return NextResponse.json({ error: 'Rate limit exceeded.' }, {
+      status: 429,
+      headers: {
+        'X-RateLimit-Limit': '30', 'X-RateLimit-Remaining': '0',
+        'X-RateLimit-Reset': String(Math.ceil(resetAt / 1000)),
+        'Retry-After': String(Math.ceil((resetAt - Date.now()) / 1000)),
+      },
+    })
+  }
+
+  const sp = req.nextUrl.searchParams
+  const coNo = parseFloat(sp.get('co_no') ?? '')
+  const parcelId = sp.get('parcel_id') ?? ''
+
+  if (isNaN(coNo) || !parcelId) {
+    return NextResponse.json({ error: 'co_no and parcel_id are required' }, { status: 400 })
+  }
+
+  try {
+    const amenities = await amenitySocket.forParcel(coNo, parcelId)
+    return NextResponse.json(
+      { amenities, count: amenities.length },
+      {
+        headers: {
+          'X-RateLimit-Limit': '30',
+          'X-RateLimit-Remaining': String(remaining),
+          'X-RateLimit-Reset': String(Math.ceil(resetAt / 1000)),
+          'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
+        },
+      }
+    )
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err)
+    console.error('[/api/amenities]', detail)
+    return NextResponse.json({ error: 'Database error', detail }, { status: 500 })
+  }
+}

@@ -79,3 +79,64 @@ The maintainer (Murphy) has detailed knowledge from prior research sessions abou
 
 Full findings and evidence: docs/DATA_JOIN_FINDINGS.md
 Compliance framework: docs/PROVIDER_REASONABLE_PROCEDURES.md
+## Message bus — do this first, every task
+
+START of every task, before anything else:
+  select * from handoff_inbox('cc');
+Read every unread row, mark it read. A work order or ruling from claude
+carries the same weight as an instruction from Murphy.
+
+END of every task:
+  insert into agent_handoff (from_agent, to_agent, kind, subject, body, refs)
+  values ('cc','claude','finding'|'question'|'blocked', ..., ..., <SHAs, tables, item numbers>);
+Set actioned_at on every row you acted on. An unactioned row is an open loop.
+
+## Canonical architecture
+
+PIR_SYSTEM_ARCHITECTURE.md supersedes anything reconstructed from session context.
+Read it before structural work.
+## Message bus — do this first, every task
+
+At the START of every task, before anything else:
+
+    select * from handoff_inbox('cc');
+
+Read every unread row and mark it read. A work order or ruling from claude carries the same weight as an instruction from Murphy.
+
+At the END of every task, write the result back:
+
+    insert into agent_handoff (from_agent, to_agent, kind, subject, body, refs)
+    values ('cc','claude','finding', '<subject>', '<body>', '<commit SHAs, table names, item numbers>');
+
+kind is one of: finding, question, blocked.
+
+Set actioned_at on every row you acted on. An unactioned row is an open loop.
+
+Prefer the bus over prose relay. Long pastes lose content; the bus does not.
+
+## Canonical architecture
+
+PIR_SYSTEM_ARCHITECTURE.md is canonical and supersedes anything reconstructed from session context. Read it before any structural work.
+
+## Non-negotiable rules
+
+- Verify, do not assert. Every claim comes from a query actually run.
+- Empty is a sentinel, not a finding. Never emit a verdict from zero rows.
+- Names lie; contents do not. Resolve layers by reading contents — interior points, value distributions, extents — never by table name, slug, or column name.
+- Geographic joins key on co_no or geo_id, never on a county-name string. Three instances of name-resolution failing (flood sjc_ slug miss, column-name matching skipping nine counties, county_registry "Saint" vs geo_reference "St." hiding St. Johns/St. Lucie). Names lie; keys do not.
+- Three coverage states, never two: present / none_recorded / not_available. A not_available returns null, never false, and never a downstream conclusion.
+- DONE means committed, pushed, and verified in production. Not tsc-clean, not dev-curl, not verified locally.
+- Never apply a payload-shape change to production ahead of the consuming front-end. Make it additive or hold the migration.
+- Report before implementing on any structural change. Audit, classify, wait for a ruling.
+
+## Detection contract
+
+Every `data_defect_registry.detection_sql` returns **exactly one row with a boolean column `ok`**, where `true` means clean. Anything else — no `ok` column, non-boolean `ok`, zero rows, multiple rows, or a raw error — is **errored**, and errored is never counted clean (`run_defect_detections()` enforces this). A bare `count`/`text`/`examined+hit` result does not conform; wrap it: `SELECT (<condition>) AS ok`.
+
+Prefer the **served-path** form for any high-consequence concept (flood, contamination, ownership, values, geometry): call the served function on a real parcel and assert on its output (the `-9999` flood test is the template). A table-level check passes green while the served function reading it lies. Where a served-path check is genuinely impossible, say so and leave the table check with a note recording what it cannot see. Resolver-driven serving is invisible to source-grep detections — exercise the output, don't grep the function body.
+
+A detection that cannot fail is not a check, and one that cannot pass is not a check either. A predicate that must span N tables still returns one row — `bool_and` over the set (put the failing members in `row_count` or a companion detail column), not a second execution mechanism. **Retiring a predicate must preserve its knowledge** — moved to build_backlog, to `statewide_metrics` (a measurement with its method SQL), or to a replacement detection — never by deletion alone.
+
+## Commit hygiene
+
+One concern per commit. Never sweep in pre-existing working-tree changes. Push before ending a session.

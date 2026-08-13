@@ -11,6 +11,7 @@
 // engines). Pure presentational — safe in server and client components alike.
 
 import type { NearbyAmenity } from '@/types/amenity'
+import { formatDistance } from '@/lib/units'
 
 const ICON: Record<string, string> = {
   droplet: '🚰', bus: '🚌', train: '🚉', book: '📚',
@@ -25,12 +26,6 @@ export interface CompassBadgeData {
   distanceM: number
   bearingDegrees: number
   tone?: 'gold' | 'sage'
-}
-
-function formatDistance(m: number): string {
-  const ft = m * 3.28084
-  if (ft < 1000) return `${Math.round(ft / 10) * 10} ft`
-  return `${(m / 1609.344).toFixed(1)} mi`
 }
 
 export function CompassBadge({ icon, label, sublabel, distanceM, bearingDegrees, tone = 'gold' }: CompassBadgeData) {
