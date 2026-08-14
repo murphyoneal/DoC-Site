@@ -135,7 +135,7 @@ def ensure_manifest(cur):
         )""")
 
 
-def load_member(cur, county, cfg, zf, zi, only):
+def load_member(cur, conn, county, cfg, zf, zi, only):
     member = os.path.basename(zi.filename)
     if not member.lower().endswith('.csv'):
         return None                                   # README.TXT / parcel_summary xlsx+pdf auto-skip
@@ -175,7 +175,13 @@ def load_member(cur, county, cfg, zf, zi, only):
     if b:
         batch.seek(0); cur.copy_expert(copy_sql, batch)
 
-    count_ok = None if expected is None else (n == expected)
+    # Assert against the DB itself, not the Python tally — a SELECT count(*) is what catches a COPY that
+    # dropped rows mid-stream. n (rows we wrote) and db_count (rows actually present) must agree, and both
+    # must match the published baseline. This is the "assert inside the loader" of ruling 183.
+    cur.execute(f'SELECT count(*) FROM public.{table}')
+    db_count = cur.fetchone()[0]
+    count_ok = None if expected is None else (db_count == expected)
+
     cur.execute("""
         INSERT INTO public.cama_load_manifest
           (county, co_no, table_name, source_archive, source_member, file_as_of, row_count,
@@ -186,13 +192,14 @@ def load_member(cur, county, cfg, zf, zi, only):
           count_ok=EXCLUDED.count_ok, columns_loaded=EXCLUDED.columns_loaded, had_bom=EXCLUDED.had_bom,
           dup_columns=EXCLUDED.dup_columns, header_sha256=EXCLUDED.header_sha256, loaded_at=now(),
           loader_version=EXCLUDED.loader_version""",
-        (county, cfg['co_no'], table, os.path.basename(zf.filename), member, member_as_of(zi), n,
+        (county, cfg['co_no'], table, os.path.basename(zf.filename), member, member_as_of(zi), db_count,
          expected, count_ok, len(cols), had_bom, dups or None, header_sha, LOADER_VERSION))
+    conn.commit()   # persist the data + its manifest row together BEFORE we assert, so a failure is on record
 
-    tag = 'OK' if count_ok else ('no-target' if expected is None else 'COUNT MISMATCH')
-    extra = f' BOM' if had_bom else ''
+    tag = 'OK' if count_ok else ('no-target' if expected is None else 'MISMATCH')
+    extra = ' BOM' if had_bom else ''
     extra += f' dup={dups}' if dups else ''
-    print(f'  {table}: {n} rows (expected {expected}) [{tag}]{extra}')
+    print(f'  {table}: {db_count} rows (target {expected}) [{tag}]{extra}', flush=True)
 
     # Pinellas duplicate YEAR_BUILT: report whether the two ever disagree (msg 150 — anchor-relevant).
     if 'year_built' in cols and 'year_built_2' in cols:
@@ -200,8 +207,23 @@ def load_member(cur, county, cfg, zf, zi, only):
         d = cur.fetchone()[0]
         print(f'    YEAR_BUILT vs YEAR_BUILT_2: {d} rows disagree '
               + ('(identical — second is droppable, register the finding)' if d == 0
-                 else '(GENUINELY TWO BUILD YEARS — decide which feeds the anchor before serving)'))
-    return (table, count_ok, expected)
+                 else '(GENUINELY TWO BUILD YEARS — decide which feeds the anchor before serving)'), flush=True)
+
+    # FAIL LOUD, HERE, on this table — never a summary at the end where a short table hides (ruling 183).
+    problems = []
+    if db_count != n:
+        problems.append(f'loader wrote {n} rows but the table holds {db_count} — silent COPY loss')
+    if expected is not None and db_count != expected:
+        problems.append(f'table holds {db_count} rows against a baseline of {expected} (delta {db_count - expected:+})')
+    if db_count == 0:
+        problems.append('loaded ZERO rows — empty is not done')
+    if problems:
+        bar = '=' * 68
+        sys.exit(f'\n{bar}\nABORT — {table} failed its count assertion:\n  - '
+                 + '\n  - '.join(problems)
+                 + f'\n{bar}\nNothing after this table was loaded; the manifest row records the failure. '
+                 + f'Re-run after fixing the source (the load is idempotent: TRUNCATE + reload).\n{bar}')
+    return table
 
 
 def main():
@@ -219,33 +241,17 @@ def main():
     cur.execute('SET statement_timeout = 0')
     ensure_manifest(cur); conn.commit()
 
-    loaded, failed = [], []
+    # No try/except swallow and no end-of-run summary: load_member asserts each table and sys.exit()s loud
+    # on the first mismatch. Reaching the end therefore MEANS every table matched its baseline (ruling 183).
+    loaded = []
     for zpath in zips:
         with zipfile.ZipFile(zpath) as zf:
             for zi in zf.infolist():
-                try:
-                    res = load_member(cur, county, cfg, zf, zi, only)
-                except Exception as e:
-                    conn.rollback()
-                    failed.append((os.path.basename(zi.filename), str(e).splitlines()[0]))
-                    print(f'  FAILED {zi.filename}: {str(e).splitlines()[0]}')
-                    continue
-                if res is None:
-                    continue
-                table, count_ok, expected = res
-                conn.commit()
-                if count_ok is False:
-                    failed.append((table, f'count mismatch vs baseline {expected}'))
-                else:
+                table = load_member(cur, conn, county, cfg, zf, zi, only)
+                if table:
                     loaded.append(table)
 
-    print(f'\nloaded OK: {len(loaded)}')
-    if failed:
-        print('FAILED / UNVERIFIED:')
-        for name, why in failed:
-            print(f'  - {name}: {why}')
-        sys.exit(f'{county}: {len(failed)} table(s) failed or missed their baseline — NOT complete.')
-    print(f'{county}: all archives processed, every published baseline matched.')
+    print(f'\n{county}: {len(loaded)} tables loaded, every published baseline asserted and matched.', flush=True)
 
 
 if __name__ == '__main__':
