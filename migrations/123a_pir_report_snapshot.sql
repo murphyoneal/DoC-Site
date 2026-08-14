@@ -62,13 +62,18 @@ $$;
 -- The render boundary (ruling 169: LOAD COMPLETE, SCRUB AT RENDER). ONE place, auditable.
 -- Removes third-party deed-party names (grantor/grantee) from the conveyance chain and last_market_sale.
 -- Owner-of-record is public record and RENDERS - it is NOT scrubbed. Returns {payload:<scrubbed>, manifest:[...]}.
+-- The manifest is self-evidencing: it names the exact keys removed, the locations, and the count of values
+-- removed (exercised on Volusia 74/372500000050 - a 5-deed chain - values_removed=10, payload leaks nothing).
 CREATE OR REPLACE FUNCTION public.pir_scrub_payload(p_payload jsonb)
 RETURNS jsonb LANGUAGE plpgsql IMMUTABLE AS $fn$
 DECLARE
   v_out jsonb := p_payload;
   v_manifest jsonb := '[]'::jsonb;
   v_tf jsonb; v_conv jsonb; v_new_conv jsonb := '[]'::jsonb; v_elem jsonb; v_lms jsonb;
-  k text; v_removed_any boolean := false;
+  k text;
+  v_keys_removed text[] := '{}';           -- the actual key names encountered and removed
+  v_locations    text[] := '{}';           -- where they were removed from
+  v_count int := 0;                        -- how many party-name values were removed
   NAME_KEYS text[] := ARRAY['grantor','grantee','grantor_detail','grantee_detail','grantor_name','grantee_name','party','party_detail'];
 BEGIN
   v_tf := p_payload->'transactionFacts';
@@ -77,25 +82,38 @@ BEGIN
     IF v_conv IS NOT NULL AND jsonb_typeof(v_conv) = 'array' THEN
       FOR v_elem IN SELECT * FROM jsonb_array_elements(v_conv) LOOP
         FOREACH k IN ARRAY NAME_KEYS LOOP
-          IF v_elem ? k THEN v_elem := v_elem - k; v_removed_any := true; END IF;
+          IF v_elem ? k THEN
+            v_elem := v_elem - k;
+            IF NOT (v_keys_removed @> ARRAY[k]) THEN v_keys_removed := v_keys_removed || k; END IF;
+            v_count := v_count + 1;
+          END IF;
         END LOOP;
         v_new_conv := v_new_conv || jsonb_build_array(v_elem);
       END LOOP;
       v_tf := jsonb_set(v_tf, '{conveyances}', v_new_conv);
+      IF v_count > 0 THEN v_locations := v_locations || 'transactionFacts.conveyances[]'::text; END IF;
     END IF;
     v_lms := v_tf->'last_market_sale';
     IF v_lms IS NOT NULL AND jsonb_typeof(v_lms) = 'object' THEN
       FOREACH k IN ARRAY NAME_KEYS LOOP
-        IF v_lms ? k THEN v_lms := v_lms - k; v_removed_any := true; END IF;
+        IF v_lms ? k THEN
+          v_lms := v_lms - k;
+          IF NOT (v_keys_removed @> ARRAY[k]) THEN v_keys_removed := v_keys_removed || k; END IF;
+          v_count := v_count + 1;
+          IF NOT (v_locations @> ARRAY['transactionFacts.last_market_sale'::text]) THEN
+            v_locations := v_locations || 'transactionFacts.last_market_sale'::text; END IF;
+        END IF;
       END LOOP;
       v_tf := jsonb_set(v_tf, '{last_market_sale}', v_lms);
     END IF;
     v_out := jsonb_set(v_out, '{transactionFacts}', v_tf);
-    IF v_removed_any THEN
+    IF v_count > 0 THEN
       v_manifest := v_manifest || jsonb_build_array(jsonb_build_object(
-        'field','transactionFacts.conveyances[].{grantor,grantee}',
         'rule','third_party_deed_party_name_scrub',
-        'authority','ruling-169 (LOAD COMPLETE, SCRUB AT RENDER)'));
+        'authority','ruling-169 (LOAD COMPLETE, SCRUB AT RENDER)',
+        'fields_removed', to_jsonb(v_keys_removed),
+        'locations', to_jsonb(v_locations),
+        'values_removed', v_count));
     END IF;
   END IF;
   RETURN jsonb_build_object('payload', v_out, 'manifest', v_manifest);
