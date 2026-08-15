@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createHash } from 'crypto'
 import Anthropic from '@anthropic-ai/sdk'
 import { b2bSocket } from '@/lib/sockets/b2b'
 import { parcelSocket } from '@/lib/sockets/parcels'
@@ -11,6 +12,17 @@ import { checkRateLimit, pruneRateLimitStore } from '@/lib/rateLimit'
 import type { B2BAccount } from '@/types/b2b'
 
 const MODEL = 'claude-opus-4-8' // per claude-api skill: default Opus 4.8
+
+// Stamped on every logged exchange so a later investigation knows WHICH narrator
+// configuration produced an answer. Mirrors app/api/roz/route.ts.
+//
+// CAVEAT, RECORDED RATHER THAN PAPERED OVER: roz_version_register's current row
+// (0.1.0-alpha) carries a system_prompt_hash computed for /api/roz. This route
+// has a DIFFERENT system prompt and a different tool set, so the version string
+// identifies the release, not this route's exact prompt. Once the canonical-route
+// question is settled, this needs its own register row (or the routes need to
+// converge). Flagged to claude; do not read a matching version as matching config.
+const ROZ_VERSION = '0.1.0-alpha'
 
 // ── Opus 4.8 per-token rates (USD), as of 2026-07-23 ──────────────────────────
 // cost_usd is computed here at request time and stored as a literal in the log;
@@ -345,6 +357,10 @@ export async function POST(req: NextRequest) {
   let inTok = 0, outTok = 0, cacheRead = 0, cacheCreate = 0, modelCalls = 0
   let rowsTotal = 0, dbMsTotal = 0, dbHit = false
   let usedCross = false, usedAnyTool = false
+  // Every tool result the model saw, in order — hashed into payload_hash so an
+  // answer can later be checked against the data behind it rather than against a
+  // re-run whose underlying rows may have changed.
+  const payloadParts: string[] = []
   let targetParcel: string | null = null
   let targetCountyNo: number | null = null
   let success = true
@@ -376,6 +392,15 @@ export async function POST(req: NextRequest) {
       ipAddress: sessionIp,
       userAgent,
       sessionId,
+      // The audit trail. `reply` is '' when the loop threw before producing text;
+      // record that as null rather than an empty string, so "no answer given" is
+      // distinguishable from "answer was blank".
+      userQuery: lastUserQuery,
+      responseText: reply || null,
+      rozVersion: ROZ_VERSION,
+      payloadHash: payloadParts.length
+        ? createHash('sha256').update(payloadParts.join('\n')).digest('hex')
+        : null,
     })
     // Rolling-window guardrails (dedup-aware; include the row just written).
     const nowEnd = new Date()
@@ -439,6 +464,7 @@ export async function POST(req: NextRequest) {
         if (outcome.parcelId) targetParcel = outcome.parcelId
         if (outcome.countyNo != null) targetCountyNo = outcome.countyNo
         if (outcome.dbMs != null) { dbHit = true; dbMsTotal += outcome.dbMs; rowsTotal += outcome.rows ?? 0 }
+        payloadParts.push(`${tu.name}(${JSON.stringify(input)}) -> ${outcome.text}`)
         trace.push({ tool: tu.name, county: outcome.countyNo, allowed: outcome.allowed, denialReason: outcome.denialReason })
         results.push({ type: 'tool_result', tool_use_id: tu.id, content: outcome.text, is_error: outcome.isError })
         await b2bSocket.logQuery({

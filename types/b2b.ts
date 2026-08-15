@@ -51,6 +51,20 @@ export interface AssistantQueryLogEntry {
   ipAddress: string | null
   userAgent: string | null
   sessionId: string | null
+  // THE AUDIT TRAIL. Without these four the log is a COUNTER, not a record: it
+  // says an exchange happened and nothing about what was asked, what was said,
+  // which configuration said it, or what data it was looking at. Both defects
+  // found on 15 August (flood reported not_available where data exists; DOR 092
+  // glossed as "utility/land classification") were UNRECONSTRUCTABLE from the
+  // rows they produced. /api/roz has written these since July via roz_log_query;
+  // /api/assistant never did, so the columns sat null on every row it wrote.
+  userQuery: string | null
+  responseText: string | null
+  rozVersion: string | null
+  // sha256 of the tool output the model actually saw — the record behind the
+  // answer, so a later dispute can be settled against the payload rather than
+  // re-running a query whose data may have changed underneath it.
+  payloadHash: string | null
 }
 
 // A cross-property / stats search result row (from search_properties).

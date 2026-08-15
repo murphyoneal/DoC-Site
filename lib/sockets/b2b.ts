@@ -101,9 +101,18 @@ export const b2bSocket = {
         ip_address: e.ipAddress,
         user_agent: e.userAgent,
         session_id: e.sessionId,
+        // These four columns already existed on assistant_query_log and were
+        // written by /api/roz. This insert simply never sent them, so every row
+        // this route wrote recorded that a query happened and nothing about it.
+        user_query: e.userQuery,
+        response_text: e.responseText,
+        roz_version: e.rozVersion,
+        payload_hash: e.payloadHash,
       }, 'return=minimal')
     } catch (err) {
-      console.error('[b2b.logAssistantQuery]', err)
+      // Best-effort by design: telemetry must never fail a user's answer. But it
+      // is LOUD — a silent catch here is how the log became a counter unnoticed.
+      console.error('[b2b.logAssistantQuery] AUDIT ROW LOST', err)
     }
   },
 
