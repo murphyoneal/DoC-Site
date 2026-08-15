@@ -21,6 +21,8 @@
 //    "elevation 21.9 ft" with no provenance at all; that is the fabrication
 //    surface, because a number with no source reads as authoritative.
 
+import { landUseLabel } from './dor-use-codes'
+
 const CLEAN_STATUSES = new Set(['present', 'assigned', 'covered'])
 
 /** A "fact" in this codebase: {predicate, value, field_status, source, as_of, ...}. */
@@ -197,7 +199,19 @@ export function summarisePirReport(r: any, countyName: string): string {
   lines.push(`Parcel ${meta.parcelId ?? '—'} — ${meta.countyName ?? countyName} County`)
   if (p.address || p.city) lines.push(`Address: ${p.address ?? '—'}, ${p.city ?? '—'} ${p.zip ?? ''}`.trim())
   if (p.ownerName) lines.push(`Owner: ${p.ownerName}${p.ownerOccupied != null ? ` (homestead: ${fmt(p.ownerOccupied)})` : ''}`)
-  if (p.propertyType || p.landUseCode) lines.push(`Use: ${p.propertyType ?? '—'} (DOR ${p.landUseCode ?? '—'})`)
+  // DEFECT roz-glosses-opaque-codes-with-invented-meaning. This rendered
+  // `Use: — (DOR 092)` when the payload carries a code but no propertyType (which
+  // is the case for the Palm Beach parcel that produced the defect). A dash and a
+  // naked number is an invitation to explain it, and the narrator accepted.
+  // Fall back to landUseLabel, which names the code as UNDEFINED when we hold no
+  // description rather than presenting it as a label with a word missing.
+  if (p.propertyType || p.landUseCode) {
+    // landUseLabel already embeds the code when it has no description, so only
+    // append "(DOR nnn)" alongside a real propertyType.
+    lines.push(p.propertyType
+      ? `Use: ${p.propertyType}${p.landUseCode ? ` (DOR ${p.landUseCode})` : ''}`
+      : `Use: ${landUseLabel(p.landUseCode)}`)
+  }
   if (p.yearBuilt) lines.push(`Year built: ${p.yearBuilt}${p.effectiveYearBuilt ? ` (effective ${p.effectiveYearBuilt})` : ''}`)
   if (p.livingSqft || p.totalSqft) {
     lines.push(`Area: living ${p.livingSqft ?? '—'} sqft, total ${p.totalSqft ?? '—'} sqft` +

@@ -1,8 +1,16 @@
 // Florida DOR (Department of Revenue) land-use codes. parcels_staging.dor_uc holds
 // only the raw code; there's no description column in the DB, so this is the lookup.
 // Subset of the standard FL DOR code table — extend as needed.
-// TODO(murphy): confirm/complete against the official DOR code list if the assistant
-// needs codes beyond these common ones.
+//
+// SIZED 15 Aug 2026: this table holds 59 codes. parcels_staging carries 100
+// distinct dor_uc values, so 41 are unlabelled here, covering 272,914 parcels
+// (2.54% of 10,739,881 with a code). Largest gaps: 087 (56,038), 055 (32,436),
+// 050 (26,273), 056 (25,385), 061 (20,942).
+//
+// TODO(murphy): complete this from the OFFICIAL published DOR code list and cite
+// it in this comment. Do NOT fill the gaps from recall — an unsourced definition
+// is the defect this file just caused. Until then landUseLabel() says "undefined"
+// for the 41, which is honest and safe; it is not a substitute for the real list.
 const DOR_USE_CODES: Record<string, string> = {
   '000': 'Vacant Residential',
   '001': 'Single Family',
@@ -65,10 +73,37 @@ const DOR_USE_CODES: Record<string, string> = {
   '099': 'Acreage Not Zoned Agricultural',
 }
 
+/**
+ * Label for a DOR use code — or an explicit statement that we do not hold one.
+ *
+ * DEFECT roz-glosses-opaque-codes-with-invented-meaning (15 Aug 2026).
+ * This returned a bare `DOR code 092`. That string reads like a label with a
+ * missing word, so the narrator supplied one: it rendered DOR 092 as
+ * "utility/land classification" — almost certainly by analogy with the adjacent
+ * '091': 'Utility (gas/electric/water)'. The county source for that parcel says
+ * MING/PETRO/GASLND. An invented definition, same mechanism as the seven
+ * elevations: a value with no provenance reads as authoritative.
+ *
+ * MEASURED, not assumed: 41 of the 100 distinct dor_uc values in parcels_staging
+ * have no entry in this table, covering 272,914 parcels (2.54%). Every one of
+ * them was a gloss surface.
+ *
+ * The fix is NOT to add 092 from memory — writing a definition we cannot source
+ * is the same defect with a different author. It is to say plainly that the code
+ * is undefined here, so there is no gap for the model to fill.
+ */
 export function landUseLabel(code: string | null | undefined): string {
   if (!code) return 'Unknown'
   const key = String(code).trim().padStart(3, '0')
-  return DOR_USE_CODES[key] ?? `DOR code ${code}`
+  const known = DOR_USE_CODES[key]
+  if (known) return known
+  return `DOR code ${key} — no description held; meaning UNDEFINED, do not infer it`
+}
+
+/** True when we hold no description for this code (callers that need the raw form). */
+export function isUnlabelledDorCode(code: string | null | undefined): boolean {
+  if (!code) return false
+  return !(String(code).trim().padStart(3, '0') in DOR_USE_CODES)
 }
 
 // Reverse lookup for search filters — lets the assistant filter by a label the user

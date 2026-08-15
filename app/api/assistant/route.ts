@@ -267,6 +267,12 @@ function systemPrompt(account: B2BAccount, county: string): string {
     scope,
     'Use the tools to answer — never invent parcel data. To answer about a single address, call find_parcel first to get the parcel_id, then get_property_report and/or get_nearby_amenities.',
     'Data provenance matters: when you state a fact, make its source clear, and always distinguish the assessor-recorded lot size from the GIS-calculated site size (they can differ; if the assessor value is missing, say so rather than reporting 0).',
+    // DEFECT roz-glosses-opaque-codes-with-invented-meaning: DOR 092 was narrated
+    // as "utility/land classification" when the source says MING/PETRO/GASLND.
+    'NEVER EXPLAIN A CODE WE HAVE NOT DEFINED FOR YOU. Codes (DOR use codes, zoning codes, qualification flags) arrive either with a description or marked UNDEFINED. If it is marked undefined, report the raw code and say its meaning is not held — do not infer it from the number, from neighbouring codes, or from the property\'s other attributes. A guessed definition is a fabrication even when it sounds reasonable.',
+    // DEFECT roz-reports-not-available-where-data-exists: flood was narrated as
+    // unavailable for a parcel wholly inside Zone AO.
+    'Coverage states are literal. A field marked present IS data — report it. "not_recorded" means the authority holds no record; "not_available" means we do not hold the layer. Never report a present value as unavailable, never convert a missing value into a zero or a negative finding, and never describe data you were given as absent.',
     'Be direct and lead with the answer. For read-only lookups, do not ask the user for confirmation — just retrieve and report. Keep responses concise and cite the county and figures.',
   ].join('\n\n')
 }
