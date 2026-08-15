@@ -351,38 +351,32 @@ export async function POST(req: NextRequest) {
     ? '\n\nGLOSSARY — general-knowledge definitions. State these WITHOUT a payload field (they are not property claims), then say separately what the record shows. Prefer this wording over recall:\n'
       + glossaryRows.map(g => `- ${g.term}: ${g.definition}${g.florida_nuance ? ' [FL: ' + g.florida_nuance + ']' : ''}${g.authority ? ' [' + g.authority + ']' : ''}`).join('\n')
     : ''
-  // Web lookup AID (item 71): an allowlist of government/property domains, used ONLY to derive query
-  // variants (address forms, official place names, subdivision aliases, identifier formats). It never
-  // produces a finding. Gated behind ROZ_WEB_LOOKUP=1 until web search is confirmed enabled on the
-  // account — default off is today's exact behaviour (zero risk to live Roz).
-  let webDomains: string[] = []
-  if (process.env.ROZ_WEB_LOOKUP === '1') {
-    try { const { data } = await admin.from('roz_web_lookup_allowlist').select('domain').eq('active', true).order('domain'); webDomains = (data ?? []).map((r: { domain: string }) => r.domain) } catch { /* best-effort */ }
-  }
-  const webEnabled = webDomains.length > 0
-  const webLookupText = webEnabled
-    ? '\n\nWEB RESULTS — a THIRD class of assertion, walled from findings. Your web_search tool runs over an allowlist. Web content is NEITHER a public record NOR a definition: it is what a WEBSITE claims. It has two uses.\n'
-      + 'WHEN TO SEARCH — PROACTIVELY, AND .gov FIRST. On a single-property query, AFTER you have the record, work identityFrame.triggers: each names a query to FIRE. Search the .gov / regulatory target FIRST — a commission agenda item, an EPA/FDEP cleanup record, a county project is a GOVERNMENT FINDING, reported in the body with its date and publishing body (a different tier from a listing, not just a different order). Fire the intent trigger for a government holding, the cleanup trigger for on-parcel contamination, the permit trigger for an unpermitted improvement. ONLY IF identityFrame.market_question_suppressed is FALSE (a non-government owner) may you ALSO run ONE listing search for market status, surfaced SEPARATELY under "On the web" as a perishable Tier-4 web claim. When market_question_suppressed is TRUE, do NOT run a listing search at all — "not for sale on Zillow" is the least informative sentence for public land, and the intent trigger is the real question. "No listing found" NEVER stands in for "nothing to report" — the .gov findings ARE the report. Fire each target ONCE — do not loop.\n'
-      + 'A. QUERY AID: derive better record queries — alternate address forms, official place names, subdivision aliases, identifier formats. A clue only; a FINDING still cites a record (a tool payload field), never a web page. Worked pattern: "DELTONA LK UN 32" -> search the alias "Deltona Lakes Unit Sixty-Four", then query the record.\n'
-      + 'B. WEB CLASS you may SURFACE and CITE, but ONLY under this grammar:\n'
-      + '- SUBJECT IS THE SITE. "Zillow\'s listing shows 8,277 sq ft (retrieved [when])" — NEVER "the property is 8,277 sq ft", NEVER "it is listed for $X". A website statement takes the WEBSITE as its subject, exactly as an agency statement takes the agency.\n'
-      + '- LABEL IT. Web claims go under the heading "On the web"; record findings under "Public record" (NOT "the record" — we read the record, we are not it). Never fold a web number into a record statement.\n'
-      + '- RETRIEVED + PERISHABLE. Stamp every web claim with when it was retrieved and treat it as perishable — a listing price or status can change within the hour. Never state a listing as a durable fact.\n'
-      + '- THE RECORD ADJUDICATES THE WEB, NEVER THE REVERSE. You may compare them, but the public record wins every disagreement. Do NOT "correct" a county figure with a listing figure.\n'
-      + 'FOUR OUTCOMES for a web claim against the record: (1) AGREES (listing built 2017 = county built 2017) -> corroboration, say so. (2) DISAGREES (listing 8,277 sq ft vs county 8,001) -> FLAG, record wins: "the listing claims X; the public record shows Y — reconcile with the seller / cite the source." (3) NO RECORD COUNTERPART (wine cellar, theater) -> unverifiable marketing; present as a listing claim only, never a fact. (4) NO LISTING FOUND -> "no active listing found on [sites], as of [retrieved]" and STOP; this is NOT "not for sale". Distinguish, never collapse: (a) off-market, (b) the address did not match (a lookup miss), (c) a listing exists but was unretrievable.\n'
-      + 'DUAL USE. The same web-vs-record comparison serves a BUYER checking a property (listing claims vs record, plus the risks the brochure omits) AND a LISTING AGENT pre-flighting their OWN draft before posting (does every claim survive the public record?). The deliverable is the discrepancy list; the public record is the anchor in both directions.'
-    : ''
+  // RULING 200: THE WEB LOOKUP IS REMOVED, NOT GATED.
+  //
+  // It was previously gated behind ROZ_WEB_LOOKUP=1, described in-code as "default
+  // off ... zero risk to live Roz". THAT WAS NOT TRUE IN PRODUCTION. Measured
+  // 15 Aug 2026: the Vercel production env carried ROZ_WEB_LOOKUP="1" (set 15 days
+  // earlier), the allowlist held 24 active domains, and roz_search_probe recorded
+  // 8 reports with web_enabled=true, 7 of which fired 9 web searches between
+  // 2026-07-31 17:31Z and 2026-08-03 22:33Z. The flag is what is live, not the
+  // comment beside it — so the fetch is deleted rather than switched off.
+  //
+  // The reason it stays out: a web result dresses an answer in a source. Both
+  // defects found this week (a present flood zone narrated as unavailable, and
+  // DOR 092 glossed as "utility/land classification") would have been HARDER to
+  // catch, not easier, with a plausible citation attached. The payload has to be
+  // right before anything external is allowed to corroborate it.
+  //
+  // Do not re-add this behind an env flag. roz_web_lookup_allowlist and
+  // roz_search_probe are left in place as evidence of the window above.
   // Generated dataset inventory — Roz's self-description must not drift (she denied NRHP while it was
   // wired). Derived from table_inventory (wired layers) + derived_field_status + the frontier fns, so
   // wiring a layer updates her "what I carry" automatically. Stable across requests → stays cacheable.
   let capabilityText = ''
   try { const { data } = await admin.rpc('roz_capability_statement'); if (typeof data === 'string' && data) capabilityText = '\n\n' + data } catch { /* best-effort */ }
-  const systemText = SYSTEM + capabilityText + glossaryText + webLookupText
-  // web_search is an Anthropic server tool (executed API-side); it never enters runTool. Cast avoids a
-  // hard build dependency on the SDK's tool-union typing for the dated server-tool variant.
-  const allTools: unknown[] = webEnabled
-    ? [...TOOLS, { type: 'web_search_20260209', name: 'web_search', max_uses: 3, allowed_domains: webDomains }]
-    : TOOLS
+  const systemText = SYSTEM + capabilityText + glossaryText
+  // RULING 200: no server-side web_search tool is offered. TOOLS is the whole set.
+  const allTools: unknown[] = TOOLS
 
   const messages: Anthropic.MessageParam[] = incoming.map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content }))
   const trace: { tool: string; county: number }[] = []
@@ -473,22 +467,23 @@ export async function POST(req: NextRequest) {
         if (!reply) { reply = 'Roz hit an error handling that. Please try again.'; send({ type: 'reset' }); send({ type: 'delta', text: reply }) }
       }
 
-      // #60 diagnostic — is web_search actually firing? Read this in the Vercel function logs after a
-      // report: webEnabled=false → the ROZ_WEB_LOOKUP env / allowlist gate is off (the tool was never
-      // offered); webEnabled=true & web_search_requests=0 → the tool WAS offered but the model
-      // (claude-sonnet-5) didn't invoke it (the "search-shaped sentence without the search").
-      console.log(`[roz-websearch] webEnabled=${webEnabled} web_search_requests=${webSearches} model=${MODEL} tools=[${trace.map(t => t.tool).join(',')}]`)
-      // Durable copy — the console line ages out of Vercel logs in ~1 day; this row is queryable from
-      // the DB after ANY report, so the "did web_search fire?" answer no longer depends on catching a log.
-      // Write via a SECURITY DEFINER rpc (the reliable roz_log_query path), so the write can't depend on
-      // the caller's role or RLS. Errors are LOGGED, never swallowed — a silent catch here is exactly why
-      // this went undiagnosed for five turns (zero rows, no reason). If this still writes nothing, the
-      // Vercel log will show either the rpc error or nothing at all (function killed before this line).
+      // RULING 200. This was "did web_search fire?". With the tool removed it is now
+      // the INVARIANT that it cannot: no web_search tool is offered, so the API must
+      // never report a server_tool_use web_search_request. web_enabled is written
+      // false on every row from here on, which is also what makes the 31 Jul - 3 Aug
+      // window (8 rows, web_enabled=true, 9 searches) legible as a closed period
+      // rather than the start of an open-ended one.
+      //
+      // A non-zero count here means the tool came back — by an SDK default, a
+      // resurrected env flag, or an edit that re-added it. That is an alarm, not a
+      // diagnostic, so it is logged at error level and recorded.
+      if (webSearches > 0) {
+        console.error(`[roz-websearch] INVARIANT VIOLATED: ${webSearches} web_search_request(s) with NO web_search tool offered. model=${MODEL} parcel=${targetParcel}`)
+      }
       try {
         const { error: probeErr } = await admin.rpc('roz_log_search_probe', {
-          p_web_enabled: webEnabled, p_web_searches: webSearches, p_model: MODEL, p_parcel_id: targetParcel, p_tools: trace.map(t => t.tool).join(',') })
+          p_web_enabled: false, p_web_searches: webSearches, p_model: MODEL, p_parcel_id: targetParcel, p_tools: trace.map(t => t.tool).join(',') })
         if (probeErr) console.error('[roz-probe] rpc error:', probeErr.message, probeErr.code)
-        else console.log('[roz-probe] wrote row: parcel=' + targetParcel + ' web_searches=' + webSearches)
       } catch (e) { console.error('[roz-probe] threw:', e instanceof Error ? e.message : String(e)) }
 
       // Durable measurement of the fabrication tourniquet — every trigger is a caught 7th-occurrence, so

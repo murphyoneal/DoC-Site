@@ -177,10 +177,25 @@ export interface PirSchoolsCoverage { field_status: 'assigned' | 'none_on_file' 
 
 export interface PirWaterFeature { name: string | null; ftype: string | null; distanceM: number; bearingDegrees: number }
 export interface PirBoatRamp { name: string | null; waterbody: string | null; distanceM: number; bearingDegrees: number }
+// RULING 203 item 5. boatRamps stays an ARRAY (the report page calls .map on it), so
+// the coverage state travels beside it rather than replacing it — additive, never a
+// shape change. An empty boatRamps[] is ambiguous on its own and must NOT be read as
+// "no ramp near this parcel": read boatRampsCoverage.
+//   not_available     no marine layer is held for the county — says nothing either way
+//   none_within_range layer held, genuinely no ramp within search_radius_m — a real negative
+//   present           ramps returned
+export interface PirBoatRampsCoverage {
+  field_status: 'present' | 'none_within_range' | 'not_available'
+  search_radius_m?: number
+  coverage_note?: string | null
+  who_can_answer?: string | null
+}
+
 export interface PirWater {
   nearestWaterM: number | null
   features: PirWaterFeature[]
   boatRamps: PirBoatRamp[]
+  boatRampsCoverage?: PirBoatRampsCoverage | null
 }
 
 // Flood now comes from get_parcel_flood_zone() (coverage-aware NFHL), merged with areaRepetitiveLoss.
@@ -361,13 +376,27 @@ export interface PirPermitFact {
   subject?: { permit_number?: string; date?: string; issuing_authority?: string | null }
   predicate: 'permit'
   relation_to_parcel: 'attaches_by_key'
+  // null when the county recorded a PLACEHOLDER issue date rather than a real one
+  // (Pinellas carries 661 such rows: 1800/1899/1900 — registered as
+  // pcpao-permit-date-sentinel-years). The permit still evidences that a permit
+  // EXISTS; it cannot support any claim about WHEN, and must never be compared
+  // against a structure year to derive a permit gap. date_note says so verbatim.
   date: string | null
+  date_note?: string | null
   permit_number: string | null
   issuing_authority: string | null
   work_description: string | null
   work_type?: string | null
   sub_type?: string | null
+  // Pinellas only: the county's own permit type CODE, carried verbatim. We hold NO
+  // crosswalk for these, so permit_type_note states the meaning is UNDEFINED. Do not
+  // infer one — work_description is the authoritative text.
+  permit_type_code?: string | null
+  permit_type_note?: string | null
   contractor: string | null
+  // Pinellas only: that register carries no contractor column at all, so absence is a
+  // gap in the source and never evidence of unlicensed work.
+  contractor_note?: string | null
   source?: string; source_tier?: string
   declared_value: number | null
   declared_value_note?: string
@@ -384,12 +413,22 @@ export interface PirPermitFact {
   } | null
 }
 
+// RULING 199. Four distinct states — collapsing them is the defect this replaced,
+// where every non-Volusia county returned not_established over 1.65M loaded Pinellas
+// permit rows. Registers are held for Volusia and Pinellas only.
+//   present         register held, parcel keyed, permits found
+//   none_recorded   register held, parcel keyed, register lists none FOR THIS PARCEL
+//   not_established register held, but this parcel could not be keyed into it (our gap)
+//   not_available   NO permit register is held for this county — says nothing about
+//                   the parcel. A county with no permit register is not a parcel with
+//                   no permits.
 export interface PirPermitFacts {
-  field_status: 'present' | 'not_established'
+  field_status: 'present' | 'none_recorded' | 'not_established' | 'not_available'
   count: number
   permits: PirPermitFact[]
   closeout_not_recorded_count: number
   coverage_note: string | null
+  who_can_answer?: string | null
 }
 
 // One zoning/FLU fact — the jurisdiction's OWN code + description, never normalized into a national

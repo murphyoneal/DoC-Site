@@ -49,3 +49,4 @@ pasco_out/
 # Python bytecode (pull scripts) — never commit
 __pycache__/
 *.pyc
+citylimits_out/
