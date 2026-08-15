@@ -9,6 +9,9 @@ typo all survive; nothing is coerced or lost at ingest).
 
 Every named trap on the bus is handled here:
   * Collier UTF-8 BOM (msg 155)      -> header read via utf-8-sig; the BOM never reaches a column name.
+  * MIXED ENCODINGS (measured here)  -> the counties are NOT uniformly UTF-8. Encoding is detected PER FILE
+                                        by decoding (see detect_encoding) and recorded in the manifest.
+                                        Pinellas 5/14 and Pasco 4/11 files are cp1252; Collier is UTF-8.
   * Pinellas duplicate YEAR_BUILT    -> positional de-dup (year_built, year_built_2); post-load DISAGREEMENT
     in RP_PROPERTY_INFO (msg 150)       report (year_built is the primary join anchor — this is not cosmetic).
   * Pasco sales.zip = 3 members      -> archive members ENUMERATED, never "one CSV per zip"; the subset
@@ -34,7 +37,7 @@ Usage:  python3 wo_cama_load.py pinellas [TABLE ...]     # omit tables to load a
         python3 wo_cama_load.py collier
         python3 wo_cama_load.py pasco
 """
-import csv, glob, io, os, re, sys, zipfile
+import codecs, csv, glob, io, os, re, sys, zipfile
 from datetime import datetime, timezone
 import psycopg2
 
@@ -79,6 +82,41 @@ COUNTIES = {
 }
 
 IDENT_RE = re.compile(r'[^a-z0-9_]+')
+
+# The three counties ship THREE DIFFERENT encodings, measured from the bytes (not assumed):
+#   Collier  - genuinely UTF-8, BOM on all 16 files (EF BB BF present in every one).
+#   Pinellas - cp1252 in 5 of 14 files: SANDSTROM/LAVALLEE/LACOURSIERE owner names, Quebec+Ontario
+#              addresses, and a middle dot inside permit numbers (RM48463-18).
+#   Pasco    - cp1252 in 4 of 11; legal.csv alone carries 42,883 C1-range bytes, mostly curly quotes.
+# latin-1 is NOT a valid substitute: Pasco and Collier both hold bytes in 0x80-0x9F, which latin-1 would
+# decode to C1 CONTROL characters. Order matters - utf-8-sig first, because a real UTF-8 file must never
+# be read as cp1252 (that would mojibake every multibyte sequence into two characters).
+ENCODING_CANDIDATES = ('utf-8-sig', 'cp1252')
+
+
+def detect_encoding(raw, member):
+    """Decide a member's encoding by DECODING IT, never by assuming one.
+
+    Runs each candidate over the whole member with an incremental decoder (chunked, so a 611 MB
+    RP_SALES_HISTORY never materialises as one giant str) and returns the first that decodes cleanly.
+
+    There is deliberately NO errors='replace' fallback. Replacement would turn SANDSTROM into
+    SANDSTR?M and LAVALLEE into LAVALL?E - silently corrupting OWNER NAMES, which are the ownership
+    join key. A file we cannot decode is a file we do not load.
+    """
+    for enc in ENCODING_CANDIDATES:
+        dec = codecs.getincrementaldecoder(enc)()
+        try:
+            for i in range(0, len(raw), 1 << 20):
+                dec.decode(raw[i:i + (1 << 20)])
+            dec.decode(b'', final=True)
+            return enc
+        except UnicodeDecodeError:
+            continue
+    bar = '=' * 68
+    sys.exit(f'\n{bar}\nABORT - {member} decodes as none of {ENCODING_CANDIDATES}.\n'
+             f'{bar}\nDo NOT "fix" this with errors=replace: that corrupts owner names in place.\n'
+             f'Identify the real encoding from the bytes first.\n{bar}')
 
 
 def sql_ident(raw):
@@ -133,6 +171,9 @@ def ensure_manifest(cur):
           loader_version text,
           UNIQUE (table_name, source_member)
         )""")
+    # Additive: which encoding the file ACTUALLY decoded as, so the choice is auditable per file
+    # rather than an implicit constant buried in the loader.
+    cur.execute('ALTER TABLE public.cama_load_manifest ADD COLUMN IF NOT EXISTS source_encoding text')
 
 
 def load_member(cur, conn, county, cfg, zf, zi, only):
@@ -150,7 +191,8 @@ def load_member(cur, conn, county, cfg, zf, zi, only):
 
     raw = zf.read(zi.filename)
     had_bom = raw[:3] == b'\xef\xbb\xbf'
-    text = io.TextIOWrapper(io.BytesIO(raw), encoding='utf-8-sig', newline='')
+    encoding = detect_encoding(raw, member)     # measured per FILE, not assumed per county
+    text = io.TextIOWrapper(io.BytesIO(raw), encoding=encoding, newline='')
     reader = csv.reader(text)
     header = next(reader)
     cols, dups = dedup([sql_ident(h) for h in header])
@@ -185,21 +227,22 @@ def load_member(cur, conn, county, cfg, zf, zi, only):
     cur.execute("""
         INSERT INTO public.cama_load_manifest
           (county, co_no, table_name, source_archive, source_member, file_as_of, row_count,
-           expected_count, count_ok, columns_loaded, had_bom, dup_columns, header_sha256, loader_version)
-        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+           expected_count, count_ok, columns_loaded, had_bom, dup_columns, header_sha256, loader_version,
+           source_encoding)
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
         ON CONFLICT (table_name, source_member) DO UPDATE SET
           file_as_of=EXCLUDED.file_as_of, row_count=EXCLUDED.row_count, expected_count=EXCLUDED.expected_count,
           count_ok=EXCLUDED.count_ok, columns_loaded=EXCLUDED.columns_loaded, had_bom=EXCLUDED.had_bom,
           dup_columns=EXCLUDED.dup_columns, header_sha256=EXCLUDED.header_sha256, loaded_at=now(),
-          loader_version=EXCLUDED.loader_version""",
+          loader_version=EXCLUDED.loader_version, source_encoding=EXCLUDED.source_encoding""",
         (county, cfg['co_no'], table, os.path.basename(zf.filename), member, member_as_of(zi), db_count,
-         expected, count_ok, len(cols), had_bom, dups or None, header_sha, LOADER_VERSION))
+         expected, count_ok, len(cols), had_bom, dups or None, header_sha, LOADER_VERSION, encoding))
     conn.commit()   # persist the data + its manifest row together BEFORE we assert, so a failure is on record
 
     tag = 'OK' if count_ok else ('no-target' if expected is None else 'MISMATCH')
     extra = ' BOM' if had_bom else ''
     extra += f' dup={dups}' if dups else ''
-    print(f'  {table}: {db_count} rows (target {expected}) [{tag}]{extra}', flush=True)
+    print(f'  {table}: {db_count} rows (target {expected}) [{tag}] enc={encoding}{extra}', flush=True)
 
     # Pinellas duplicate YEAR_BUILT: report whether the two ever disagree (msg 150 — anchor-relevant).
     if 'year_built' in cols and 'year_built_2' in cols:
