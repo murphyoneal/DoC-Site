@@ -3,6 +3,9 @@ import Anthropic from '@anthropic-ai/sdk'
 import { b2bSocket } from '@/lib/sockets/b2b'
 import { parcelSocket } from '@/lib/sockets/parcels'
 import { amenitySocket } from '@/lib/sockets/amenities'
+import { pirSocket } from '@/lib/sockets/pir'
+import { summarisePirReport, pirConceptCount } from '@/lib/pir-summary'
+import { PostgrestError } from '@/lib/sockets/postgrest'
 import { landUseLabel, labelToDorCode } from '@/lib/dor-use-codes'
 import { checkRateLimit, pruneRateLimitStore } from '@/lib/rateLimit'
 import type { B2BAccount } from '@/types/b2b'
@@ -53,7 +56,7 @@ const SINGLE_PROPERTY_TOOLS: Anthropic.Tool[] = [
   {
     name: 'get_property_report',
     description:
-      "Get the full intelligence report for ONE parcel: owner, assessor lot size AND GIS-calculated lot size (shown side by side), just value, flood zone, elevation, land use, nearby traffic and demographics. Call after find_parcel. Needs parcel_id.",
+      "Get the full intelligence report for ONE parcel — the SAME document the Property Intelligence Report renders (get_pir_report). Covers owner and ownership, land use, year built and areas, assessed values and tax, flood zones with percentage of parcel, ground elevation, water adjacency (bay/canal/creek, named), wetland, historic designations, sinkhole susceptibility, aquifer vulnerability, mining, surface geology, zoning, permits, recorded conveyances, tax-deed status, land restrictions, contamination and pollution notices, census/demographics, schools and amenities. Call after find_parcel. Needs parcel_id. Fields carry their own coverage state — 'not_recorded' and 'not_available' are real answers and must be reported as such, never as zero or absent.",
     input_schema: {
       type: 'object',
       properties: {
@@ -147,9 +150,26 @@ async function runTool(
   }
 
   // County lock: Basic accounts may only touch their assigned county.
+  //
+  // RULING 197: ROUTE ON COVERAGE FIRST, ENTITLEMENT SECOND. Saying "upgrade to Pro
+  // to unlock X County" implies the data exists behind a paywall. If we hold no
+  // records for that county, Pro would not unlock it either, and the upgrade prompt
+  // is a small dishonesty of exactly the class this codebase exists to eliminate.
+  // Coverage is MEASURED here, never asserted from a hardcoded county list.
   if (account.tier === 'basic' && account.allowedCoNo != null && coNo !== account.allowedCoNo) {
+    // null = the probe itself failed; do NOT claim either coverage or a gap from it.
+    let held: boolean | null = null
+    try { held = await b2bSocket.hasParcelCoverage(coNo) } catch { held = null }
+
+    if (held === false) {
+      const reason = `No parcel records held for ${countyName} County.`
+      return { text: `${reason} This is a COVERAGE gap, not a plan limit — we do not hold ${countyName} County parcel records on any tier, so upgrading would not unlock it. Do not suggest an upgrade for this county.`, isError: true, allowed: false, denialReason: reason, countyNo: coNo, resultSummary: 'denied: no coverage', rows: 0, dbMs: null, parcelId: null }
+    }
     const reason = `Basic plan is limited to ${allowedCountyName} County.`
-    return { text: `${reason} This account cannot access ${countyName} County. Cross-county access requires the Pro plan.`, isError: true, allowed: false, denialReason: reason, countyNo: coNo, resultSummary: 'denied: county lock', rows: null, dbMs: null, parcelId: null }
+    const heldNote = held === true
+      ? ` We do hold parcel records for ${countyName} County, so Pro would cover it.`
+      : ` Coverage for ${countyName} County could not be checked, so do not promise that an upgrade would unlock it.`
+    return { text: `${reason} This account cannot access ${countyName} County.${heldNote} Cross-county access requires the Pro plan.`, isError: true, allowed: false, denialReason: reason, countyNo: coNo, resultSummary: 'denied: county lock', rows: null, dbMs: null, parcelId: null }
   }
 
   // ── Execute ── (measure DB time + row count for telemetry)
@@ -165,27 +185,19 @@ async function runTool(
     }
 
     if (name === 'get_property_report') {
-      const s = await parcelSocket.siteIntelligenceFor(coNo, String(input.parcel_id ?? ''))
+      // RULING 197: ONE SOURCE OF TRUTH. This used to call get_site_intelligence and
+      // assemble its own ~10-field payload, so the twelve concepts wired into
+      // get_pir_report never reached the assistant. It now reads the same document
+      // the PIR renders, summarised by lib/pir-summary (which walks every block
+      // generically, so a new concept needs no change here).
+      // SCRUBBED variant: the assistant is a render surface, so ruling 169 applies.
+      // The raw report still carries deed party names; this one has them removed
+      // server-side with the manifest at meta.scrubManifest.
+      const report = await pirSocket.forParcelScrubbed(coNo, String(input.parcel_id ?? ''))
       const dbMs = Date.now() - t0
-      if (!s) return ok(`No parcel ${input.parcel_id} found in ${countyName} County.`, coNo, 'not found', 0, dbMs, parcelIdIn)
-      const assessorAc = s.landSqft ? (s.landSqft / 43560).toFixed(2) : 'not recorded'
-      const gisAc = s.gisAcres != null ? s.gisAcres.toFixed(2) : 'n/a'
-      const elevFt = s.elevationM != null ? (s.elevationM * M_TO_FT).toFixed(1) + ' ft' : 'n/a'
-      const flood = s.floodZone ? `${s.floodZone}${s.inFloodHazardArea ? ' (in SFHA hazard area)' : ''}` : (s.floodZoneAvailable === false ? 'not available for this county' : 'not mapped')
-      const lines = [
-        `Parcel ${s.parcelId} — ${countyName} County`,
-        `Address: ${s.situsAddress ?? '—'}, ${s.city ?? '—'}`,
-        `Owner: ${s.ownerName ?? '—'}`,
-        `Land use: ${landUseLabel(s.landUseCode)} (DOR ${s.landUseCode ?? '—'})`,
-        `Just value (assessor): ${s.justValue != null ? usd(s.justValue) : '—'}`,
-        `Assessor lot size: ${assessorAc === 'not recorded' ? assessorAc : assessorAc + ' ac'}`,
-        `Site size (GIS-calculated): ${gisAc} ac`,
-        `Flood zone: ${flood}`,
-        `Elevation: ${elevFt}`,
-        `Nearest major road AADT: ${s.nearbyMaxAadt != null ? Math.round(s.nearbyMaxAadt).toLocaleString() + (s.nearbyRoadDesc ? ` (${s.nearbyRoadDesc})` : '') : 'n/a'}`,
-        `Area population: ${s.areaPopulation != null ? Math.round(s.areaPopulation).toLocaleString() : 'n/a'}; median income: ${s.areaMedianIncome != null ? usd(s.areaMedianIncome) : 'n/a'}`,
-      ]
-      return ok(lines.join('\n'), coNo, 'report ok', 1, dbMs, parcelIdIn)
+      if (!report) return ok(`No parcel ${input.parcel_id} found in ${countyName} County.`, coNo, 'not found', 0, dbMs, parcelIdIn)
+      const text = summarisePirReport(report, countyName)
+      return ok(text, coNo, `report ok (${pirConceptCount(report)} concepts)`, 1, dbMs, parcelIdIn)
     }
 
     if (name === 'get_nearby_amenities') {
@@ -224,7 +236,14 @@ async function runTool(
     return { text: `Unknown tool ${name}.`, isError: true, allowed: false, denialReason: 'unknown tool', countyNo: coNo, resultSummary: 'unknown tool', rows: null, dbMs: null, parcelId: null }
   } catch (err) {
     console.error('[assistant runTool]', name, err)
-    return { text: `Tool ${name} failed to run.`, isError: true, allowed: true, denialReason: null, countyNo: coNo, resultSummary: 'error', rows: null, dbMs: Date.now() - t0, parcelId: parcelIdIn }
+    // RULING 197: an infrastructure failure must NEVER be narrated as a data answer.
+    // The 3 August outage read as "Invalid or inactive account key" for twelve days
+    // because a 42501 resolved to [] and looked like "no rows". Name the class.
+    if (err instanceof PostgrestError && err.isPermissionDenied) {
+      return { text: `Tool ${name} could not run: the backend was denied access to the data (${err.code ?? err.status}: ${err.message}). This is a SYSTEM FAULT, not an answer about the property — do not tell the user the data does not exist. Report that the lookup failed and needs an operator.`, isError: true, allowed: true, denialReason: null, countyNo: coNo, resultSummary: 'error: permission denied', rows: null, dbMs: Date.now() - t0, parcelId: parcelIdIn }
+    }
+    const detail = err instanceof PostgrestError ? ` (${err.status}${err.code ? ' ' + err.code : ''}: ${err.message})` : ''
+    return { text: `Tool ${name} failed to run${detail}. This is a system fault, not a statement about the property.`, isError: true, allowed: true, denialReason: null, countyNo: coNo, resultSummary: 'error', rows: null, dbMs: Date.now() - t0, parcelId: parcelIdIn }
   }
 }
 

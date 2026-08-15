@@ -1,32 +1,11 @@
 import type { PirReport, PirMapGeoJson, PirParcelCloseup } from '@/types/pir'
 
-// Raw https → Supabase PostgREST RPC, same pattern as lib/sockets/parcels.ts.
-// Both functions return a single jsonb document, so PostgREST hands back the
-// object directly (no row wrapper).
-const SB_HOST = 'eaifqorwmgayiqmbtzcg.supabase.co'
-const SB_KEY = process.env.SUPABASE_SECRET_KEY!
-const SB_HEADERS = { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
+// RULING 197: transport moved to lib/sockets/postgrest.ts, which throws on an error
+// body instead of resolving it as data. Each RPC below returns a single jsonb
+// document, so PostgREST hands back the object directly (no row wrapper).
+import { pgPost } from './postgrest'
 
-function httpPost(path: string, body: unknown): Promise<any> {
-  return new Promise(function (resolve, reject) {
-    const https = require('https')
-    const payload = JSON.stringify(body)
-    const req = https.request({
-      hostname: SB_HOST, path: path, method: 'POST',
-      headers: Object.assign({}, SB_HEADERS, {
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(payload),
-      }),
-    }, function (res: any) {
-      let d = ''
-      res.on('data', function (c: any) { d += c })
-      res.on('end', function () { try { resolve(JSON.parse(d)) } catch (e) { resolve(null) } })
-    })
-    req.on('error', reject)
-    req.write(payload)
-    req.end()
-  })
-}
+const httpPost = pgPost
 
 export const pirSocket = {
   // Full report document for a single parcel. (co_no, parcel_id) keyed, exactly
@@ -36,6 +15,21 @@ export const pirSocket = {
       p_co_no: coNo, p_parcel_id: parcelId,
     })
     // PostgREST returns the jsonb object; guard against error payloads.
+    if (!res || typeof res !== 'object' || Array.isArray(res) || !res.meta) return null
+    return res as PirReport
+  },
+
+  // RULING 169 + 197. The SCRUBBED document, for render surfaces that are not
+  // pir_write_snapshot — currently the Roz/B2B assistant. get_pir_report itself
+  // still carries grantor/grantee on every conveyance (the scrub lives in the
+  // snapshot writer), so a narrator reading the raw report would speak deed party
+  // names with no manifest. The scrub is applied SERVER-SIDE and its manifest is
+  // returned at meta.scrubManifest, so the removal is evidenced, not just done.
+  // Do not reimplement the scrub here — that is the divergence ruling 197 closes.
+  forParcelScrubbed: async function (coNo: number, parcelId: string): Promise<PirReport | null> {
+    const res = await httpPost('/rest/v1/rpc/get_pir_report_scrubbed', {
+      p_co_no: coNo, p_parcel_id: parcelId,
+    })
     if (!res || typeof res !== 'object' || Array.isArray(res) || !res.meta) return null
     return res as PirReport
   },

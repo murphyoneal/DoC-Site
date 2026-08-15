@@ -1,40 +1,12 @@
 import type { B2BAccount, QueryLogEntry, AssistantQueryLogEntry, PropertySearchRow } from '@/types/b2b'
+import { pgGet, pgPost, pgRequest } from './postgrest'
 
-// Raw https → Supabase PostgREST, same pattern as the other sockets.
-const SB_HOST = 'eaifqorwmgayiqmbtzcg.supabase.co'
-const SB_KEY = process.env.SUPABASE_SECRET_KEY!
-const SB_HEADERS = { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
-
-function httpGet(path: string): Promise<any[]> {
-  return new Promise(function(resolve, reject) {
-    const https = require('https')
-    https.get({ hostname: SB_HOST, path, headers: SB_HEADERS }, function(res: any) {
-      let d = ''
-      res.on('data', (c: any) => { d += c })
-      res.on('end', () => { try { resolve(JSON.parse(d)) } catch { resolve([]) } })
-    }).on('error', reject)
-  })
-}
-
-function httpPost(path: string, body: unknown, prefer?: string): Promise<any> {
-  return new Promise(function(resolve, reject) {
-    const https = require('https')
-    const payload = JSON.stringify(body)
-    const headers: Record<string, string> = Object.assign({}, SB_HEADERS, {
-      'Content-Type': 'application/json',
-      'Content-Length': String(Buffer.byteLength(payload)),
-    })
-    if (prefer) headers['Prefer'] = prefer
-    const req = https.request({ hostname: SB_HOST, path, method: 'POST', headers }, function(res: any) {
-      let d = ''
-      res.on('data', (c: any) => { d += c })
-      res.on('end', () => { try { resolve(d ? JSON.parse(d) : null) } catch { resolve(null) } })
-    })
-    req.on('error', reject)
-    req.write(payload)
-    req.end()
-  })
-}
+// RULING 197: transport moved to lib/sockets/postgrest.ts. These used to swallow a
+// PostgREST error object as data — `resolve([])` on a parse that never failed —
+// which is how a 42501 permission-denied became "Invalid or inactive account key"
+// and hid a twelve-day backend outage. pgGet/pgPost THROW instead.
+const httpGet = pgGet
+const httpPost = pgPost
 
 export const b2bSocket = {
   // Resolve an account from its API key. Null if missing or inactive.
@@ -71,6 +43,19 @@ export const b2bSocket = {
       '/rest/v1/county_registry?select=county_name&dor_county_no=eq.' + coNo + '&limit=1'
     )
     return rows?.[0]?.county_name ?? `County ${coNo}`
+  },
+
+  // RULING 197: coverage is MEASURED, never asserted. Used to decide whether a
+  // county we cannot serve is an ENTITLEMENT limit ("upgrade to Pro") or a
+  // COVERAGE gap ("we do not hold these records on any tier"). Getting that
+  // backwards implies data exists behind a paywall when it does not.
+  // Throws on a backend fault so the caller can distinguish "0 parcels" from
+  // "the count never ran" — the whole point of the socket fix.
+  // Returns a BOOLEAN, deliberately: an existence probe (limit=1) cannot produce a
+  // count, and printing "1 parcel record" from it would be its own small fabrication.
+  hasParcelCoverage: async function(coNo: number): Promise<boolean> {
+    const v = await pgRequest('GET', '/rest/v1/parcels_staging?select=parcel_id&co_no=eq.' + coNo + '&limit=1')
+    return Array.isArray(v) && v.length > 0
   },
 
   // Write one event-log row. Best-effort — never throw into the request path.
