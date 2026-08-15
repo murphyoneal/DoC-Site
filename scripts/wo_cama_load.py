@@ -65,9 +65,14 @@ COUNTIES = {
         'co_no': 21, 'prefix': 'collier_cama_',
         'dir': os.environ.get('COLLIER_DIR', 'collier_out'),
         'skip_members': set(),
+        # CORRECTED -1 each. Every one of msg 155's seven Collier baselines was a `wc -l` that counted
+        # the HEADER as a data row: measured phys_lines == published baseline == data_rows + 1, for all
+        # seven independently. Seven tables each losing exactly one row is not a credible alternative.
+        # Published -> corrected: 298248->298247, 1287039->1287038, 1454552->1454551, 670412->670411,
+        # 569361->569360, 208481->208480, 101->100.
         'expected': {   # only the tables whose counts msg 155 published; others load without assertion
-            'int_parcels': 298248, 'int_sales': 1287039, 'int_values_rp_history': 1454552,
-            'int_legal': 670412, 'int_buildings': 569361, 'int_land': 208481, 'int_usecodes': 101,
+            'int_parcels': 298247, 'int_sales': 1287038, 'int_values_rp_history': 1454551,
+            'int_legal': 670411, 'int_buildings': 569360, 'int_land': 208480, 'int_usecodes': 100,
         },
     },
     'pasco': {
@@ -75,7 +80,10 @@ COUNTIES = {
         'dir': os.environ.get('PASCO_DIR', 'pasco_out'),
         'skip_members': {'sales_last_10years.csv'},   # subset of sales_all — loading both duplicates every recent sale
         'expected': {
-            'sales_all': 1760052, 'land': 539397, 'site_addresses': 360851,
+            # sales_all CORRECTED 1760052->1760051: same header-counted `wc -l` as Collier (phys_lines
+            # 1,760,052 == published baseline == data_rows + 1). Pasco's OTHER five were counted correctly
+            # and are unchanged - the error is per-file here, not per-county, so each was tested separately.
+            'sales_all': 1760051, 'land': 539397, 'site_addresses': 360851,
             'parcel': 324735, 'owners': 321781, 'building': 276649,   # extrafeatures: stale, no published target
         },
     },
