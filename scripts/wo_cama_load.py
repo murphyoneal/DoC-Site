@@ -182,6 +182,9 @@ def ensure_manifest(cur):
     # Additive: which encoding the file ACTUALLY decoded as, so the choice is auditable per file
     # rather than an implicit constant buried in the loader.
     cur.execute('ALTER TABLE public.cama_load_manifest ADD COLUMN IF NOT EXISTS source_encoding text')
+    # Ruling 189: record BOTH numbers, never collapse them. row_count is what the TABLE holds;
+    # ragged_rows is what was quarantined; expected_count is the SOURCE file's own row count.
+    cur.execute('ALTER TABLE public.cama_load_manifest ADD COLUMN IF NOT EXISTS ragged_rows int DEFAULT 0')
 
 
 def load_member(cur, conn, county, cfg, zf, zi, only):
@@ -212,11 +215,26 @@ def load_member(cur, conn, county, cfg, zf, zi, only):
     cur.execute(f'CREATE TABLE IF NOT EXISTS public.{table} ({coldefs})')
     cur.execute(f'TRUNCATE public.{table}')           # idempotent reload
 
+    # RAGGED ROWS ARE QUARANTINED, NEVER PADDED AND NEVER DROPPED.
+    # Pinellas RP_SALES_HISTORY carries 6 physical lines (1997943-1997948) that are fragments of 2 logical
+    # sale records for parcel 163127206100010150, split by CRLFs sitting BETWEEN properly-quoted fields.
+    # The two broken records total 32 quoted fields against a 29-column header, so they do NOT concatenate
+    # back and which 3 fields are split artifacts is genuinely ambiguous.
+    # Padding to header width would hit the published baseline exactly and go green while writing
+    # '3845 9TH AVE S' into OR_BKPG - the same class as errors='replace' on the encoding. Instead each
+    # off-width row is preserved VERBATIM (line number + every field) in <table>_ragged, and the assertion
+    # below requires loaded + quarantined == the source row count. Nothing is invented and nothing is lost;
+    # ruling 169 "load complete" is honoured because no row is discarded, only routed.
     n, batch = 0, io.StringIO()
     w = csv.writer(batch)
     b = 0
+    ragged = []
+    ncols = len(cols)
     copy_sql = f'COPY public.{table} ({collist}) FROM STDIN WITH (FORMAT csv)'
-    for row in reader:
+    for lineno, row in enumerate(reader, start=2):    # start=2: line 1 is the header
+        if len(row) != ncols:
+            ragged.append((lineno, row, len(row)))
+            continue
         w.writerow(row)
         n += 1; b += 1
         if b >= 50000:                                # chunk the COPY (invariant 5)
@@ -225,31 +243,52 @@ def load_member(cur, conn, county, cfg, zf, zi, only):
     if b:
         batch.seek(0); cur.copy_expert(copy_sql, batch)
 
+    if ragged:
+        qt = f'{table}_ragged'
+        cur.execute(f"""CREATE TABLE IF NOT EXISTS public.{qt} (
+                          source_member text, source_line bigint, field_count int,
+                          expected_field_count int, fields text[], quarantined_at timestamptz DEFAULT now())""")
+        cur.execute(f'TRUNCATE public.{qt}')
+        cur.executemany(f'INSERT INTO public.{qt} (source_member, source_line, field_count,'
+                        f' expected_field_count, fields) VALUES (%s,%s,%s,%s,%s)',
+                        [(member, ln, fc, ncols, r) for ln, r, fc in ragged])
+        print(f'  QUARANTINED {len(ragged)} ragged rows -> public.{qt} '
+              f'(lines {ragged[0][0]}-{ragged[-1][0]}, widths {sorted({f for _,_,f in ragged})} vs {ncols})',
+              flush=True)
+
     # Assert against the DB itself, not the Python tally — a SELECT count(*) is what catches a COPY that
     # dropped rows mid-stream. n (rows we wrote) and db_count (rows actually present) must agree, and both
     # must match the published baseline. This is the "assert inside the loader" of ruling 183.
     cur.execute(f'SELECT count(*) FROM public.{table}')
     db_count = cur.fetchone()[0]
-    count_ok = None if expected is None else (db_count == expected)
+    # The baseline is the SOURCE row count, so it counts quarantined fragments too. Assert
+    # loaded + quarantined == baseline: that proves every source row is ACCOUNTED FOR (either loaded or
+    # preserved verbatim), which is a stronger claim than a bare count match and does not require weakening
+    # the published target. Per ruling 189 both numbers are recorded, never collapsed into one.
+    accounted = db_count + len(ragged)
+    count_ok = None if expected is None else (accounted == expected)
 
     cur.execute("""
         INSERT INTO public.cama_load_manifest
           (county, co_no, table_name, source_archive, source_member, file_as_of, row_count,
            expected_count, count_ok, columns_loaded, had_bom, dup_columns, header_sha256, loader_version,
-           source_encoding)
-        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+           source_encoding, ragged_rows)
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
         ON CONFLICT (table_name, source_member) DO UPDATE SET
           file_as_of=EXCLUDED.file_as_of, row_count=EXCLUDED.row_count, expected_count=EXCLUDED.expected_count,
           count_ok=EXCLUDED.count_ok, columns_loaded=EXCLUDED.columns_loaded, had_bom=EXCLUDED.had_bom,
           dup_columns=EXCLUDED.dup_columns, header_sha256=EXCLUDED.header_sha256, loaded_at=now(),
-          loader_version=EXCLUDED.loader_version, source_encoding=EXCLUDED.source_encoding""",
+          loader_version=EXCLUDED.loader_version, source_encoding=EXCLUDED.source_encoding,
+          ragged_rows=EXCLUDED.ragged_rows""",
         (county, cfg['co_no'], table, os.path.basename(zf.filename), member, member_as_of(zi), db_count,
-         expected, count_ok, len(cols), had_bom, dups or None, header_sha, LOADER_VERSION, encoding))
+         expected, count_ok, len(cols), had_bom, dups or None, header_sha, LOADER_VERSION, encoding,
+         len(ragged)))
     conn.commit()   # persist the data + its manifest row together BEFORE we assert, so a failure is on record
 
     tag = 'OK' if count_ok else ('no-target' if expected is None else 'MISMATCH')
     extra = ' BOM' if had_bom else ''
     extra += f' dup={dups}' if dups else ''
+    extra += f' +{len(ragged)} quarantined = {accounted} accounted' if ragged else ''
     print(f'  {table}: {db_count} rows (target {expected}) [{tag}] enc={encoding}{extra}', flush=True)
 
     # Pinellas duplicate YEAR_BUILT: report whether the two ever disagree (msg 150 — anchor-relevant).
@@ -264,8 +303,9 @@ def load_member(cur, conn, county, cfg, zf, zi, only):
     problems = []
     if db_count != n:
         problems.append(f'loader wrote {n} rows but the table holds {db_count} — silent COPY loss')
-    if expected is not None and db_count != expected:
-        problems.append(f'table holds {db_count} rows against a baseline of {expected} (delta {db_count - expected:+})')
+    if expected is not None and accounted != expected:
+        problems.append(f'table holds {db_count} rows + {len(ragged)} quarantined = {accounted} accounted for, '
+                        f'against a source baseline of {expected} (delta {accounted - expected:+})')
     if db_count == 0:
         problems.append('loaded ZERO rows — empty is not done')
     if problems:
