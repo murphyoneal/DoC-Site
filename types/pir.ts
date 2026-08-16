@@ -15,7 +15,10 @@ export interface PirMeta {
   lat: number | null
   lng: number | null
   generatedAt: string
-  dataQualityScore: number | null
+  // RULING 218 b1: dataQualityScore REMOVED, not renamed. It was a 13-band ordinal
+  // (20/35/40/45/50/55/65/70/75/80/85/90/100 over 313,578 rows) rendered as "55/100"
+  // and captioned "the county appraiser's own completeness score" — a denominator it
+  // never had, attributed to an authority that did not produce it. Do not re-add.
   source: string | null
 }
 

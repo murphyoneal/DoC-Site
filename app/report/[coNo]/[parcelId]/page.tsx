@@ -274,7 +274,7 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
       <div className="pir-toolbar no-print">
         <Link href="/" style={{ color: 'var(--color-bronze)', textDecoration: 'none', fontSize: 13 }}>← Department of Property</Link>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-          <span style={{ fontSize: 12, color: 'var(--color-sage)' }}>{have}/{completeness.length} sections ({havePct}%) · source record {r.meta.dataQualityScore ?? '—'}/100</span>
+          <span style={{ fontSize: 12, color: 'var(--color-sage)' }}>{have}/{completeness.length} sections ({havePct}%)</span>
           <PrintButton />
         </div>
       </div>
@@ -892,7 +892,7 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
           {/* ═══ 7 — WHAT WE COULDN'T TELL YOU (a service, not an apology — who answers) ═══ */}
           <Grp n={7} title="What we couldn't tell you">
             <Section title="Not evaluated — and who can answer"
-              note={<>Report coverage: {have} of {completeness.length} sections populated ({havePct}%). Source-record quality: {r.meta.dataQualityScore ?? '—'}/100 (the county appraiser's own completeness score for this parcel). These measure different things and are not expected to match.</>}>
+              note={<>Report coverage: {have} of {completeness.length} sections populated ({havePct}%).</>}>
               {gaps.length ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
                   {gaps.map(([label, , who]) => (
