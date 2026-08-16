@@ -6,7 +6,7 @@
 > Append and supersede in the table, never delete: set `superseded_by` on the old row
 > and insert the new one.
 
-Live entries: 38 | superseded (retained as history): 2
+Live entries: 39 | superseded (retained as history): 2
 
 ---
 
@@ -157,6 +157,42 @@ The rows that failed were not unmatched. THEY WERE MATCHED AT A DIFFERENT LEVEL 
 whose unit, is the taxable object.
 SAME SHAPE, DIFFERENT NAMES, ACROSS THE DATABASE: parent_folio (Miami-Dade), nparno (GeoPlan statewide key),
 (co_no, parcel_id) (our own composite). All three are answering "which object is the one the register keys on".
+
+### 4. A TWO-DIGIT YEAR HAS NO CENTURY. THE PIVOT IS NOT A BUG, AND CROSS-FIELD COHERENCE IS THE ONLY RECOVERABLE SIGNAL.
+
+`test` | measured: 2026-08-16 | cc
+
+REPORTED AS "7 COMPL_DATE values parsed 1927-1930". MEASURED, IT IS A DEFECT 173x LARGER WEARING A
+SEVEN-ROW DISGUISE.
+
+volusia_cama_permits.COMPL_DATE and .PERMDT are BOTH text, and all 427,978 populated COMPL_DATE values
+share ONE format: MM/DD/YY. regexp_replace(btrim(col),'[0-9]','N','g') returns exactly one distinct
+pattern - that one query is the fastest way to find this class anywhere. THE CENTURY IS ABSENT FROM THE
+SOURCE FIELD. It was never lost by us and cannot be recovered from the field.
+
+cama_date() resolves it with a FIXED pivot of 2026, the extract vintage, so any yy > 26 becomes 19yy.
+THAT IS CORRECT FOR THE HISTORICAL BULK - yy 57 -> 1957, yy 68/69 -> 1968/1969, 55 rows of genuinely
+mid-century permits - AND WRONG FOR A DATE IN THE FUTURE, which is exactly where 1927-1930 came from.
+NO PIVOT FIXES THIS. Raising it to catch 2027 re-dates the real 1957 and 1969 records. A two-digit year
+is a lossy encoding and the pivot only chooses WHICH cases are wrong, never whether any are. The pivot
+being a documented deliberate constant rather than a drifting default is the correct design already.
+
+SO DO NOT CHECK THE YEAR. CHECK THE FIELDS AGAINST EACH OTHER. A permit cannot be completed before it was
+issued. Over 427,493 permits carrying both dates:
+  1,214  complete BEFORE they were issued
+     13  of those by more than 50 years   <- the century flip, containing all 7 reported rows
+  1,035  by less than a year              <- ordinary data entry, NOT a century problem
+GROUPING BY "LOOKS LIKE A WRONG CENTURY" WOULD HAVE FOUND 13 AND MISSED 1,201. The visible symptom was
+the rarest form of the defect.
+
+AND THE CHECK HAS A BLIND SIDE THAT MUST BE STATED: a future completion date lands before the issue date
+ONLY because the issue date is 20xx. A future completion on a PRE-2000 permit passes this check while
+still being wrong by a century. The coherence test is the best available signal, not a complete one.
+
+DISPOSITION IS disclose, NOT repair. The county published these strings; rewriting a stored value
+destroys the evidence of what the source said (11-traceability/1). Decline to assert a date known to be
+incoherent, put the raw string in date_note, and say why. Registered as
+permit-completion-date-precedes-issue-date; detection returns ok=false, examined 427,493, hit 1,214.
 
 ## 05A-family
 
