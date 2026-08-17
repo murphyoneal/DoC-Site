@@ -368,12 +368,18 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
                 <div>
                   <Legend entries={floodLegend} />
                   <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    <div style={{ border: '1px solid var(--color-line, #d9d3c6)', borderLeft: `3px solid ${fb.determination?.inSfha ? 'var(--color-terracotta, #b5502f)' : 'var(--color-sage)'}`, borderRadius: 6, padding: '10px 13px' }}>
+                    {/* Undetermined must NOT paint calm. A two-way colour test renders Zone D in the
+                        same reassuring sage as a genuine clearance — the false clearance surviving as
+                        colour after the words were fixed. Ruling 251. */}
+                    <div style={{ border: '1px solid var(--color-line, #d9d3c6)', borderLeft: `3px solid ${fb.determination?.inSfha ? 'var(--color-terracotta, #b5502f)' : fb.determination?.undetermined ? 'var(--color-ochre, #c08a2e)' : 'var(--color-sage)'}`, borderRadius: 6, padding: '10px 13px' }}>
                       <div style={{ fontSize: 14, fontWeight: 600 }}>{fb.determination?.label}<TierBadge tier={fb.determination?.tier} /></div>
                       {fb.determination?.headline ? <div style={{ fontSize: 12.5, color: 'var(--color-sage)', marginTop: 4 }}>{fb.determination.headline}</div> : null}
                     </div>
                     {fb.bfe ? <Fact l="Base flood elevation" v={fb.bfe.label} /> : null}
-                    {fb.zones.length ? <Fact l="Flood zones (share of parcel)" v={fb.zones.map((z: any) => `${z.zone}${z.in_sfha ? ' · SFHA' : ''}${z.pct_of_parcel != null ? ` ${z.pct_of_parcel}%` : ''}`).join('   ·   ')} /> : null}
+                    {/* in_sfha === null is UNDETERMINED (Zone D — FEMA performed no analysis), NOT a
+                        clearance. A truthy test renders null exactly like false, which is the false
+                        clearance this fix exists to remove. Three states, three renderings. Ruling 251. */}
+                    {fb.zones.length ? <Fact l="Flood zones (share of parcel)" v={fb.zones.map((z: any) => `${z.zone}${z.in_sfha === true ? ' · SFHA' : z.in_sfha == null ? ' · undetermined, not a clearance' : ''}${z.pct_of_parcel != null ? ` ${z.pct_of_parcel}%` : ''}`).join('   ·   ')} /> : null}
                     {fb.elevationComparison?.withheld ? <p className="pir-note" style={{ marginTop: 2 }}>Elevation vs. BFE — {fb.elevationComparison.reason}</p> : null}
                   </div>
                 </div>

@@ -204,14 +204,17 @@ export interface PirWater {
 // Flood now comes from get_parcel_flood_zone() (coverage-aware NFHL), merged with areaRepetitiveLoss.
 // not_available / parcel_not_resolved are COVERAGE GAPS — never render as "not in a flood zone".
 export interface PirFloodZoneEntry {
-  zone: string; subtype: string | null; in_sfha: boolean
+  // in_sfha is NULLABLE: Zone D means FEMA performed NO analysis. null is UNDETERMINED,
+  // never a clearance, and must not render like false. Ruling 251.
+  zone: string; subtype: string | null; in_sfha: boolean | null
   base_flood_elevation_ft: number | null; pct_of_parcel: number | null
 }
 export interface PirFlood {
   field?: string
-  field_status: 'present' | 'none_intersecting' | 'not_available' | 'parcel_not_resolved'
+  field_status: 'present' | 'undetermined' | 'none_intersecting' | 'not_available' | 'parcel_not_resolved'
   zones?: PirFloodZoneEntry[] | null
   in_sfha?: boolean | null
+  undetermined_zone_count?: number | null
   base_flood_elevation_ft?: number | null
   vertical_datum?: string | null
   layer_used?: string
