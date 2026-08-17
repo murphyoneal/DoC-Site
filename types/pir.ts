@@ -209,6 +209,21 @@ export interface PirFloodZoneEntry {
   zone: string; subtype: string | null; in_sfha: boolean | null
   base_flood_elevation_ft: number | null; pct_of_parcel: number | null
 }
+// RULING 266 — shareCheck is THREE STATES and only tenancy in common can produce true/false.
+// value null means NOT COMPUTED, with the reason saying why: no_share_column (the county
+// publishes none), not_applicable_tenancy (an entirety/joint/trust/life estate records each
+// holder at the full share BY DESIGN), mixed_tenancy, or tenancy_not_recorded.
+// A null must render as NOTHING — not a dash, not "unknown".
+export interface PirShareCheck {
+  subject?: unknown
+  predicate?: 'shares_sum_to_unity'
+  value: boolean | null
+  field_status: 'present' | 'not_computed'
+  reason?: 'sums_to_unity' | 'under_allocated' | 'over_allocated' | 'no_share_column'
+         | 'not_applicable_tenancy' | 'mixed_tenancy' | 'tenancy_not_recorded' | 'no_share_recorded'
+  note?: string
+}
+
 export interface PirFlood {
   field?: string
   field_status: 'present' | 'undetermined' | 'none_intersecting' | 'not_available' | 'parcel_not_resolved'

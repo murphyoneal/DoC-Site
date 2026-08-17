@@ -327,9 +327,25 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
               <div className="pir-note">Legal: {p.legal ?? '—'}.{p.livingAreaSource ? ` Living area from ${p.livingAreaSource}.` : ''}</div>
             </Section>
 
+            {/* RULING 266 — three render requirements, each guarding a different failure:
+                1. owner_count is its OWN fact. 844 must read as 844, never as a truncated list.
+                2. the TENANCY FORM renders beside the owners ALWAYS — a creditor of one
+                   tenancy-by-the-entirety spouse generally cannot reach the property, while any
+                   one of 844 tenants in common can force a partition sale. Different right.
+                3. shareCheck FALSE gets its own VISIBLE line, never a footnote; NULL renders
+                   NOTHING, because a null that renders as anything is the Zone D bug. */}
             {ob.established ? (
               <Section title="Ownership"
-                note={<>{ob.ownerCount?.note}{ob.tenancy?.form ? ` Tenancy on file: ${ob.tenancy.form}.` : ''}</>}>
+                note={<>{ob.ownerCount?.note}
+                  {ob.tenancy?.mixed
+                    ? ` More than one tenancy form is recorded on this parcel (${ob.tenancy.formsRecorded}); which whole the shares divide cannot be determined.`
+                    : ob.tenancy?.form ? ` Tenancy on file: ${ob.tenancy.form}.` : ''}</>}>
+                {ob.shareCheck?.failed ? (
+                  <div style={{ border: '1px solid var(--color-terracotta, #b5502f)', borderLeft: '3px solid var(--color-terracotta, #b5502f)', borderRadius: 6, padding: '10px 13px', marginBottom: 10 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600 }}>Recorded ownership shares do not account for the whole interest</div>
+                    <div style={{ fontSize: 12.5, color: 'var(--color-sage)', marginTop: 4 }}>{ob.shareCheck.note}</div>
+                  </div>
+                ) : null}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {ob.owners.map((o: any, i: number) => (
                     <div key={o.ownseq ?? i} style={{ border: '1px solid var(--color-line, #d9d3c6)', borderRadius: 6, padding: '9px 12px' }}>
