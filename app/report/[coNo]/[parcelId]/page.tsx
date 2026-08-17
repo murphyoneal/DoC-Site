@@ -352,6 +352,8 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
                       <div style={{ fontSize: 14, fontWeight: 600 }}>
                         {titleCase(o.name)}
                         {o.pctOwn != null ? <span style={{ fontWeight: 400, color: 'var(--color-sage)' }}> — {o.pctOwn}% as recorded</span> : null}
+                        {/* RULING 267 — never render a zero share as "0% as recorded". */}
+                        {o.shareStatus === 'zero_recorded' ? <span style={{ fontWeight: 400, color: 'var(--color-terracotta, #b5502f)' }}> — no percentage interest recorded</span> : null}
                         {o.ownershipType ? <span style={{ fontWeight: 400, color: 'var(--color-sage)' }}> · {o.ownershipType}</span> : null}
                         <TierBadge tier={o.provenance?.tier} />
                       </div>
