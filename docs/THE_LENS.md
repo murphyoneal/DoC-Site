@@ -6,7 +6,7 @@
 > Append and supersede in the table, never delete: set `superseded_by` on the old row
 > and insert the new one.
 
-Live entries: 278 | superseded (retained as history): 2
+Live entries: 300 | superseded (retained as history): 3
 
 ---
 
@@ -477,6 +477,129 @@ TIC, TE, JT - and never reached the case the attribute was designed around.
 ELEVENTH TIME THE STANDARD HELD SOMETHING WE HAD NOT LOOKED FOR. And this one is the strongest argument yet for the
 LADM decision: A THIRD ENTITY LEVEL WOULD HAVE HAD TO BE INVENTED, AND IT DOES NOT - IT IS A RIGHT WITH A SHARE AND A
 TIME SPECIFICATION, WHICH THE MODEL ALREADY HAS.
+
+### 14. THE FRAGMENT DEFECT IS COVERED - AND LADM SAYS WE ARE CONFLATING TWO DIFFERENT OBJECTS
+
+`mapping` | authority: ISO 19152 LA_BAUnit / LA_SpatialUnit; van Oosterom TC211 workshop | measured: 2026-08-22 | murphy
+
+MURPHY ASKED WHETHER LADM COVERS THE FRAGMENT DEFECT - 97,380 PARCELS STORED AS MULTIPLE GEOMETRY ROWS SHARING ONE
+parcel_id. IT DOES, AND THE ANSWER IS SHARPER THAN "YES".
+*** VAN OOSTEROM, ISO/TC211 LADM WORKSHOP, ON THE CORE MODEL: "LA_Party Peter has LA_RRR ownership on LA_BAUnit
+Peter's estate CONSISTING OF 2 LA_SpatialUnit PARCELS (WITH SAME LA_RRR)." ***
+SO LADM HAS AN EXPLICIT CONSTRUCT FOR ONE OWNERSHIP OVER SEVERAL PARCELS: THE LA_BAUnit. And LA_SpatialUnit carries
+area: LA_AreaValue [0..*] - MULTIPLICITY MANY - so a single spatial unit can legitimately carry several area values.
+*** THE POINT IS THAT THESE ARE TWO DIFFERENT OBJECTS AND OUR STORAGE CANNOT TELL THEM APART: ***
+  ONE SPATIAL UNIT, MULTIPART GEOMETRY   a parcel split by a road, a river or an island. ONE suID. Aggregating the
+    pieces is CORRECT and gives the true area.
+  SEVERAL SPATIAL UNITS UNDER ONE BAUnit  Peter's estate. TWO parcels, TWO suIDs, one ownership. Aggregating the areas
+    is ALSO correct for the estate - BUT THEY ARE SEPARATE LEGAL PARCELS THAT CAN BE SOLD APART.
+*** A SHARED parcel_id IN OUR TABLES IS CONSISTENT WITH BOTH, AND THE CONSEQUENCE DIFFERS: in the first case a buyer is
+buying one parcel; in the second they may be buying two, and either could be conveyed separately. ***
+SO THE JULY RULING - AGGREGATE, NEVER DEDUPE - IS CORRECT FOR AREA IN BOTH CASES, AND IT WAS RIGHT: reading one
+fragment gave Vizcaya 36.5 of 50.6 acres, and one parcel had 1,215 fragments where reading one gave a 1,580x error.
+*** BUT AGGREGATION ANSWERS THE AREA QUESTION AND HIDES THE LEGAL ONE. LADM WOULD ASSIGN A suID PER SPATIAL UNIT AND
+BIND THEM WITH AN LA_BAUnit. WE HAVE NEITHER - NO suID, AND LA_BAUnit HOLDS 4 ROWS. ***
+AND ST_Contains MAKES IT WORSE, WHICH IS RULING 284 ARRIVING FROM THE OTHER DIRECTION: ST_Contains AGAINST A FRAGMENT
+ASKS WHETHER THE RESTRICTION CONTAINS ONE SHARD. A brownfield covering a whole legal parcel fails ST_Contains against
+every fragment that extends beyond it.
+WHAT WOULD ACTUALLY RESOLVE IT IS A READ, NOT A RULE: WHERE FRAGMENTS ARE CONTIGUOUS THEY ARE ONE SPATIAL UNIT; WHERE
+THEY ARE DISJOINT THEY MAY BE SEVERAL. ST_Touches OR A UNION-AND-COUNT-RINGS TEST DISTINGUISHES THEM, AND NOBODY HAS
+RUN IT. Recorded as the open question rather than assumed either way.
+
+### 15. THE FRAGMENT TEST RUN - 51% CONTIGUOUS, 49% DISJOINT. BOTH LADM CASES ARE REAL AND WE CANNOT TELL THEM APART.
+
+`measurement` | authority: ST Johns, 300 groups, measured 2026-08-22 | measured: 2026-08-22 | claude
+
+BACKLOG 181 ASKED WHETHER FRAGMENTS ARE ONE MULTIPART SPATIAL UNIT OR SEVERAL SPATIAL UNITS UNDER ONE BAUnit. RAN IT
+ON ST JOHNS - 300 MULTI-ROW parcel_id GROUPS, ST_UnaryUnion THEN COUNT COMPONENTS:
+  153 CONTIGUOUS (51%)   ONE LA_SpatialUnit WITH MULTIPART GEOMETRY. Aggregating is correct and complete.
+  147 DISJOINT   (49%)   POSSIBLY SEVERAL LA_SpatialUnit UNDER ONE LA_BAUnit - van Oosterom's Peter's estate.
+  average 2.5 components, MAXIMUM 27
+*** THE SPLIT IS NEARLY EVEN, SO NEITHER SIMPLIFICATION IS AVAILABLE. A rule that treats all fragments as one parcel is
+wrong half the time; a rule that treats them as separate parcels is wrong the other half. ***
+AND THE 500-GROUP CHECK FIRST: EVERY ONE IS A MULTI-ROW GROUP AND NONE IS A SINGLE MULTIPOLYGON ROW - 2,322 rows across
+500 groups. SO THE FRAGMENTATION IS IN THE ROW STRUCTURE, NOT IN THE GEOMETRY TYPE, WHICH IS WHY ST_NumGeometries ON A
+SINGLE ROW WOULD HAVE MISSED IT ENTIRELY.
+*** DISJOINT DOES NOT PROVE SEPARATE PARCELS - a parcel severed by a road or a river IS ONE LEGAL PARCEL IN TWO PIECES,
+and Florida has a great deal of both. WHAT THE 49% ESTABLISHES IS THAT THE QUESTION IS REAL AT SCALE, NOT THAT THE
+ANSWER IS "SEVERAL". Distinguishing severed-by-a-feature from genuinely-separate NEEDS THE LEGAL DESCRIPTION, WHICH IS
+volusia_cama_legal AND THE DOR SDF, NOT GEOMETRY. ***
+AND ST JOHNS WAS ALREADY MEASURED AT 100% ONE OWNER ONE ADDRESS ACROSS 3,443 GROUPS - CONSISTENT WITH THE BAUnit CASE
+AND NOT EVIDENCE AGAINST IT. Peter's estate has one owner too.
+THE JULY RULING STANDS FOR AREA - AGGREGATE, NEVER DEDUPE - AND IS NOW MEASURED AS NECESSARY IN 100% OF CASES AND
+SUFFICIENT IN 51%.
+
+### 16. THE GAP MEASURED - 70% OF DISJOINT FRAGMENTS ARE UNDER 100 FEET APART. THAT IS A ROAD, NOT A SECOND PARCEL.
+
+`measurement` | authority: St Johns, 40 groups, measured 2026-08-22 | measured: 2026-08-22 | cc
+
+CC ASKED THE QUESTION I HAD NOT: NOT WHETHER FRAGMENTS ARE DISJOINT, BUT HOW FAR APART. RAN IT ON ST JOHNS - 40
+multi-row groups, 10 genuinely disjoint after ST_UnaryUnion, MINIMUM PAIRWISE GAP PER GROUP:
+  7 OF 10 UNDER 100 FEET   MINIMUM 28 FEET
+  1 between 100 and 1,000 feet
+  2 OVER 1,000 FEET, MAXIMUM 1,112
+*** 28 FEET IS A RESIDENTIAL STREET. A PARCEL SEVERED BY A ROAD IS ONE LEGAL PARCEL IN TWO PIECES, AND THAT IS 70% OF
+THE DISJOINT CASES. MY 49% DISJOINT FIGURE WAS TRUE AND MEANT SOMETHING DIFFERENT FROM WHAT I IMPLIED BY IT. ***
+SO THE SHAPE IS: 51% CONTIGUOUS, PLUS ROUGHLY 34% SEVERED-BY-A-FEATURE, LEAVING ABOUT 15% WHERE THE PIECES ARE FAR
+ENOUGH APART TO BE A GENUINE BAUnit QUESTION. NOT HALF. Around one in seven.
+*** AND THE TWO OVER 1,000 FEET ARE THE REAL FINDING RATHER THAN THE NOISE. Those cannot be a road. They are either
+Peter's estate - two parcels, one ownership, separately conveyable - or a key-collision where one parcel_id has been
+reused. EITHER MATTERS TO A BUYER AND THEY ARE OPPOSITE PROBLEMS. ***
+DISTANCE IS THE DISCRIMINATOR AND IT IS CHEAP. Geometry answered a question I had said needed the legal description -
+I wrote "separating severed-by-a-feature from genuinely-separate REQUIRES the legal description" and it required one
+more geometry measurement.
+AND THE FIRST ATTEMPT RETURNED ZERO ROWS: ST_Dump SELF-JOINED COMPARES EACH PART TO ITSELF, DISTANCE ZERO, FILTERED OUT
+BY gap > 0. RUNG ZERO CAUGHT IT - THE FILTER MATCHED NOTHING, SO THE TEST HAD NOT RUN. Rewritten with an ordered
+pairwise join on path index.
+
+### 17. FRAGMENTATION IS A COUNTY RECORDING PRACTICE, NOT A PROPERTY OF FLORIDA PARCELS - 0.5% TO 93.6%
+
+`measurement` | authority: CC per-county; Miami-Dade reproduced 2026-08-22 | measured: 2026-08-22 | cc
+
+CC WENT TO MEASURE THE THRESHOLD I PROPOSED AND FOUND THE THRESHOLD IS THE WRONG INSTRUMENT.
+*** MEASURED PER COUNTY, AND I REPRODUCED MIAMI-DADE INDEPENDENTLY AT 91.7% OF 60 GROUPS, MAX 21 COMPONENTS: ***
+  MIAMI-DADE  93.6% disjoint, max 39 components
+  Broward     80.4%, max 15        co_no 29  81.6%, max 8       co_no 13  74.0%
+  ST JOHNS    49%   <- THE COUNTY I MEASURED AND GENERALISED FROM
+  VOLUSIA      0.5%, max 2   -- ONE DISJOINT GROUP IN 183
+*** A 180-FOLD SPREAD. FRAGMENTATION IS NOT A PROPERTY OF FLORIDA PARCELS - IT IS A PER-COUNTY RECORDING PRACTICE, AND
+MY 51/49 IS A ST JOHNS NUMBER I PRESENTED AS A FLORIDA NUMBER. ***
+THAT IS THE THIRD TIME THIS WEEK I HAVE GENERALISED FROM ONE SAMPLE: one row to a column, one county to a state, and
+one fitting case to a vocabulary rule. THE SAMPLE WAS ALWAYS REAL AND THE POPULATION WAS ALWAYS WRONG.
+*** AND A SINGLE THRESHOLD CANNOT BE RIGHT ACROSS THAT RANGE. In Volusia a disjoint group is a genuine anomaly worth
+reading; in Miami-Dade it is the normal case and reading them all is 93.6% of the county. ***
+CC ALSO KILLED THE SOURCE I NAMED: hillsborough_right_of_way IS ST_MultiLineString - RIGHT-OF-WAY LINES, NOT POLYGONS.
+There is no width to measure from it, and widths appear only in free text in a column that is 3.6% populated. I NAMED IT
+FROM A COLUMN-MAP NOTE WITHOUT CHECKING ITS GEOMETRY TYPE, WHICH THE CLAIM ALREADY RECORDED.
+*** AND CC PROPOSED A BETTER INSTRUMENT THAN ANY THRESHOLD: BUILD THE ST_ShortestLine BETWEEN TWO DISJOINT COMPONENTS
+AND ASK WHETHER A ROAD CENTERLINE CROSSES IT. THAT IS EVIDENCE RATHER THAN A PROXY FOR EVIDENCE. ***
+BUT IT CANNOT BE VALIDATED WHERE IT MATTERS: ST JOHNS HAS NO ROAD LAYER. VOLUSIA HAS ONE AND ONE DISJOINT GROUP.
+MIAMI-DADE HAS 93.6% DISJOINT AND NO ROAD CENTERLINE LAYER. *** ROAD COVERAGE AND FRAGMENTATION DO NOT OVERLAP, SO THE
+CLASSIFIER IS UNTESTABLE IN THE COUNTIES WHERE IT WOULD BE USED. THAT IS A COVERAGE GAP, NOT A THRESHOLD QUESTION. ***
+AND CC HIT RUNG ZERO AGAIN ON THE WAY - THE WIDTH QUERY RETURNED ZERO ROWS BECAUSE THE GEOMETRY FILTER MATCHED NOTHING,
+AND THEY CHECKED RATHER THAN CONCLUDING THE WIDTHS WERE ABSENT.
+
+### 18. MIAMI-DADE DISJOINT PARTS ARE REAL LAND, NOT SLIVERS - 1.7% UNDER 100 SQ FT, LARGEST 26 ACRES
+
+`measurement` | authority: 40 Miami-Dade groups, 115 parts, measured 2026-08-22 | measured: 2026-08-22 | claude
+
+THE OBVIOUS EXPLANATION FOR 93.6% DISJOINT IS DIGITISING SLIVERS - THIN ARTEFACT POLYGONS LEFT BY A BAD SPLIT. I
+TESTED IT BEFORE BELIEVING IT AND IT IS FALSE.
+MEASURED, 40 MIAMI-DADE MULTI-ROW GROUPS, 115 DISJOINT PARTS AFTER ST_UnaryUnion:
+  2 OF 115 UNDER 100 SQ FT - 1.7%. SMALLEST 29.65 SQ FT. LARGEST 1,144,174 SQ FT - TWENTY-SIX ACRES.
+*** MIAMI-DADE FRAGMENTS ARE SUBSTANTIAL PARCELS OF LAND, NOT ARTEFACTS. A 26-ACRE COMPONENT SHARING A parcel_id WITH
+ANOTHER COMPONENT IS NOT A DIGITISING ERROR - IT IS EITHER A GENUINE MULTI-PARCEL HOLDING OR A REUSED KEY. ***
+SO THE THREE CANDIDATE EXPLANATIONS NARROW TO TWO, AND THEY ARE OPPOSITE PROBLEMS:
+  PETER'S ESTATE - several LA_SpatialUnit under one LA_BAUnit, separately conveyable, AND THE BUYER NEEDS TO KNOW
+  A REUSED parcel_id - a key collision, AND THE REPORT IS DESCRIBING TWO PROPERTIES AS ONE
+*** AND THE SECOND WOULD BE THE MOST SERIOUS DEFECT FOUND IN THIS DATABASE, BECAUSE IT MEANS THE PARCEL KEY IS NOT
+UNIQUE IN THE COUNTY WITH THE MOST PARCELS. Every join, every report and every containment test assumes it is. ***
+THAT IS TESTABLE WITHOUT ROADS AND WITHOUT ACQUISITION: IF THE COMPONENTS OF ONE parcel_id CARRY DIFFERENT own_name,
+DIFFERENT phy_addr1 OR DIFFERENT jv, IT IS A COLLISION. IF THEY AGREE, IT IS ONE HOLDING. St Johns was already
+measured at 100% ONE OWNER ONE ADDRESS ACROSS 3,443 GROUPS - CONSISTENT WITH THE ESTATE CASE - AND MIAMI-DADE HAS
+NEVER BEEN TESTED.
+THAT TEST DOES NOT NEED A ROAD LAYER, WHICH IS WHAT BLOCKED THE OTHER PATH. It should run before any acquisition is
+scheduled.
 
 ## 03-authority
 
@@ -5912,3 +6035,304 @@ THE RULE: setsid to detach into a new session; wrap each job in a restart loop t
 run_defect_detections() runs all 153 predicates inside ONE statement, so the pooler applies its 2-minute statement_timeout to the SUM, not to any single detection. The batch had not completed since 2026-08-20 for that reason, and the first diagnosis - "one slow predicate" - was wrong. Measured total: 365.3 s.
 The pooler strips startup options but HONOURS an in-session SET statement_timeout = 0, which needs a real session (psycopg2), not the MCP path and not a DO block. CREATE INDEX CONCURRENTLY additionally cannot run inside a transaction block, so it needs autocommit as well - and it can return WITHOUT ERROR having produced an index with indisvalid = FALSE, which enforces nothing and no query will use. ALWAYS assert indisvalid after building one.
 THE RULE: run long batches from a real session with the timeout lifted. Do not bend high-consequence served-path predicates into fitting an arbitrary connection limit. Optimise them when they are WASTEFUL - the orphan predicate cast a column (co_no::int = 0), disabling an existing btree index and costing 105 s of a 365 s batch for one cast - not merely because they are slow.
+
+## 91-floodway-domain
+
+### 1. THE FLOODWAY COLUMN IS NOT ONE VOCABULARY - IT IS FOUR, AND FOUR TABLES CARRY NO FLOODWAY AT ALL
+
+`measurement` | authority: CC; 20 tables read 2026-08-22 | measured: 2026-08-22 | cc
+
+The lee_firm_floodways remediation said "CHECK EVERY OTHER COUNTY FLOODWAY LAYER FOR THE SAME SHAPE". Run 2026-08-22 across all 20 public tables carrying a floodway column. Recorded in floodway_token_map (47 tokens).
+A SERVED TEST OF floodway = 'FLOODWAY' RETURNS ZERO FOR FOUR COUNTIES THAT HAVE ONE:
+  charlotte_flood_zones_2022 uses IN / OUT
+  charlotte_flood_zones_pre2003 uses FW
+  marion_fema_flood_1983 and marion_fema_flood_2008 use Fldwy
+A SERVED TEST OF floodway <> 'OUTSIDE' RETURNS NEARLY EVERYTHING: the negative token is a single SPACE in nine tables and an EMPTY STRING in others. OUTSIDE appears in only two tables.
+THE COLUMN CARRIES A DIFFERENT CONCEPT ENTIRELY IN THREE:
+  lee_firm_flood_zones - 38 values, 36 of them WATERCOURSE NAMES (Estero River, Orange River, Ten Mile Canal): the stream whose floodway it is, not a flag. A SECOND Lee table and a different defect from the jurisdiction names, found only because the class check was run.
+  pasco_fema_floodways - FLOOD ZONE descriptions (0.2 PCT ANNUAL CHANCE...)
+  clay_flood_zones - the value 1000, an internal identifier
+FOUR TABLES CARRY NO FLOODWAY INFORMATION AT ALL and must serve not_available, never a negative: broward_flood_zones_2014, pompanobeach_city_flood_zones, marion_fema_flood_other_areas, clay_flood_zones.
+Also: lee_firm_flood_zones holds BOTH 'OUTSIDE' and 'Outside' in the same column, and okaloosa_flood_zones / marion_fema_flood_2008 hold ONLY the positive token - there is no negative in those tables, so absence of a row is not absence of floodway.
+THE RULE: read floodway_token_map before testing any floodway column. Never assume the token, never test for NOT-the-negative, and re-read the domain after every pull.
+
+### 2. I MINTED A TERM IN THE QUERY AFTER WRITING THE RULE AGAINST IT
+
+`correction` | authority: CC; self-observed 2026-08-22 | measured: 2026-08-22 | cc
+
+The entry above was first submitted with kind='measured'. The lens_kind_check vocabulary is {principle, rule, test, mapping, measurement, open, closed, correction} - 'measurement', not 'measured'. The constraint rejected it.
+This happened in the query IMMEDIATELY AFTER inserting 89-sop-read-audit ordinal 7, which says never mint a term and check usage first. Knowing the rule did not produce compliance; the CHECK did.
+That is the sixth time in two days a schema has held a vocabulary someone invented past - E2_own_content_read, UNGRADED, kind, col_role, claim_shape, and now lens.kind. In every case the constraint caught it and the intention did not. It is the argument for constraints over conventions, made against the author of the convention.
+
+### 3. THE FLOODWAY CLASS CHECK WAS WRITTEN INTO A REMEDIATION AND NEVER RUN - AND NO SERVED FUNCTION READS FLOODWAY AT ALL
+
+`measurement` | authority: CC class check; served path verified 2026-08-22 | measured: 2026-08-22 | cc
+
+CC RAN THE CLASS CHECK MY OWN REMEDIATION DEMANDED - "check every other county floodway layer for the same shape" -
+FOUR DAYS AFTER I WROTE IT. IT HAD NEVER BEEN RUN.
+*** TWENTY TABLES CARRY A floodway COLUMN AND A TEST FOR = 'FLOODWAY' RETURNS ZERO ON FOUR COUNTIES THAT HAVE ONE.
+VERIFIED: charlotte_flood_zones_2022 HOLDS "IN" AND "OUT". A FLOODWAY TEST AGAINST IT MATCHES 0 OF ITS ROWS. ***
+  as expected FLOODWAY   baker, bocaraton, desoto, hardee, jefferson, marion_2017, okaloosa, palmbeach, walton
+  DIFFERENT TOKEN        charlotte_2022 IN/OUT | charlotte_pre2003 FW | marion_1983 and 2008 Fldwy
+  NO FLOODWAY DATA       clay (blank, space, and the value 1000 - an internal id) | broward_2014, pompanobeach,
+                         marion_other (blanks only)
+  A DIFFERENT CONCEPT    lee_firm_flood_zones = 36 WATERCOURSE NAMES - Estero River, Orange River, Ten Mile Canal |
+                         pasco_fema_floodways = FLOOD ZONE DESCRIPTIONS
+AND THE INVERSE TEST IS WORSE: floodway <> 'OUTSIDE' RETURNS NEARLY EVERYTHING, BECAUSE THE NEGATIVE IS A SINGLE
+SPACE IN NINE TABLES AND "OUTSIDE" APPEARS IN ONLY TWO.
+*** BUT I MEASURED THE SERVED PATH BEFORE CALLING IT DAMAGE, AND IT CHANGES THE CLASSIFICATION: NO SERVED FUNCTION
+READS floodway. NOT ONE. IT IS A GAP IN THE REPORT, NOT A WRONG ANSWER IN IT. ***
+THAT IS THE SIXTH SOURCE-SIDE ALARM IN A ROW TO CHANGE SHAPE WHEN TESTED AGAINST SERVING - AND THIS TIME IT DOES NOT
+COLLAPSE TO NOTHING, IT INVERTS. THE DEFECT IS THAT A REGULATORY FLOODWAY - 44 CFR 60.3(d), THE STRICTEST FLOOD
+RESTRICTION THERE IS, PROHIBITING ANY DEVELOPMENT CAUSING ANY RISE - IS HELD IN TWENTY TABLES AND SERVED IN NONE.
+SO THE CROSSWALK IS NOT A REPAIR, IT IS A PREREQUISITE. floodway_token_map - 47 TOKENS, 20 TABLES, FOUR MEANINGS -
+IS WHAT MAKES WIRING IT POSSIBLE. Wiring it without the crosswalk would have shipped a confident "no floodway" for
+Charlotte and Marion.
+AND THE FOUR TABLES WITH NO FLOODWAY DATA MUST SERVE not_available, NEVER A NEGATIVE - which is only knowable because
+the class check distinguished a blank from an OUT.
+
+## 92-contains-vs-intersects
+
+### 1. RULING 284 - ST_Contains ON A SERVED CONTAINMENT PATH DROPS 5.1% OF BROWNFIELD HITS, MEASURED
+
+`rule` | authority: CC found; measured and ruled 2026-08-22 | measured: 2026-08-22 | murphy
+
+CC FOUND probe_in_extent AND THE SERVED PATH USE DIFFERENT PREDICATES. VERIFIED: probe_in_extent NOW READS THE TYPE SET
+PER RULING 283, AND FIVE SERVED FUNCTIONS USE ST_Contains - INCLUDING get_pir_report ITSELF, PLUS brownfield, census,
+econzone AND subdivision.
+*** MEASURED THE EXPOSURE RATHER THAN ARGUING IT. 3,000 MIAMI-DADE PARCELS AGAINST miamidade_brownfield_areas:
+  315 INTERSECT | 299 ARE CONTAINED | 16 DIFFER - 5.1% ***
+SIXTEEN PARCELS PARTIALLY OVERLAP A BROWNFIELD AND ST_Contains DROPS EVERY ONE. A PARCEL HALF INSIDE A DESIGNATED
+BROWNFIELD IS INSIDE A DESIGNATED BROWNFIELD - the BSRA restrictions, the recorded deed restrictions and the
+groundwater limits attach to the land, not to the majority of it.
+*** AND THE FAILURE RENDERS AS A CLEAN NEGATIVE. The report does not say "partially overlapping"; IT SAYS NOTHING, AND
+NOTHING READS AS NO BROWNFIELD. That is a false clearance on the finding the spec ranks ABOVE SFHA. ***
+RULED: THE SERVED CONTAINMENT PATH USES ST_Intersects, NOT ST_Contains, FOR RESTRICTION LAYERS.
+  ST_Contains ANSWERS "is the parcel wholly inside" - a question no restriction asks.
+  ST_Intersects ANSWERS "does the restriction touch this parcel" - which is the question a buyer is paying for.
+CC IS RIGHT THAT THE FRAGMENT DEFECT MAKES IT WORSE AND NOT BETTER: 97,380 PARCELS ARE STORED AS MULTIPLE GEOMETRY
+PIECES, AND ST_Contains AGAINST A FRAGMENT ASKS WHETHER THE RESTRICTION CONTAINS ONE SHARD. The Vizcaya parcel read
+36.5 of 50.6 acres for exactly this reason.
+SCOPE, AND IT IS NOT A BLANKET CHANGE: *** THIS APPLIES TO RESTRICTION AND HAZARD LAYERS, WHERE TOUCHING IS THE
+FINDING. It does NOT apply to a jurisdiction assignment - "which county is this parcel in" IS a containment question
+and ST_Contains is correct there. THE PREDICATE FOLLOWS THE QUESTION, WHICH IS THE SAME REASONING AS THE GEOMETRY ROLE
+RULING. ***
+AND THE 5.1% IS A MIAMI-DADE BROWNFIELD SAMPLE, NOT A STATEWIDE RATE. Every affected layer needs its own measurement
+before any figure is published - a sampled rate supports "effectively", never "exactly".
+
+## 92-fragmentation-by-county
+
+### 1. FRAGMENTATION IS A PER-COUNTY RECORDING PRACTICE, 0.5% TO 93.6% - NO SINGLE RULE OR THRESHOLD CAN BE RIGHT
+
+`measurement` | authority: CC; 12 counties measured 2026-08-23 | measured: 2026-08-23 | cc
+
+Backlog 181 measured St Johns and found ~49% of multi-row parcel_id groups genuinely disjoint after ST_UnaryUnion. Measured across 12 counties 2026-08-23, capped at 250 groups each so the denominator is the sample:
+   Miami-Dade 93.6% (max 39 components) | co 48 82.4% (13) | co 29 81.6% (8)
+   Broward 80.4% (15) | co 13 74.0% (5) | ST JOHNS 53.2% (27) | co 50 44.2% (4)
+   St Lucie 12.2% (4) | PINELLAS 2.1% (30) | VOLUSIA 0.5% (2)
+St Johns REPRODUCES independently at 53.2% against the 49% originally measured. The finding was sound; generalising it was not.
+The spread is 187-fold. A parcel_id repeating with disjoint geometry is COMMON in Miami-Dade and essentially ABSENT in Volusia, which means it reflects how each county records parcels, not a property of Florida land. A single threshold, a single aggregation rule, or a single LA_SpatialUnit-vs-LA_BAUnit verdict applied statewide will be wrong for most counties.
+NOTE THE COUNTS, NOT ONLY THE RATES: Brevard produced ONE multi-row group in the sample and Lee eleven - in those counties parcel_id barely repeats at all, so their percentages carry no weight and must not be quoted. Pinellas is the opposite trap: only 2.1% disjoint but a maximum of 30 components, so when it does fragment it fragments hard.
+THE RULE: measure fragmentation PER COUNTY before applying any aggregation or containment rule, and state the group count alongside the rate.
+
+### 2. THE SEVERED-VS-GENUINE CLASSIFIER IS NOT TESTABLE WHERE IT MATTERS - ROAD COVERAGE AND FRAGMENTATION DO NOT OVERLAP
+
+`test` | authority: CC measured 2026-08-23 | measured: 2026-08-23 | cc
+
+A distance threshold is a proxy. The direct test is whether a ROAD physically lies between two disjoint components: build ST_ShortestLine between them and ask whether a road centerline crosses it. Built and run 2026-08-23.
+IT CANNOT BE VALIDATED WHERE THE PROBLEM IS.
+  St Johns (53.2% disjoint) - NO road layer held.
+  Miami-Dade (93.6% disjoint, up to 39 components) - NO road centerline layer held.
+  Volusia HAS volusia_public_works_streets (34,002) and has ONE disjoint group in 183, so the test runs and proves nothing.
+Road centerlines are held for Lee, Orange, Hillsborough, Palm Beach, Pinellas, Brevard, Volusia, St Lucie, Collier and two cities. The high-fragmentation counties are not among them.
+ALSO: hillsborough_right_of_way cannot settle a threshold either - it is ST_MultiLineString, right-of-way LINES with no width to measure, and widths appear only as free text ("50.00 FOOT W...") in a problems column populated on 7,437 of 208,281 rows.
+So this is a COVERAGE GAP, not a threshold question. Acquiring road centerlines for Miami-Dade and St Johns makes the classifier testable; guessing a threshold does not.
+
+### 3. THE DISTANCE THRESHOLD IS NOT IMPRECISE - IT IS INVERTED. WIDE GAPS ARE THE MOST LIKELY TO BE ROADS, NARROW GAPS THE LEAST
+
+`measurement` | authority: CC; Miami-Dade measured 2026-08-23 | measured: 2026-08-23 | cc
+
+The proposed ~150 ft threshold assumed a narrow gap means "severed by a road, still one parcel" and a wide gap means "genuinely separate parcels". MEASURED in Miami-Dade 2026-08-23, 284 disjoint parcel_id groups, using miamidade_street_centerlines (116,466 segments, verified 0 missing / 0 extra by returnIdsOnly set-diff) and ST_ShortestLine between the two largest components:
+   gap <  50 ft   133 groups   a road crosses  38   29%
+   gap 50-150 ft   99 groups   a road crosses  64   65%
+   gap 150-500 ft  33 groups   a road crosses  16   48%
+   gap >  500 ft   19 groups   a road crosses  14   74%
+   OVERALL        284 groups   a road crosses 132   46.5%
+THE RELATIONSHIP RUNS THE WRONG WAY AT BOTH ENDS. A 150 ft threshold would call the <50 ft cases road-severed when only 29% are, and call the >500 ft cases separate parcels when 74% of them ARE road-severed - a major road or highway has a wide right-of-way, while a sub-50-foot gap is more often a sliver, a digitising artifact, or two genuinely adjacent pieces. Median gap is 51.6 ft and the minimum is 0.0 ft - components that touch at a point and are still topologically disjoint.
+53.5% of disjoint groups have NO road in the gap and remain unexplained. Key collision is already ruled out (864 groups, 100% one owner), so those are candidates for the LA_BAUnit reading - one ownership over several spatial units - or for severance by a feature we do not hold: canal, rail, water.
+THE RULE: do not classify severance by distance. Ask whether a severing feature is actually there. Where no feature layer is held, the honest state is unexplained, not a threshold guess.
+
+### 4. THE THRESHOLD IS INVERTED, NOT IMPRECISE - AND THE ACQUISITION IS WHAT PROVED IT
+
+`measurement` | authority: CC severance test 2026-08-22 | measured: 2026-08-22 | cc
+
+CC LOADED THE MIAMI-DADE STREET LAYER - VERIFIED BY ID SET-DIFF, 116,466 SOURCE, 116,466 LOADED, 0 MISSING, 0 EXTRA,
+NOT A ROW COUNT - AND RAN THE SEVERANCE TEST FOR THE FIRST TIME.
+284 DISJOINT GROUPS, ST_ShortestLine BETWEEN THE TWO LARGEST PARTS, DOES A ROAD CROSS IT:
+  UNDER 50 FT   29% ARE ROADS      50-150 FT  65%      150-500 FT  48%      OVER 500 FT  74%
+*** A 150-FOOT RULE WOULD CALL THE SUB-50-FOOT CASES ROAD-SEVERED WHEN ONLY 29% ARE, AND CALL THE OVER-500-FOOT CASES
+SEPARATE PARCELS WHEN 74% OF THEM ARE ROAD-SEVERED. THE THRESHOLD IS NOT MISCALIBRATED. IT IS BACKWARDS. ***
+AND THE REASON IS OBVIOUS ONCE MEASURED AND WAS INVISIBLE BEFORE: A MAJOR ROAD OR HIGHWAY HAS A WIDE RIGHT OF WAY, SO
+THE BIGGEST GAPS ARE THE MOST LIKELY TO BE ROADS. A SUB-50-FOOT GAP IS MORE OFTEN A SLIVER OR TWO GENUINELY ADJACENT
+PIECES. Minimum gap 0.0 ft - components touching at a point and still topologically disjoint.
+I PROPOSED THE 150-FOOT THRESHOLD FROM SEVEN ST JOHNS MEASUREMENTS. IT WAS WRONG IN DIRECTION, NOT DEGREE, AND NO
+AMOUNT OF TUNING WOULD HAVE FIXED IT.
+*** 152 OF 284 - 53.5% - HAVE NO ROAD IN THE GAP, AND COLLISION IS ALREADY RULED OUT AT 100% ONE-OWNER ACROSS 864
+GROUPS. SO THOSE ARE EITHER THE LA_BAUnit CASE OR SEVERANCE BY SOMETHING WE DO NOT HOLD FOR MIAMI-DADE - CANAL, RAIL
+OR WATER. Answerable the same way, by acquisition and measurement rather than by rule. ***
+THE METHOD IS THE FINDING: A PROXY WAS REPLACED BY EVIDENCE, AND THE EVIDENCE POINTED THE OPPOSITE WAY.
+
+## 93-fragment-attributes
+
+### 1. KEY COLLISION IS RULED OUT - 864 DISJOINT GROUPS, THREE COUNTIES, ZERO COLLISIONS
+
+`measurement` | authority: CC; 3 counties measured 2026-08-23 | measured: 2026-08-23 | cc
+
+The serious hypothesis for a disjoint multi-row parcel_id was a KEY COLLISION: two different properties recorded under one parcel_id, which would break every join, report and containment test that assumes the key is unique.
+TESTED 2026-08-23 by comparing own_name / phy_addr1 / jv ACROSS the rows sharing a parcel_id:
+   Miami-Dade  375 disjoint groups  100% one owner, one address, one just-value
+   Broward     337 disjoint groups  100%
+   St Johns    152 disjoint groups  100%
+864 disjoint groups, ZERO groups with differing owner or address. The collision hypothesis is dead. Every case is ONE holding recorded as several rows.
+AND alt_key CANNOT BE USED FOR THIS TEST. Measured: populated on 306,889 of 306,889 Volusia parcels and on ZERO of 585,220 Miami-Dade and ZERO of 205,773 St Johns. It is a Volusia-only column and any rule built on it holds for one county.
+
+### 2. AGGREGATE THE GEOMETRY, NEVER THE ATTRIBUTES - THEY ARE REPEATED ON EVERY FRAGMENT, AND SUMMING jv OVERSTATES BROWARD BY $57 BILLION
+
+`rule` | authority: CC measured 2026-08-23 | measured: 2026-08-23 | cc
+
+The July ruling "aggregate, never dedupe" is correct for GEOMETRY - Vizcaya read 36.5 of 50.6 acres because one fragment was read instead of the union, and _parcel_geom_agg rightly does ST_Union.
+IT IS THE OPPOSITE FOR ATTRIBUTES. Measured on 300 Miami-Dade multi-row groups:
+   jv IDENTICAL on every row          300 of 300
+   lnd_sqfoot IDENTICAL on every row  300 of 300
+   average 2.81 rows per group, worst case 41 rows
+The county copies the parcel's attributes onto EVERY fragment. They are not split, so summing them multiplies the value by the fragment count - up to 41x on a single Miami-Dade parcel.
+LIVE DEFECT: get_area_findings computes 'total_just_value', sum(p.jv) joined to parcels_staging. Measured overstatement:
+   Broward     naive $537,414,977,200 vs correct $480,140,046,980  = +11.93%  (+$57.3 BILLION)
+   Miami-Dade  naive $617,732,207,453 vs correct $581,978,420,072  = + 6.14%  (+$35.8 BILLION)
+   Volusia                                                          = + 0.02%  (0.5% fragmentation)
+The error tracks the county fragmentation rate exactly, so it is invisible in Volusia - the county everything is tested against - and worst in the two largest counties by value.
+THE RULE: geometry aggregates by ST_Union; area is measured from the union. Attributes are taken ONCE per parcel_id (any row - they are identical), never summed, never averaged. A per-parcel attribute repeated across fragments is not N observations.
+
+### 3. CORRECTION: I NAMED THE WRONG FUNCTION. get_area_findings IS VOLUSIA-HARDCODED; search_properties_stats IS THE LIVE ONE
+
+`correction` | authority: CC self-correction; verified 2026-08-23 | measured: 2026-08-23 | cc
+
+I reported get_area_findings as overstating Broward just-value by $57.3 BILLION and ruling 285 was made on that basis. The arithmetic was right and the function was wrong.
+get_area_findings has NO county parameter - its signature is (p_unit text, p_value text, p_city text) - and it hardcodes co_no=74 in ALL NINETEEN places. It serves VOLUSIA ONLY, where the inflation is 0.02%. The $57.3B Broward figure is what happens WHEN THAT FUNCTION IS EXTENDED beyond Volusia. It is latent, not live.
+THE LIVE ONE IS search_properties_stats(p_co_no numeric DEFAULT NULL, ...). The default is NULL, so it runs STATEWIDE, and it returns count(*) and avg(p.jv) straight off parcels_staging rows. MEASURED:
+   Broward     match_count 764,950 -> 752,533  +1.65%   avg_value $702,549 -> $638,032   +10.11%
+   Miami-Dade  match_count 570,598 -> 567,700  +0.51%   avg_value $1,082,605 -> $1,025,151 +5.60%
+   Volusia     match_count 302,561 -> 302,378  +0.06%   avg_value                          -0.04%
+A Broward search reports the average property value TEN PERCENT HIGH - $702,549 against $638,032 - because fragmented parcels average 7.2x the value of single-row parcels and each fragment votes.
+THE LESSON, AND IT IS THE ONE WE KEEP RE-LEARNING: I measured the arithmetic on Broward data without checking WHICH COUNTY THE FUNCTION READS. Measuring a defect is not the same as measuring the served path, and I have written that rule down twice this week.
+Ruling 285 stands unchanged - aggregate geometry, take attributes once. Only the target changes.
+
+### 4. RULING 286 - FIX IT AT REST, NOT IN THE QUERY. THE DUPLICATION IS A STORAGE FACT AND EVERY READER PAYS FOR IT.
+
+`rule` | authority: CC queued; measured and ruled 2026-08-22 | measured: 2026-08-22 | murphy
+
+CC ASKED FOR AN A/B CALL: THE CORRECT search_properties_stats QUERY TAKES 157-276s AGAINST A 60-SECOND BUDGET.
+*** NEITHER A NOR B. THE QUESTION ASSUMES THE FIX BELONGS IN THE QUERY, AND IT DOES NOT. ***
+MEASURED: THE REDUNDANCY IS SMALL AND THE COST OF CARRYING IT IS NOT.
+  BROWARD     765,030 rows / 752,606 parcels = 12,424 REDUNDANT, 1.62%
+  MIAMI-DADE  585,220 / 579,992 = 5,228, 0.89%
+  VOLUSIA     306,889 / 306,706 = 183, 0.06%
+*** ONE AND A HALF PERCENT OF ROWS IS FORCING A DISTINCT ON ACROSS 10.7 MILLION IN EVERY QUERY THAT TOUCHES AN
+ATTRIBUTE. THAT IS THE ST_MakeValid LESSON IN A FOURTH FORM: repair once at rest, or pay per call forever. ***
+RULED: BUILD parcel_attributes - ONE ROW PER (co_no, parcel_id), CARRYING THE ATTRIBUTES ONLY, NO GEOMETRY.
+  IT IS SAFE BECAUSE IT IS MEASURED SAFE: jv IDENTICAL ON 300 OF 300 GROUPS, lnd_sqfoot IDENTICAL ON 300 OF 300, AND
+  864 DISJOINT GROUPS ACROSS THREE COUNTIES AT 100% ONE OWNER ONE ADDRESS ONE VALUE. THERE IS NOTHING TO CHOOSE
+  BETWEEN THE COPIES BECAUSE THEY ARE THE SAME COPY.
+  *** AND IT IS THE LADM SHAPE RATHER THAN A CONVENIENCE: THE GEOMETRY IS MULTIPART AND BELONGS TO THE SPATIAL UNIT;
+  THE OWNER, VALUE AND ADDRESS BELONG TO THE BAUnit. WE HAVE BEEN STORING A BAUnit FACT ON EVERY SPATIAL UNIT ROW AND
+  THEN SUMMING IT. ***
+  A UNIQUE INDEX ON (co_no, parcel_id) MAKES THE DUPLICATION UNREPRESENTABLE RATHER THAN MERELY CORRECTED - AND A
+  CONSTRAINT HAS HELD EVERY TIME A RULE HAS FAILED THIS WEEK.
+  parcels_staging KEEPS EVERY ROW AND EVERY FRAGMENT. NOTHING IS DELETED. Geometry still aggregates from it.
+THE SERVED FIX BECOMES A JOIN TO A TABLE WITH ONE ROW PER PARCEL, WHICH IS FAST BY CONSTRUCTION - NO DISTINCT ON, NO
+WINDOW FUNCTION, NO BUDGET QUESTION. AND IT FIXES EVERY FUTURE AGGREGATE, NOT THE TWO WE FOUND.
+DO NOT SHIP A FASTER-BUT-STILL-WRONG QUERY IN THE MEANTIME. Broward reading 10.11% high for another day is worse than
+Broward reading 10.11% high for another day AND a workaround nobody remembers to remove.
+
+## 94-satisfaction-closed
+
+### 1. THE SATISFACTION GAP IS CLOSED IN BOTH DIRECTIONS - EXPOSURE 80.2% TO 0.0%, AND THE REGISTER REACHES 1988
+
+`measurement` | authority: CC backfill; exposure re-measured 2026-08-22 | measured: 2026-08-22 | cc
+
+CC BACKFILL COMPLETED. VERIFIED INDEPENDENTLY - ALL EIGHT DOCTYPES NOW SPAN 1988-01-01 TO 2026-08-20:
+  SATISFACTION 909 weeks, 0 failed | RELEASE 909, 1 | PARTIAL SATISFACTION 909, 0 | DEED 909, 2
+  LIEN 913, 0 | JUDGMENT/ORDER 913, 1 | LIS PENDENS 913, 0 | RESTRICTIONS 913, 0
+  *** FOUR FAILURES IN 7,288 JOBS. ***
+SATISFACTIONS WENT FROM 245,757 ROWS ENDING 2019-03-06 TO 1,184,132 ENDING 2026-08-21.
+*** AND I RE-MEASURED THE EXPOSURE RATHER THAN QUOTING IT, BECAUSE CC WARNED IT WAS STALE IN OUR FAVOUR:
+  6,923 matched encumbrances. AFTER THE OLD WINDOW: 5,552 = 80.2%. AFTER THE NEW WINDOW: ZERO = 0.0%.
+  EVERY MATCHED ENCUMBRANCE NOW FALLS INSIDE A WINDOW WHERE WE HOLD THE SATISFACTIONS. ***
+FOUR IN FIVE LIENS WERE UNKNOWABLE ON FRIDAY. NONE ARE NOW. THE BLOCKER ON THE LIEN BLOCK IS GONE.
+AND THE SECOND HALF MATTERS AS MUCH: THE REGISTER REACHES 1988 RATHER THAN 2015 - TWENTY-SEVEN YEARS OF VOLUSIA
+PROPERTY HISTORY THAT DID NOT EXIST ON FRIDAY. 1988 IS THE MEASURED FLOOR, NOT AN ASSUMED ONE: 1987 AND EVERY EARLIER
+YEAR RETURNS ZERO THROUGH THE IDENTICAL CODE PATH.
+*** MURPHY RULING NOW APPLIES CLEANLY: REPORT WHAT IS ON RECORD, DO NOT EDIT THE RECORD. An unsatisfied lien is a fact
+about the register, and the report must state the window - "no satisfaction or release recorded through 2026-08-20".
+THAT SENTENCE IS NOW TRUE FOR EVERY MATCHED ENCUMBRANCE INSTEAD OF ONE IN FIVE. ***
+AND THE parcel_encumbrance_satisfaction REBUILD IS THE REMAINING STEP, NOT AN OPTIONAL ONE: ITS 139 LINKS OVER 117
+PARCELS WERE DERIVED FROM A 218-WEEK WINDOW THAT IS NOW 909. REBUILD, DO NOT APPEND - a link set derived from a
+truncated window is a sample of a sample, and appending to it preserves the truncation invisibly.
+
+## 95-corroboration-bar
+
+### 1. RULING 287 - THE CORROBORATION STANDARD, FOR BOTH THE SATISFACTION REBUILD AND THE 10,900 CANDIDATES
+
+`rule` | authority: CC queued; ruled 2026-08-22 | measured: 2026-08-22 | murphy
+
+CC ASKED FOR ONE RULING TO SETTLE BOTH, AND THEY ARE THE SAME QUESTION: WHEN IS A RECORDED INSTRUMENT PROVEN TO ATTACH
+TO A PARCEL.
+READ THE EXISTING EVIDENCE FIRST. THE 139 PAIRINGS ARE ALL party+legal_corroborated, 117 PARCELS, AND *** ZERO HAVE A
+SATISFACTION DATED BEFORE THEIR LIEN. A CLEAN TEMPORAL RECORD ACROSS EVERY ROW. *** That is not proof the method is
+right, but it is the one falsifiable check available and it passes.
+*** THE STANDARD: TWO INDEPENDENT IDENTIFIERS, PLUS A TEMPORAL ORDER THAT IS POSSIBLE. ***
+  1. TWO INDEPENDENT IDENTIFIERS AGREE - party name AND legal description. NOT one, and not two facets of one.
+     A NAME ALONE IS NOT A MATCH: Florida has thousands of SMITH JOHN, and the Polk 844-owner parcel showed what a
+     name-only join does at scale.
+  2. THE SEQUENCE MUST BE POSSIBLE - a satisfaction cannot precede its lien. Zero violations in 139 today; ANY
+     VIOLATION AFTER THE REBUILD IS A DEFECT IN THE MATCH, NOT AN ODDITY IN THE RECORD.
+  3. WHERE ONLY ONE IDENTIFIER AGREES, IT IS A CANDIDATE AND IS SERVED AS ONE. NOT PROMOTED, NOT DISCARDED.
+*** AND THE THIRD IS WHERE MURPHY RULING DOES THE WORK: REPORT WHAT IS ON RECORD. A single-identifier candidate is a
+real fact about the register - "an instrument naming this owner was recorded against a property with this legal
+description" - AND THE PIR CAN SAY THAT WITHOUT ASSERTING THE MATCH. It gives the purchaser what they need to dig
+deeper, which is the whole point. IT MUST NEVER APPEAR IN THE SAME LIST AS A CORROBORATED ONE. ***
+THAT SETTLES THE 10,900 TOO: they agreed with the confirmed set 6,052 OF 6,052 against a 0.014% chance rate, WHICH IS
+STRONG EVIDENCE THE METHOD GENERALISES AND IS NOT A SECOND IDENTIFIER. Promote the ones meeting the two-identifier
+test; SERVE THE REMAINDER AS CANDIDATES WITH THE EVIDENCE NAMED.
+BUILD IT AS A FUNCTION, NOT A STATEMENT - CC point, and it is the difference between or_satisfaction_frontier(), which
+ADVANCED ON ITS OWN FROM 2019-03-06 TO 2026-08-21 WITH NOBODY REMEMBERING TO UPDATE IT, and the pairing table, which
+sat at a truncated window for seven years. *** THE FRONTIER IS THE MODEL FOR EVERY DERIVED ARTEFACT WE BUILD. ***
+REBUILD, NEVER APPEND. And CC was right to stop before adding an index on the private records table - an index is a
+decision about that table, not a free measurement. ADD IT DELIBERATELY IF THE REBUILD NEEDS IT.
+
+### 3. THE LEGAL DESCRIPTION IS RECORDED VERBATIM - IT IS THE MATCHING KEY THAT IS DERIVED
+
+`correction` | authority: CC measured; supersedes 95/2 which was ruled on an unverified premise | measured: 2026-08-23 | cc
+
+Ruling 287 was amended on the belief that legal_description is produced by an untested 235-line parser. Measured 2026-08-23, that is false in both halves.
+RECORDED: volusia_or_collect.py line 62 stores legal_description as c[6], the Clerk grid column, verbatim. The collector comment reads "Document Type|Name|Legal|Status|Direction ... Index-based so a blank Legal cannot shift columns." The Clerk publishes a Legal column.
+POPULATED: 4,680,533 of 5,273,113 rows = 88.8%, 945,707 distinct, 0 whitespace-only. Not NULL.
+NO SUCH FUNCTION: nothing in the database is a 235-line legal parser. The only derived artifact is enc_legal_key(text), 26 lines.
+The rule criterion 4 states is RIGHT and is retained - a derived identifier needs a measured error rate before it counts as one of two. It simply attaches to enc_legal_key, not to legal_description.
+
+### 4. enc_legal_key ERROR RATE - 27% YIELD NO KEY, AND IT EMITS CONFIDENT KEYS FOR TEXT WITH NO PROPERTY IN IT
+
+`measurement` | authority: CC measured 2026-08-23; backlog 183 | measured: 2026-08-23 | cc
+
+Audited over the LN/PS/SF/RE/JDO1 corpus, 108,828 distinct legals, 2026-08-23.
+FALSE NEGATIVE: 29,593 (27.19%) return NULL - those liens can never match anything, silently.
+FALSE POSITIVE: the function strips $ amounts first, so a Legal field holding only an amount and an annotation reduces to the annotation. "$6,624.00 AMENDED", "$351,841.50 AMENDED" and 573 other distinct legals all collapse to the single key AMENDED. CORRECTSORIGINAL absorbs 403, CORRECTIVE 363, REFILED 88. 1,046 keys are 6 characters or fewer.
+The predicted failure - the LOT/LT anchor discarding the subdivision name ahead of it - is real in the code but is NOT the dominant mode. Junk annotation keys are.
+THE EXISTING SET IS CLEAN: of the 6,923 rows in parcel_encumbrance_match, all legal+owner_corroborated, the keys behind them are 0 NULL, 0 digit-free, 8 (0.1%) short. Owner corroboration filtered the junk out. The contamination risk is in EXPANSION, not in what is already there.
+
+### 5. A REBUILD MUST REFUSE A KEY THAT IS NULL, DIGIT-FREE, OR TEN CHARACTERS OR SHORTER
+
+`rule` | authority: CC proposed 2026-08-23; awaiting ruling under 287 crit 4 | measured: 2026-08-23 | cc
+
+These three exclusions are not style. Each is a measured failure mode of enc_legal_key: NULL never matches, digit-free means the property description was stripped away leaving an annotation, and a very short key is generic enough to match unrelated parcels. Any rebuild of parcel_encumbrance_satisfaction asserts them at build time and fails the build rather than writing a row that rests on one.
+The general form, which is criterion 4 kept: a derived identifier counts as an identifier only once its derivation has a measured error rate. Until then it is an assumption wearing one.
