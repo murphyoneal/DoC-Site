@@ -6,7 +6,7 @@
 > Append and supersede in the table, never delete: set `superseded_by` on the old row
 > and insert the new one.
 
-Live entries: 304 | superseded (retained as history): 3
+Live entries: 305 | superseded (retained as history): 3
 
 ---
 
@@ -6377,3 +6377,15 @@ Measured 2026-08-24 across all 67 <county>_nal_dor_source and <county>_sdf_dor_s
 BROWARD IS ZERO. broward_nal_dor_source holds 754,371 rows and broward_sdf_dor_source 115,745 - fully populated tables - with OR_BOOK1/OR_BOOK NULL on every row. Schema presence is not data presence, which is the layer-name trap in a new costume: the column is a DOR standard, so it exists everywhere the standard does, whether or not the county populated it.
 Where it exists the fill is 10-22% of parcels because the SDF is a sales file, so not_available is the honest answer for roughly 89% of Florida parcels.
 FORMATTING TRAP, and it cost me a wrong number: SDF zero-pads OR_BOOK and OR_PAGE to four characters (19.7% of pages carry a leading zero) while the clerk index pads neither. Raw string equality silently drops every page below 1000. I reported the parcel-to-deed link at 80.2% on raw equality; normalised it is 96.6%. Normalise both sides or lose a fifth of the pages.
+
+## 98-clerk-indexes-by-parcel
+
+### 1. THE CLERK INDEXES BY PARCEL AND WE NEVER USED IT - THERE IS NO DETAIL PAGE, THERE IS A PARCEL SEARCH FIELD
+
+`measurement` | authority: CC measured 2026-08-24 under ruling 289 | measured: 2026-08-24 | cc
+
+Measured 2026-08-24 against app02.clerk.org/or_m/inquiry.aspx.
+The grid "View" cell is not a metadata link - it is viewDoc(...) around <img id="Imagepdf">, the scanned image. For this Clerk the search grid IS the metadata and there is nothing richer behind it. A detail-page scraper would have had nothing to scrape.
+The search form carries a PARCEL field. Tested against a DOR-known deed: parcel 030300000122 returns "Records found 4" including instrument 2024116693 at book 8570 page 0973 - exactly the deed DOR records. The dashed form works too; a malformed parcel returns 0 rows, so the field genuinely filters rather than being ignored. The DOR parcel_id works UNTRANSFORMED.
+This is the recorded parcel attachment the two-identifier standard needed. It is not derived, not sales-conditioned, and not subject to the 10.8% book/page ceiling. Four of five existing parcel_encumbrance_match liens were corroborated against it directly; the fifth returned an empty label and zero rows, which is INDETERMINATE and awaiting retry, not a refutation.
+THE LESSON: we built a parser, a legal key, a corroboration standard and three rulings around inferring which parcel a document attaches to, while the register exposed that field in its own search form the whole time. Before modelling a link, check whether the source already publishes it.
