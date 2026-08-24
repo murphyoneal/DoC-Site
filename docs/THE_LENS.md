@@ -6,7 +6,7 @@
 > Append and supersede in the table, never delete: set `superseded_by` on the old row
 > and insert the new one.
 
-Live entries: 305 | superseded (retained as history): 3
+Live entries: 306 | superseded (retained as history): 3
 
 ---
 
@@ -6389,3 +6389,15 @@ The grid "View" cell is not a metadata link - it is viewDoc(...) around <img id=
 The search form carries a PARCEL field. Tested against a DOR-known deed: parcel 030300000122 returns "Records found 4" including instrument 2024116693 at book 8570 page 0973 - exactly the deed DOR records. The dashed form works too; a malformed parcel returns 0 rows, so the field genuinely filters rather than being ignored. The DOR parcel_id works UNTRANSFORMED.
 This is the recorded parcel attachment the two-identifier standard needed. It is not derived, not sales-conditioned, and not subject to the 10.8% book/page ceiling. Four of five existing parcel_encumbrance_match liens were corroborated against it directly; the fifth returned an empty label and zero rows, which is INDETERMINATE and awaiting retry, not a refutation.
 THE LESSON: we built a parser, a legal key, a corroboration standard and three rulings around inferring which parcel a document attaches to, while the register exposed that field in its own search form the whole time. Before modelling a link, check whether the source already publishes it.
+
+### 2. I OVERSTATED IT: THE PARCEL INDEX CARRIES INSTRUMENTS RECORDED *WITH* A PARCEL, NOT EVERY INSTRUMENT AFFECTING IT
+
+`correction` | authority: CC measured 2026-08-24; corrects 98/1 before it was acted on | measured: 2026-08-24 | cc
+
+Lens 98/1 said "the register states which parcel the instrument attaches to". Measured 2026-08-24 against eight parcels, that is too strong and the difference decides what we may publish.
+The parcel index returns deeds, mortgages, satisfactions, notices - and liens, but ONLY where the filer supplied a parcel reference at recording. Split by outcome:
+  parcels where our served lien IS listed: the Clerk result set contains LN rows (4, 3, 6 and 9 of them).
+  parcels where it is ABSENT: the Clerk result set contains NO LN rows at all - only NC, MG, DE, AS, AF. Parcel 031501000060 returns a 1994 deed, a 2004 mortgage, a 2004 satisfaction and a 2018 deed, and no lien of any kind; our lien 2023038218 names MORIN LAURIER, who IS a party on that 2018 deed. The owner is right and the linkage is simply not in the register.
+A lien filed against a PERSON is indexed by party, because the filer never supplied a parcel - it attaches to whatever that person owns, and the Clerk does not adjudicate which. So absence from the parcel index is NOT evidence the lien does not attach.
+WHAT THIS MEANS UNDER MURPHY'S RULE (fact or disclosure, no third option): the Clerk listing our instrument against the parcel IS a publishable fact. The Clerk's parcel record existing WITHOUT it is not a refutation and not a fact - it is the disclosure. A failed or truncated query is also the disclosure. The binary survives; what changes is that silence resolves to disclosure rather than to withdrawal.
+Do not read a short result set as a parcel's full record: a parcel with more than 25 instruments returns the label "More than 25" and 25 rows, and I read exactly that as "the Clerk does not list our lien" before checking the label. Every page is now asserted against the grid label and a parcel that cannot be read is recorded FAILED, never as a parcel with nothing on it.
