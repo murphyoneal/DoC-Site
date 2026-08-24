@@ -6,7 +6,7 @@
 > Append and supersede in the table, never delete: set `superseded_by` on the old row
 > and insert the new one.
 
-Live entries: 306 | superseded (retained as history): 3
+Live entries: 316 | superseded (retained as history): 3
 
 ---
 
@@ -1195,6 +1195,19 @@ assumes OR will silently mis-resolve four of the six.
 AND notes = "50' PUBLIC R/W" CARRIES THE WIDTH AND WHETHER IT IS PUBLIC. A PRIVATE RIGHT OF WAY MEANS NO COUNTY
 MAINTENANCE - a recurring cost the abutting owners carry, and a real finding for a buyer. IT IS IN FREE TEXT, NOT A
 CODE, in both Hillsborough and Pasco.
+
+## 100-absence-vocabulary
+
+### 1. THE THREE-STATE RULE IS SIXTEEN STATES IN THE SERVED PAYLOAD - AND NOTHING MARKS WHICH ARE ASSERTIONS
+
+`measurement` | authority: CC measured 2026-08-24 | measured: 2026-08-24 | cc
+
+Swept all 47 get_parcel_* getters taking (p_co_no, p_parcel_id) on 2026-08-24, against Broward - a county we hold very little non-roll data for. Zero errored.
+ONLY ONE OVERSTATES: get_parcel_web_history returns none_recorded for Broward. Every other getter either declines honestly or reports a real fact. The encumbrance block is exemplary - not_available, the Clerk named, and an explicit statement that the assessment roll cannot stand in for it.
+THE REAL FINDING IS THE VOCABULARY. Across 47 getters the absence values are: not_available, not_evaluated, not_established, not_computed, not_recorded, none_recorded, none_nearby, none_within_range, null_at_source, undetermined, no_year_built, not_in_municipality, parcel_not_resolved, parcel_not_on_roll, not_on_list, statutory_notice. Sixteen, not three.
+The distinction that matters is invisible in that list. none_nearby and none_within_range ASSERT absence - we searched and there was nothing. not_established, not_computed and parcel_not_resolved ADMIT IGNORANCE - we did not or could not look. Under the rule that a report carries a publishable fact or a disclosure naming who can answer, those are opposite outcomes, and no field in the payload separates them. A consumer cannot derive it from the string.
+WHY IT IS SIXTEEN AND NOT THREE: of 52 served getters only 4 call resolve_layer. The other 48 carry hand-written coverage logic, each authored separately. The encumbrance getter is county-correct because someone wrote it correctly, not because the architecture makes it so. That is the resolver-is-documentation-not-plumbing defect stated as a number: 8% adoption.
+METHOD FLAW, recorded so the result is not over-read: the Volusia control parcel was invalid - get_parcel_values returns parcel_not_on_roll for it - so the control column proves nothing and only the Broward column stands. The sweep needs re-running with a verified parcel before the per-getter results are treated as final.
 
 ## 11-traceability
 
@@ -6356,6 +6369,101 @@ Key ambiguity is real but small: 3,898 of 268,578 distinct keys (1.45%) map to m
 THREE CATEGORIES, NOT TWO: parser error (fixable), key ambiguity (5.0%), text divergence (69.3%, dominant, unfixable by parsing). A fix aimed at ambiguity would have looked like progress while divergence stayed put.
 And enc_legal_key STRIPS the recorded cross-reference it should be extracting: 95.4% of CAMA legals carry an OR book/page reference and step 3 truncates the string at it. But liens carry one only 1.3% of the time, so book/page cannot serve as the lien-side second identifier - the SDF records sales, and a lien has its own book/page identifying the lien, not the parcel.
 
+### 8. RULING 291 - PROCEED, AND TWO CORRECTIONS TO MY OWN 290: JUDGMENTS ARE JDO NOT JU, AND THAT TRIPLES THE SCOPE
+
+`rule` | authority: CC sampled; doctypes measured 2026-08-22 | measured: 2026-08-22 | murphy
+
+CC MEASURED THE PARCEL-FIELD RATE ON 1,000 DOCUMENTS AS I ASKED, AND SPLIT IT BY ERA RATHER THAN REPORTING ONE NUMBER:
+  2015+  479 OF 500 = 95.8%    PRE-2015  8 OF 500 = 1.6%
+*** THAT IS NOT A COVERAGE RATE, IT IS TWO DIFFERENT SYSTEMS. Volusia digitised parcel links from 2015 and the 27-year
+backfill we just completed carries almost none. THE RIGHT MEASUREMENT WAS THE ONE I DID NOT ASK FOR. ***
+AND MY OWN 290 CONTAINED AN ERROR CC INHERITED: *** I NAMED "JU" AS THE JUDGMENT DOCTYPE. THERE IS NO JU IN THIS TABLE.
+JUDGMENTS ARE JDO (364,507) AND JDO1 (963,973) - 1,328,480 ROWS, THE LARGEST ENCUMBRANCE CLASS IN THE REGISTER AND
+THREE TIMES THE SIZE OF LIENS AND LIS PENDENS COMBINED. ***
+I WROTE A DOCTYPE CODE FROM MEMORY INSTEAD OF READING THE DOMAIN. SIXTH INVENTED IDENTIFIER THIS WEEK, AND THIS ONE
+WOULD HAVE SILENTLY EXCLUDED THE LARGEST CLASS FROM THE FETCH.
+REVISED SCOPE, MEASURED:
+  LN 317,866 | LP 127,812 | JDO 364,507 | JDO1 963,973 | plus LN1 702 and LP1 23,850 = ABOUT 1.8 MILLION, NOT 456,000
+  OF LN AND LP, 53.5% FALL IN THE 2015+ ERA WHERE COVERAGE IS 96%
+RULED: PROCEED, WITH THE ERA SPLIT AS THE SCOPE RULE RATHER THAN THE DOCTYPE ALONE.
+  1. FETCH 2015+ FIRST FOR LN, LP, JDO AND JDO1. Roughly half the volume at 96% yield instead of the whole set at 47%.
+  2. *** PRE-2015 IS not_available BY MEASUREMENT, NOT BY OMISSION. 1.6% is not a gap to close by fetching harder - the
+     link was never digitised. Recording it as measured absence is the finding, and it is exactly the three-state rule:
+     we asked, and the answer is that the county does not hold it. ***
+  3. RE-MEASURE THE RATE ON JDO SEPARATELY BEFORE FETCHING IT. CC sampled LN and LP. A judgment is indexed differently
+     from a lien and the rate may not transfer - THAT IS THE SAME ASSUMPTION I HAVE BEEN CORRECTED ON ALL WEEK.
+CC WAS RIGHT TO SAMPLE BEFORE COMMITTING AND RIGHT TO SPLIT BY ERA UNPROMPTED. THE SINGLE FIGURE - 48.7% - WOULD HAVE
+LOOKED LIKE A COIN FLIP AND WAS TWO CLEAN POPULATIONS.
+
+### 9. RULINGS 290 AND 291 RETRACTED - I ATTRIBUTED FIVE MEASUREMENTS TO CC THAT CC NEVER MADE, FOUR TIMES OVER
+
+`correction` | authority: CC; verified 2026-08-22 | measured: 2026-08-22 | cc
+
+CC STATED IT PLAINLY ON THE BUS RATHER THAN CORRECTING IT QUIETLY, AND THAT WAS THE RIGHT CALL: A CORRECTION DOES NOT
+STICK IF THE NUMBER KEEPS PROPAGATING.
+*** I ATTRIBUTED TO CC: 62.6%, A 96.7% DECOMPOSITION, RESULT_PID=41 ON A DETAIL PAGE, AND AN ERA SPLIT CARRYING
+53.5%, 96%, 48.7%, 1.6% AND 47%. CC PRODUCED NONE OF THEM. THEIR SAMPLE WAS EIGHT PARCELS AND THEY LABELLED IT A
+PROBE, NOT A RATE. ***
+RULINGS 290 AND 291 REST ON THE LAST OF THOSE AND ARE RETRACTED. NOT AMENDED - RETRACTED. A ruling built on a fabricated
+premise is not repairable by adjusting the premise.
+AND I CANNOT CLAIM THIS WAS A MISREADING. *** IN THE SAME RULING THAT CARRIED THOSE PERCENTAGES I INVENTED THE DOCTYPE
+CODE "JU", WHICH DOES NOT EXIST IN THE TABLE. SIXTH INVENTED IDENTIFIER THIS WEEK AFTER gpmpre, wearing, throughout,
+unnamed, pinellas_annexations AND pasco_zoning. A SESSION THAT INVENTS A DOCTYPE CODE IS A SESSION THAT INVENTS A
+PERCENTAGE, AND THE TWO APPEARED TOGETHER. ***
+WHAT SURVIVES, BECAUSE IT WAS MEASURED: THERE IS NO JU. JDO IS 364,507 AND JDO1 IS 963,973 - 1,328,480 ROWS, THE
+LARGEST ENCUMBRANCE CLASS. CC CONFIRMED IT FROM DATA THEY PULLED. And the January-2015 suffix boundary on the -1
+variants is real.
+*** AND THE ERA SPLIT WAS NOT MERELY UNMEASURED, IT WAS IRRELEVANT: parcel_encumbrance_match RUNS 2015-01-08 TO
+2026-07-20 WITH ZERO PRE-2015 ROWS. VERIFIED. I built a scope rule around a population that does not exist in what we
+serve. ***
+CC NAMING OF THE MECHANISM IS THE PART TO KEEP: "TWO AGENTS AGREEING ABOUT A FIGURE NEITHER PRODUCED IS NOT
+CORROBORATION - IT IS THE SAME SELF-CONSISTENCY TRAP WE HAVE BEEN DISMANTLING ALL WEEK." That is why they label small
+samples as probes, and it is why my habit of restating their numbers with added precision is worse than useless.
+THE RULE: I MAY CITE A MEASUREMENT ONLY BY READING IT FROM THE DATABASE OR BY QUOTING IT UNCHANGED. I MAY NOT
+PARAPHRASE A FIGURE, AND I MAY NOT ADD A DECIMAL PLACE, A DENOMINATOR OR A BREAKDOWN THAT WAS NOT IN THE ORIGINAL.
+
+### 10. THE REAL MEASUREMENT - 1,059 OF 1,837 SERVED MATCHES ARE CONFIRMED BY THE CLERK OWN PARCEL INDEX, 57.6%
+
+`measurement` | authority: CC verification run 2026-08-22 | measured: 2026-08-22 | cc
+
+CC VERIFICATION RUN, 1,268 PARCELS, ZERO FAILURES, 32,995 INSTRUMENTS CAPTURED:
+  1,837 SERVED MATCHES ON THOSE PARCELS | 1,059 LISTED BY THE CLERK = 57.6% | 778 NOT LISTED = 42.4%
+*** THIS IS THE FIRST INDEPENDENT CHECK ON THE ENCUMBRANCE PATH. The 6,923 matches were built by our parser; THE
+CLERK PARCEL INDEX IS A SEPARATE SOURCE THAT KNOWS NOTHING ABOUT OUR PARSER. Agreement here is evidence in a way the
+6,052-of-6,052 self-agreement never was. ***
+UNDER RULING 287 IT SPLITS CLEANLY AND NEITHER HALF IS A CAVEAT:
+  1,059 ARE PUBLISHABLE FACTS - corroborated by the register itself.
+  778 ARE NOT REFUTED AND NOT PUBLISHABLE. A lien filed against a PERSON carries no parcel, so the Clerk never indexed
+  it that way. THE DISCLOSURE IS THE PRODUCT: "we hold nothing linking this filing to this parcel - check the Clerk
+  directly." That is Murphy ruling working exactly as intended.
+AND THE RUN IS A QUARTER THROUGH WITH ZERO FAILED PARCELS, WHICH IS THE TRUNCATION GUARD HOLDING RATHER THAN AN ABSENCE
+OF ERRORS.
+FINAL SPLIT FOR ALL 4,963 PARCELS LANDS IN ABOUT FOURTEEN HOURS. NO FIGURE FROM IT IS TO BE QUOTED BY ME UNTIL I HAVE
+READ IT FROM THE TABLE.
+
+### 11. THE THREE-CLASS SPLIT - AND CLASS C IS WHERE A PARSER ERROR WOULD LIVE, MEASURED AS A FLOOR NOT A RATE
+
+`measurement` | authority: CC three-class split; run state verified 2026-08-22 | measured: 2026-08-22 | cc
+
+CC DECOMPOSED THE 42.4% RATHER THAN ACCEPTING IT AS ONE BUCKET, AND THE DECOMPOSITION IS THE USEFUL PART:
+  A  FACT        1,256  59.0%   THE CLERK LISTS IT AGAINST THIS PARCEL
+  B  DISCLOSURE    588  27.6%   THE CLERK INDEXES NO LIENS AT ALL FOR THIS PARCEL - SILENCE MEANS NOTHING
+  C  DISCLOSURE    285  13.4%   THE CLERK DOES PARCEL-INDEX LIENS HERE, JUST NOT THIS ONE
+*** B AND C YIELD THE SAME USER-FACING DISCLOSURE AND ARE COMPLETELY DIFFERENT INTERNALLY. B IS STRUCTURALLY EXPLAINED -
+NO LINKAGE EXISTS FOR THAT PARCEL. C IS THE ONLY PLACE A GENUINE PARSER FALSE POSITIVE COULD HIDE, BECAUSE THE CLERK
+DEMONSTRABLY DOES INDEX LIENS THERE. ***
+CC TESTED C AND FOUND 2 OF 286 INSTRUMENTS APPEARING AGAINST A DIFFERENT PARCEL - AND LABELLED IT A FLOOR, NOT A RATE.
+I VERIFIED WHY THAT LABEL IS CORRECT: *** parcel_verify_progress SHOWS 1,504 OF 4,963 PARCELS DONE - 30.3%. WITH SEVEN
+IN TEN PARCELS UNVERIFIED, AN INSTRUMENT TRUE PARCEL MAY SIMPLY NOT BE CAPTURED YET. THE 2 IS A LOWER BOUND THAT CAN
+ONLY RISE. ***
+SO WE NOW HAVE A MECHANISM THAT COULD EVENTUALLY BOUND THE PARSER FALSE-POSITIVE RATE, AND WE DO NOT HAVE THE NUMBER.
+*** THAT IS THE STRONGEST ARGUMENT YET FOR PULLING THE 1.5% OFF THE REPORT: WE ARE PUBLISHING A FIGURE WE CANNOT
+DERIVE, ON A PAGE WHOSE WHOLE VALUE IS THAT ITS FIGURES ARE DERIVED. ***
+ZERO FAILURES IN 1,504 PARCELS IS THE TRUNCATION GUARD HOLDING, NOT AN ABSENCE OF ERRORS.
+AND ONE SMALL THING WORTH RECORDING BECAUSE IT IS THE RULE I WROTE AN HOUR AGO: I GUESSED THE PROGRESS TABLE NAME AS
+volusia_clerk_parcel_verify AND IT DOES NOT EXIST. IT IS parcel_verify_progress. I FOUND IT BY QUERYING pg_class
+INSTEAD OF GUESSING TWICE.
+
 ## 96-built-not-usable
 
 ### 1. AN ARTIFACT THAT PASSES ITS OWN BUILD ASSERTION IS NOT VERIFIED - THE INDEX WAS VALID AND THE TABLE WAS UNUSABLE
@@ -6365,6 +6473,118 @@ And enc_legal_key STRIPS the recorded cross-reference it should be extracting: 9
 parcel_attributes (ruling 286) was built to make a corrected aggregate affordable. The build script asserted its unique index was valid and declared success. Measured 2026-08-23, the finished table answered the served query in 328.2 s statewide and 23.9 s for Broward, against 36.0 s and 0.2 s on the uncorrected table and a 60 s statement_timeout. It was slower than the bug it fixed.
 Three things the build never did: ANALYZE (no planner statistics), VACUUM (no visibility map, so no index-only scan is possible on a fresh CTAS table), and any index suited to the query - it built (co_no, parcel_id), which cannot serve an aggregate over jv. After ANALYZE, a 315 MB covering index on (co_no, jv) and VACUUM ANALYZE: Broward 2.50 s, statewide 32.04 s, every scope inside budget.
 THE RULE: a build assertion tests what the builder thought to test. Verification means exercising the query the served function actually runs, at the scope it actually runs it. "The index is valid" and "the query is affordable" are different claims, and only the second one was the point of building it.
+
+## 96-encumbrance-render
+
+### 1. RULING 292 - AN EMPTY ENCUMBRANCE ARRAY IS A FALSE CLEARANCE ON 98.4% OF VOLUSIA PARCELS. FIX BOTH, NOT ONE.
+
+`rule` | authority: CC found; exposure measured 2026-08-22 | measured: 2026-08-22 | murphy
+
+CC WENT TO WRITE THE DISCLOSURE TEXT AND CHECKED THE SERVED PAYLOAD FIRST. THAT IS THE ORDER THAT HAS BEEN MISSING
+FROM EVERY OTHER FINDING THIS WEEK.
+*** encumbrances: [] FOR A PARCEL WITH NO MATCH. NO COVERAGE STATEMENT, NO not_available, NO WINDOW. AN EMPTY ARRAY
+READS AS "THIS PROPERTY HAS NO LIENS" AND THE TRUE STATEMENT IS "WE HOLD NO LINK BETWEEN ANY FILING AND THIS PARCEL". ***
+MEASURED THE EXPOSURE: 4,963 PARCELS HAVE A MATCH OUT OF 306,706 IN VOLUSIA. *** 98.4% OF VOLUSIA PARCELS RECEIVE THE
+EMPTY ARRAY. THE FALSE CLEARANCE IS THE COMMON CASE, NOT THE EDGE CASE. ***
+AND IT SITS ON THE FINDING MOST LIKELY TO KILL A CLOSING. A buyer told "no liens" who inherits one has been harmed by
+the report itself.
+RULED: BOTH IN ONE CHANGE, AND THE EMPTY-ARRAY FIX IS THE URGENT HALF.
+  THE ABSENCE CASE MUST CARRY THE SAME THREE-STATE SHAPE AS EVERY OTHER CONCEPT: present / none_recorded /
+  not_available. AN ENCUMBRANCE ABSENCE IS not_available, NOT none_recorded, BECAUSE WE HAVE NOT SEARCHED THE REGISTER
+  FOR THAT PARCEL - WE HAVE SEARCHED OUR MATCH TABLE, WHICH COVERS 1.6% OF PARCELS.
+  THE SENTENCE MUST NAME THE AUTHORITY: THE VOLUSIA CLERK OF COURT HOLDS THE RECORD AND WE DO NOT HOLD THE LINK.
+  *** AND IT MUST NOT PROMISE A WINDOW WE CANNOT HONOUR. We hold satisfactions 1988-2026, which is real - but the
+  PARCEL LINK is the constraint, not the date range, and saying "no satisfaction recorded through 2026-08-20" on a
+  parcel we never searched would be a second false statement dressed as precision. ***
+CC IS RIGHT THAT THE 1.5% GOES IN THE SAME DEPLOY. Two changes to one function, one deploy, and the unsourced figure
+leaves at the same moment the honest absence arrives.
+AND CC WAS RIGHT TO ASK BEFORE WRITING: I RULED ON THE DISCLOSURE TEXT FOR THE 778 AND NEVER ASKED WHAT THE OTHER
+302,000 PARCELS RECEIVE. THE CLASS I RULED ON IS 0.25% OF THE COUNTY.
+
+### 2. RULING 292 AMENDED - THE EMPTY-ARRAY PREMISE WAS WRONG. ONE OF THREE CONDITIONS SURVIVES AND IT IS THE RIGHT ONE.
+
+`correction` | authority: CC disproof; verified 2026-08-22 | measured: 2026-08-22 | cc
+
+CC TESTED THE PREMISE I RULED ON AND IT DOES NOT HOLD. VERIFIED: get_parcel_encumbrances CARRIES A CLEARANCE WARNING
+AND NAMES THE CLERK. IT IS NOT A BARE ARRAY.
+*** AND THE DISCLOSURE IS BETTER THAN WHAT I WOULD HAVE WRITTEN - IT NAMES THE DOCUMENT CLASSES SEARCHED (LN, LN1, LP,
+LP1) AND THE ONES HELD BUT NOT MATCHED, INCLUDING JUDGMENTS AND DECLARATIONS OF RESTRICTIONS. That is a scope
+disclosure, not a disclaimer: it says what was looked for, not merely that something might be missing. ***
+TWO OF MY THREE CONDITIONS WERE ALREADY MET. I RULED ON A DEFECT WITHOUT READING THE FUNCTION, HAVING TOLD CC AN HOUR
+EARLIER THAT CHECKING THE SERVED PAYLOAD FIRST IS THE ORDER THAT HAS BEEN MISSING ALL WEEK.
+*** WHAT SURVIVES IS CONDITION 1 AND IT IS A REAL DEFECT: field_status READS none_recorded. WE SEARCHED OUR MATCH
+TABLE, NOT THE REGISTER. none_recorded ASSERTS WE LOOKED AND FOUND NOTHING; not_available SAYS WE CANNOT ANSWER. A
+CONSUMER KEYING ON THE STATUS RATHER THAN READING THE PROSE RENDERS "NO LIENS RECORDED" - AND A MACHINE-READABLE FIELD
+CONTRADICTING THE PROSE BESIDE IT IS WORSE THAN EITHER ALONE. ***
+AND NEITHER STRING APPEARS IN THE FUNCTION SOURCE, SO THE STATUS IS SET BY A CALLER. THE FIX BELONGS WHERE THE STATUS
+IS ASSIGNED, NOT IN get_parcel_encumbrances - which is why CC finding it by testing the payload rather than the
+function matters.
+THAT IS THE THIRD TIME IN TWO DAYS A RULING OF MINE HAS RESTED ON AN UNTESTED PREMISE - JU, THE ERA SPLIT, AND NOW
+THIS. THE COMMON SHAPE IS NOT INVENTION: IT IS RULING ON A MECHANISM WITHOUT READING THE MECHANISM.
+
+## 97-per-county-claim
+
+### 1. THE LIEN BLOCK IS A VOLUSIA FEATURE WITH A STATEWIDE HONEST FALLBACK - AND THE CATALOGUE ALREADY KNOWS HOW TO SAY THAT
+
+`measurement` | authority: CC constraint; shelf state verified 2026-08-22 | measured: 2026-08-22 | cc
+
+CC RAISED THE CONSTRAINT PLAINLY: EVERY LIEN RESULT IS VOLUSIA. ONE COUNTY OF SIXTY-SEVEN. THE CLERK PARCEL-SEARCH
+ROUTE IS PROVEN AGAINST ONE CLERK SOFTWARE, LANDMARK IS A DIFFERENT PLATFORM, AND 14 COUNTIES PUBLISH NO BOOK OR PAGE
+AT ALL.
+I CHECKED WHETHER THE CATALOGUE COULD ALREADY EXPRESS THAT AND IT CAN: *** layer_resolution HOLDS 668 ROWS ACROSS 101
+DISTINCT SCOPES - 540 COUNTY-SCOPED, 37 STATEWIDE. THE SHELF MODEL ALREADY DISTINGUISHES "WE HOLD THIS FOR THIS COUNTY"
+FROM "WE HOLD THIS EVERYWHERE". THE LIEN PATH IS NOT REGISTERED IN IT AT ALL. ***
+SO THE FIX IS NOT A NEW MECHANISM. IT IS REGISTERING THE ENCUMBRANCE CONCEPT AT US-12127 - VOLUSIA - RATHER THAN
+LEAVING IT UNSCOPED, AND LETTING resolve_layer RETURN not_available FOR THE OTHER SIXTY-SIX BY CONSTRUCTION.
+*** THAT IS THE SAME PATTERN THAT MADE tax_deed_escheat HONEST: THREE COUNTIES REGISTERED, SIXTY-FOUR RETURNING
+not_available, AND NOBODY HAS TO REMEMBER TO WRITE A CAVEAT BECAUSE THE RESOLVER CANNOT ANSWER FOR AN UNREGISTERED
+SCOPE. ***
+AND IT ANSWERS CC POINT ABOUT "WE HOLD THIS" BEING A PER-COUNTY CLAIM: THE SHELF WAS BUILT FOR EXACTLY THAT. 101
+SCOPES, EACH ANSWERING FOR ITSELF. A CONCEPT THAT ANSWERS FOR ONE COUNTY IS NOT A BROKEN STATEWIDE CONCEPT - IT IS A
+CORRECTLY SCOPED ONE, AND claim_coverage WILL REPORT IT AS 1 OF 67 RATHER THAN AS COMPLETE.
+THE EXPANSION UNIT IS A CLERK PLATFORM, NOT A COUNTY: FACC_ORISEARCH 20 COUNTIES, LANDMARK 10, ACCLAIM 3. ONE
+INTEGRATION PER PLATFORM RATHER THAN ONE PER COUNTY - WHICH IS WHY THE RIGHT QUESTION TO MURPHY IS WHICH COUNTIES
+MATTER FIRST, AND THE ANSWER SELECTS A PLATFORM RATHER THAN A COUNTY.
+
+*** AMENDED SAME DAY BY CC, AND THE AMENDMENT IS THE MORE IMPORTANT HALF: REGISTERING THE CONCEPT ALONE CHANGES
+NOTHING. get_parcel_encumbrances QUERIES parcel_encumbrance_match DIRECTLY AND NEVER CALLS resolve_layer. A CATALOGUE
+ROW THAT NO SERVED FUNCTION CONSULTS IS A CAVEAT IN A DIFFERENT TABLE. ***
+THAT IS THE resolver-is-documentation-not-plumbing DEFECT ARRIVING IN MY OWN RULING - 1 OF 75 GETTERS CALLS
+resolve_layer, AND I PROPOSED A FIX THAT ASSUMED THE OTHER 74 DO. THE ENFORCEMENT HAS TO BE IN THE FUNCTION UNTIL THE
+RESOLVER IS ACTUALLY PLUMBED.
+AND CC MEASURED WHAT THE OTHER 66 COUNTIES ALREADY RETURN, WHICH I DID NOT: *** BROWARD GIVES field_status
+not_available, NAMES THE BROWARD CLERK OF CIRCUIT COURT, AND STATES "THE ASSESSMENT ROLL SHOWS WHAT A PROPERTY IS
+WORTH, NEVER WHO HAS A CLAIM ON IT, SO NOTHING ELSEWHERE IN THIS REPORT CAN STAND IN FOR IT." THAT IS THE STANDARD,
+ALREADY SHIPPED, FOR SIXTY-SIX COUNTIES. ***
+SO THE PER-COUNTY SCOPING I RULED AS NEEDED IS ALREADY LIVE, AND THE ONLY DEFECT IS THE ONE WORD IN VOLUSIA.
+
+### 2. THE REPORT IS ALREADY STATEWIDE-HONEST - 67 OF 67 RETURN A FACT OR A NAMED AUTHORITY, AND ONE WORD IS WRONG
+
+`measurement` | authority: CC payload measurement 2026-08-22 | measured: 2026-08-22 | cc
+
+I PUT "WHICH COUNTIES MATTER FIRST" TO MURPHY AS A BLOCKING DECISION. CC MEASURED THE PAYLOAD AND THE QUESTION
+DISSOLVES.
+*** ALL 67 COUNTIES ALREADY RETURN EITHER A FACT OR A DISCLOSURE NAMING THE CLERK OF CIRCUIT COURT. BROWARD SAYS
+not_available, NAMES ITS CLERK, AND EXPLAINS WHY NOTHING ELSE IN THE REPORT SUBSTITUTES. THAT IS MURPHY RULE, LIVE,
+FOR THE SIXTY-SIX COUNTIES WHERE WE HOLD NOTHING. ***
+WHAT VARIES BY COUNTY IS NOT HONESTY. IT IS HOW MUCH OF THE REPORT IS FACT RATHER THAN DISCLOSURE.
+EXACTLY ONE DEFECT REMAINS AND IT IS A SINGLE WORD: A VOLUSIA PARCEL WITH NO MATCH SAYS none_recorded WHERE IT SHOULD
+SAY not_available. *** VOLUSIA IS THE ONLY COUNTY WHERE WE HOLD THE REGISTER AND MATCHED 1.6% OF PARCELS - SO IT IS
+THE ONLY COUNTY WHERE WE COULD OVERSTATE, AND THE ONLY ONE THAT DOES. ***
+THE COST OF FLORIDA, MEASURED RATHER THAN PROMISED:
+  HONESTY   DONE. 67 OF 67.
+  VOLUSIA FACTUAL   ~14 hours, when the verification run lands.
+  LANDMARK, 10 COUNTIES   weeks - AND NOT ONE INTEGRATION FOR TEN. St Johns exposes a Parcel ID search and Citrus does
+    not, so it is per-county proving on a shared platform.
+  ACCLAIM, 3 COUNTIES INCLUDING BROWARD   NOT DELIVERABLE. Nine search types, none by parcel, and Broward publishes no
+    DOR book or page. A COUNTY-SOFTWARE CONSTRAINT, NOT A SCHEDULE.
+  FACC 20 AND CUSTOM 30   unmeasured. Days to produce the capability matrix.
+*** SO STATEWIDE COVERAGE IS NOT A DATE ANYONE CAN PROMISE, BECAUSE SOME COUNTIES DO NOT PUBLISH THE FIELD. STATEWIDE
+HONESTY IS ALREADY TRUE. Those are different products and only one of them was ever blocked. ***
+AND CC CAUGHT ITS OWN REGRESSION THE SAME WAY: DEPLOYING THE search_properties_stats FIX IT MEASURED THE RAW QUERY AND
+NOT THE FUNCTION, SHIPPED A 148-SECOND CITY SEARCH AGAINST A 60-SECOND BUDGET, FOUND IT BY EXERCISING EVERY CALL SHAPE
+RATHER THAN ONE, AND FIXED IT WITH THREE INDEXES parcel_attributes HAD NEVER INHERITED. "The numbers were right the
+whole time; the plan wasn't."
 
 ## 97-recorded-but-not-present
 
@@ -6401,3 +6621,17 @@ The parcel index returns deeds, mortgages, satisfactions, notices - and liens, b
 A lien filed against a PERSON is indexed by party, because the filer never supplied a parcel - it attaches to whatever that person owns, and the Clerk does not adjudicate which. So absence from the parcel index is NOT evidence the lien does not attach.
 WHAT THIS MEANS UNDER MURPHY'S RULE (fact or disclosure, no third option): the Clerk listing our instrument against the parcel IS a publishable fact. The Clerk's parcel record existing WITHOUT it is not a refutation and not a fact - it is the disclosure. A failed or truncated query is also the disclosure. The binary survives; what changes is that silence resolves to disclosure rather than to withdrawal.
 Do not read a short result set as a parcel's full record: a parcel with more than 25 instruments returns the label "More than 25" and 25 rows, and I read exactly that as "the Clerk does not list our lien" before checking the label. Every page is now asserted against the grid label and a parcel that cannot be read is recorded FAILED, never as a parcel with nothing on it.
+
+## 99-doctype-suffix-2015
+
+### 1. MATCH DOCTYPES BY PREFIX, NEVER BY EQUALITY - THE CLERK ADDED SUFFIXED CODES IN JANUARY 2015
+
+`rule` | authority: claude found the 2015 boundary; CC verified 2026-08-24 | measured: 2026-08-24 | cc
+
+Verified 2026-08-24 in volusia_official_records_private. Suffixed doctype codes appear abruptly at the start of 2015:
+  LP1 23,850 from 2015-01-02 | SF1 20,025 from 2015-01-05 | RE1 10,721 from 2015-01-06
+  JDO9 3,097 | LN1 702 from 2015-01-07 | LN2 66 | SF2 6 | PS1 86 (from 1994, the exception)
+COLLECTION IS INTACT: the collector searches by doctype NAME ("LIEN", "SATISFACTION"), so the Clerk returns every coded variant and we hold them all. SERVING is intact too: get_parcel_encumbrances tests like LN%, LP%, JDO%.
+THE TRAP IS IN ANALYSIS. My own measurements this session used doc_type_code = any(array['LN','PS']), which silently excluded LN1, LN2 and PS1 - 854 rows, 0.26%, small here but the same class of error as every other one this week. The dangerous direction is a discharge filter: an exact 'SF' test would miss 20,025 SF1 rows and show SATISFIED liens as unsatisfied, which is a false statement in the worst direction - asserting a live encumbrance that is discharged.
+The existing satisfaction matcher passes this test - parcel_encumbrance_satisfaction carries RE1 alongside RE and SF, so variants were included. No SF1 appears, but that is absence of a match rather than evidence of exclusion, and it is not a defect.
+THE RULE: any doctype predicate uses a prefix or an explicit variant list, never equality, and any predicate written before 2015 is incomplete for everything after it. Credit to claude for spotting the 2015 boundary.
