@@ -6,7 +6,7 @@
 > Append and supersede in the table, never delete: set `superseded_by` on the old row
 > and insert the new one.
 
-Live entries: 300 | superseded (retained as history): 3
+Live entries: 303 | superseded (retained as history): 3
 
 ---
 
@@ -6336,3 +6336,32 @@ THE EXISTING SET IS CLEAN: of the 6,923 rows in parcel_encumbrance_match, all le
 
 These three exclusions are not style. Each is a measured failure mode of enc_legal_key: NULL never matches, digit-free means the property description was stripped away leaving an annotation, and a very short key is generic enough to match unrelated parcels. Any rebuild of parcel_encumbrance_satisfaction asserts them at build time and fails the build rather than writing a row that rests on one.
 The general form, which is criterion 4 kept: a derived identifier counts as an identifier only once its derivation has a measured error rate. Until then it is an assumption wearing one.
+
+### 6. THE TWO-IDENTIFIER CEILING IS 472 KEY-GROUPS - THE 3,102 FIGURE WAS ONE IDENTIFIER
+
+`measurement` | authority: CC measured 2026-08-23; handoff to claude | measured: 2026-08-23 | cc
+
+Measured 2026-08-23 over the Volusia LN+PS pool, 327,876 rows carrying a legal.
+Applying the exclusion rule (key not null, contains a digit, longer than 10 characters): 108,027 rows excluded (32.9%), 219,849 survive (67.1%), yielding 64,701 distinct usable keys.
+Of those 64,701 usable keys, only 472 appear on BOTH a lien and a satisfaction. That is the ceiling for legal-key corroboration, and it is before requiring that the discharge post-date the lien or that the party corroborate - so the real yield is lower still.
+The earlier 3,102 figure counted liens with a party-matching discharge. That is ONE identifier. Under a genuine two-identifier standard the rebuild is worth hundreds of key-groups, not thousands. A prize quoted on one identifier will always look larger than the standard can deliver.
+
+### 7. THE LEGAL KEY FAILS BY TEXT DIVERGENCE (69.3%), NOT AMBIGUITY (5.0%) - MEASURED AGAINST A RECORDED LINK
+
+`measurement` | authority: CC measured 2026-08-24; confirms claude ambiguity, reframes the cause | measured: 2026-08-24 | cc
+
+Measured 2026-08-24. DOR records parcel to deed book/page in the SDF (67 of 67 counties), which links a parcel to a deed WITHOUT the parser. 67,408 sale rows covering 53,365 parcels; 42,792 parcels (80.2%) resolved to an OR record by book+page.
+Against that independent link the parser agreed on 30.7% and disagreed on 69.3%. The control proves this is NOT parser error: parcel_legal_key.legal_key equals enc_legal_key(volusia_cama_legal.LEGDESC) on 278,602 of 278,602 rows, 100.0%. Same function both sides. The 69.3% is one deterministic parser applied to two different TEXTS - the appraiser legal and the deed legal.
+Key ambiguity is real but small: 3,898 of 268,578 distinct keys (1.45%) map to more than one parcel, worst case 60, affecting 13,922 of 278,602 rows (5.0%).
+THREE CATEGORIES, NOT TWO: parser error (fixable), key ambiguity (5.0%), text divergence (69.3%, dominant, unfixable by parsing). A fix aimed at ambiguity would have looked like progress while divergence stayed put.
+And enc_legal_key STRIPS the recorded cross-reference it should be extracting: 95.4% of CAMA legals carry an OR book/page reference and step 3 truncates the string at it. But liens carry one only 1.3% of the time, so book/page cannot serve as the lien-side second identifier - the SDF records sales, and a lien has its own book/page identifying the lien, not the parcel.
+
+## 96-built-not-usable
+
+### 1. AN ARTIFACT THAT PASSES ITS OWN BUILD ASSERTION IS NOT VERIFIED - THE INDEX WAS VALID AND THE TABLE WAS UNUSABLE
+
+`principle` | authority: CC measured 2026-08-23/24 | measured: 2026-08-24 | cc
+
+parcel_attributes (ruling 286) was built to make a corrected aggregate affordable. The build script asserted its unique index was valid and declared success. Measured 2026-08-23, the finished table answered the served query in 328.2 s statewide and 23.9 s for Broward, against 36.0 s and 0.2 s on the uncorrected table and a 60 s statement_timeout. It was slower than the bug it fixed.
+Three things the build never did: ANALYZE (no planner statistics), VACUUM (no visibility map, so no index-only scan is possible on a fresh CTAS table), and any index suited to the query - it built (co_no, parcel_id), which cannot serve an aggregate over jv. After ANALYZE, a 315 MB covering index on (co_no, jv) and VACUUM ANALYZE: Broward 2.50 s, statewide 32.04 s, every scope inside budget.
+THE RULE: a build assertion tests what the builder thought to test. Verification means exercising the query the served function actually runs, at the scope it actually runs it. "The index is valid" and "the query is affordable" are different claims, and only the second one was the point of building it.
