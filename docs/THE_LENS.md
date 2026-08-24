@@ -6,7 +6,7 @@
 > Append and supersede in the table, never delete: set `superseded_by` on the old row
 > and insert the new one.
 
-Live entries: 303 | superseded (retained as history): 3
+Live entries: 304 | superseded (retained as history): 3
 
 ---
 
@@ -6365,3 +6365,15 @@ And enc_legal_key STRIPS the recorded cross-reference it should be extracting: 9
 parcel_attributes (ruling 286) was built to make a corrected aggregate affordable. The build script asserted its unique index was valid and declared success. Measured 2026-08-23, the finished table answered the served query in 328.2 s statewide and 23.9 s for Broward, against 36.0 s and 0.2 s on the uncorrected table and a 60 s statement_timeout. It was slower than the bug it fixed.
 Three things the build never did: ANALYZE (no planner statistics), VACUUM (no visibility map, so no index-only scan is possible on a fresh CTAS table), and any index suited to the query - it built (co_no, parcel_id), which cannot serve an aggregate over jv. After ANALYZE, a 315 MB covering index on (co_no, jv) and VACUUM ANALYZE: Broward 2.50 s, statewide 32.04 s, every scope inside budget.
 THE RULE: a build assertion tests what the builder thought to test. Verification means exercising the query the served function actually runs, at the scope it actually runs it. "The index is valid" and "the query is affordable" are different claims, and only the second one was the point of building it.
+
+## 97-recorded-but-not-present
+
+### 1. BOOK AND PAGE IS A DOR SCHEMA COLUMN IN 67 COUNTIES AND DATA IN 50 - 10.8% OF FLORIDA PARCELS
+
+`measurement` | authority: CC measured 2026-08-24 under ruling 288 | measured: 2026-08-24 | cc
+
+Measured 2026-08-24 across all 67 <county>_nal_dor_source and <county>_sdf_dor_source tables.
+53 counties carry any OR_BOOK1 (8,022,143 parcels) and 14 carry none (2,717,738 parcels, 25.3%). Three of the 53 are noise - Orange 100 rows of 490,529, Manatee 6, Hendry 36 - so 50 counties really carry it. Statewide, 1,155,952 of 10,739,881 parcels have a recorded book+page: 10.8%.
+BROWARD IS ZERO. broward_nal_dor_source holds 754,371 rows and broward_sdf_dor_source 115,745 - fully populated tables - with OR_BOOK1/OR_BOOK NULL on every row. Schema presence is not data presence, which is the layer-name trap in a new costume: the column is a DOR standard, so it exists everywhere the standard does, whether or not the county populated it.
+Where it exists the fill is 10-22% of parcels because the SDF is a sales file, so not_available is the honest answer for roughly 89% of Florida parcels.
+FORMATTING TRAP, and it cost me a wrong number: SDF zero-pads OR_BOOK and OR_PAGE to four characters (19.7% of pages carry a leading zero) while the clerk index pads neither. Raw string equality silently drops every page below 1000. I reported the parcel-to-deed link at 80.2% on raw equality; normalised it is 96.6%. Normalise both sides or lose a fifth of the pages.
