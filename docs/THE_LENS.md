@@ -6,7 +6,7 @@
 > Append and supersede in the table, never delete: set `superseded_by` on the old row
 > and insert the new one.
 
-Live entries: 319 | superseded (retained as history): 3
+Live entries: 320 | superseded (retained as history): 3
 
 ---
 
@@ -1218,6 +1218,16 @@ WHAT DOES NOT SURVIVE: I reported "5 of 50 getters canonical-only" and "11 emit 
 WHAT SURVIVES, because literals are literals: 25 distinct field_status literals exist across get_parcel_* getters. Counted by how many getters can emit each - present 28, not_established 18, not_available 11, parcel_not_resolved 10, none_intersecting 4, not_evaluated 4, error 2, none_recorded 2, not_recorded 2, then eighteen singletons including no_year_built, municipal_not_held, statutory_notice, era_prompt, null_at_source, parcel_not_on_roll and undetermined.
 THE FINDING THAT MATTERS: not_established is used by 18 getters, MORE than not_available (11), and none_recorded - one of the three canonical states - is used by just 2. Semantically not_established means not_available: the guard in get_parcel_water_facts reads "Parcel geometry could not be resolved; water was not evaluated - a gap in our data, not a statement about the parcel." That is honest prose attached to a status string no consumer keying on the documented three states would recognise. The getters are largely truthful; the VOCABULARY is not shared.
 The consequence for "a publishable fact or a disclosure": a front end cannot mechanically separate the two, because none_nearby and none_within_range assert absence while not_established and parcel_not_resolved admit ignorance, and nothing in the payload marks which is which. Collapsing the 25 onto the three states - with an explicit asserted-versus-unknown marker - is what would make the rule enforceable by the payload instead of by whoever wrote each getter.
+
+### 3. DEFINITIVE SWEEP: ZERO GETTERS OVERSTATE. THE DEFECT IS VOCABULARY, NOT HONESTY.
+
+`measurement` | authority: CC measured 2026-08-25 with verified parcels; supersedes the discarded sweep | measured: 2026-08-25 | cc
+
+Re-ran the sweep 2026-08-25 with VERIFIED parcels in both counties - Broward 484317000084 and Volusia 321610030010, each confirmed present by get_parcel_values first. The earlier run used an invalid Volusia parcel and its control column was worthless. 47 getters, zero errors.
+NOT ONE GETTER OVERSTATES. The single flag - get_parcel_web_history returning none_recorded for Broward - is CORRECT usage, and my flag was the false positive. It is our own observation log, not a county record, and its caveat reads "Absence means we recorded nothing, NOT that the property was never listed or advertised." We searched the record that exists, ours, and it is empty. My rule (none_recorded + a county we hold little of = suspect) fired on a getter whose record is not county-held at all.
+COUNTY SCOPING WORKS. Broward and Volusia diverge exactly where they should: airport_proximity, permit_facts, storm_surge, wind_design, transaction_facts and tax_deed_status all report not_available or not_established for Broward and present for Volusia. Where we hold neither - water_service - both say not_available.
+THE DRIFT IS NOW PROVABLE RATHER THAN INFERRED, and calling the functions found dialects that reading them did not: get_parcel_wetland returns none_at_parcel while get_parcel_wetland_facts returns none_on_parcel. Same concept, adjacent functions, two strings, one meaning. Also surfaced only by calling: none_intersecting, none_within_range. Source counting missed all three, which is why claude's literal-matching count and my own were both wrong - a status built in a CASE expression cannot be characterised by reading the text.
+THE STANDING CONCLUSION: every getter tells the truth. No consumer can mechanically act on it, because none_at_parcel, none_on_parcel, none_within_range and none_intersecting all assert absence while not_established, not_computed and parcel_not_resolved admit ignorance, and nothing in the payload marks which is which. Collapse them onto the three states with an explicit asserted-versus-unknown marker and the rule becomes enforceable by the payload rather than by whoever wrote each getter.
 
 ## 101-handler-needs-the-dead-resource
 
@@ -6649,6 +6659,25 @@ values across fifty functions.
 AND CC FLAGGED A FLAW IN ITS OWN SWEEP RATHER THAN LETTING THE TABLE LOOK COMPLETE: THE VOLUSIA CONTROL PARCEL WAS
 INVALID - get_parcel_values RETURNS parcel_not_on_roll FOR IT - SO ONLY THE BROWARD COLUMN STANDS AND THE SWEEP NEEDS
 RE-RUNNING WITH A VERIFIED PARCEL. That caveat is worth as much as the finding.
+
+*** MY ARITHMETIC WAS PRODUCED BY THE FLAW CC FLAGGED, AND CORRECTING IT CHANGES THE PICTURE MATERIALLY. ***
+I REPORTED "17 not_available, 5 none_recorded, 23 OTHER DIALECTS - THE NON-CANONICAL VOCABULARY IS THE MAJORITY."
+THAT COUNTED LITERAL MATCHES PER TERM AND TREATED THE BUCKETS AS EXCLUSIVE. THEY ARE NOT.
+RE-MEASURED, TESTING EACH GETTER FOR CANONICAL AND DIALECT TERMS SEPARATELY:
+  50 GETTERS | 12 CANONICAL ONLY | *** 0 DIALECT ONLY *** | 35 USE BOTH | 3 NEITHER
+*** NOT ONE GETTER IS DIALECT-ONLY. THIRTY-FIVE OF FIFTY MIX CANONICAL AND DIALECT TERMS IN THE SAME FUNCTION. ***
+THAT IS A DIFFERENT AND WORSE DEFECT THAN THE ONE I DESCRIBED. I said fifty functions speak sixteen languages. THE
+TRUTH IS THAT THIRTY-FIVE FUNCTIONS SPEAK TWO LANGUAGES EACH - they know the canonical vocabulary and reach for a
+dialect term for particular cases. THE DRIFT IS INSIDE THE FUNCTIONS, NOT BETWEEN THEM.
+AND CC PROVED THE METHOD FLAW WITH A CASE: get_parcel_water_facts CARRIES BOTH not_established AND present IN SOURCE
+AND ASSIGNS DYNAMICALLY. MY REGEX TESTED ONLY FOR DIALECT TERMS AND SCORED IT DIALECT-ONLY. It returns present in
+production.
+THE CONCLUSION SURVIVES - THE ABSENCE VOCABULARY IS NOT THREE STATES AND A FRONT END CANNOT RENDER THE BINARY FROM IT -
+BUT THE ARITHMETIC I GAVE IT WAS WRONG, AND SO WAS THE SHAPE OF THE PROBLEM.
+*** AND SOURCE-LEVEL COUNTING REMAINS INSUFFICIENT EVEN CORRECTED: A GETTER THAT BUILDS ITS STATUS FROM A CASE
+EXPRESSION CANNOT BE CHARACTERISED BY READING ITS TEXT. THE ONLY SUFFICIENT MEASUREMENT IS CALLING ALL FIFTY ON A
+VERIFIED PARCEL AND READING WHAT COMES BACK - WHICH IS THE SWEEP CC RAN AND HAD TO DISCARD BECAUSE ITS VOLUSIA CONTROL
+PARCEL WAS INVALID. ***
 
 ## 98-clerk-indexes-by-parcel
 
