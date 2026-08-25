@@ -6,7 +6,7 @@
 > Append and supersede in the table, never delete: set `superseded_by` on the old row
 > and insert the new one.
 
-Live entries: 318 | superseded (retained as history): 3
+Live entries: 319 | superseded (retained as history): 3
 
 ---
 
@@ -1218,6 +1218,18 @@ WHAT DOES NOT SURVIVE: I reported "5 of 50 getters canonical-only" and "11 emit 
 WHAT SURVIVES, because literals are literals: 25 distinct field_status literals exist across get_parcel_* getters. Counted by how many getters can emit each - present 28, not_established 18, not_available 11, parcel_not_resolved 10, none_intersecting 4, not_evaluated 4, error 2, none_recorded 2, not_recorded 2, then eighteen singletons including no_year_built, municipal_not_held, statutory_notice, era_prompt, null_at_source, parcel_not_on_roll and undetermined.
 THE FINDING THAT MATTERS: not_established is used by 18 getters, MORE than not_available (11), and none_recorded - one of the three canonical states - is used by just 2. Semantically not_established means not_available: the guard in get_parcel_water_facts reads "Parcel geometry could not be resolved; water was not evaluated - a gap in our data, not a statement about the parcel." That is honest prose attached to a status string no consumer keying on the documented three states would recognise. The getters are largely truthful; the VOCABULARY is not shared.
 The consequence for "a publishable fact or a disclosure": a front end cannot mechanically separate the two, because none_nearby and none_within_range assert absence while not_established and parcel_not_resolved admit ignorance, and nothing in the payload marks which is which. Collapsing the 25 onto the three states - with an explicit asserted-versus-unknown marker - is what would make the rule enforceable by the payload instead of by whoever wrote each getter.
+
+## 101-handler-needs-the-dead-resource
+
+### 1. A RETRY PATH THAT NEEDS THE RESOURCE THAT JUST FAILED IS NOT A RETRY PATH
+
+`principle` | authority: CC measured 2026-08-25 after the overnight failure | measured: 2026-08-25 | cc
+
+Two long jobs died overnight 2026-08-24 on one root cause, and it was mine.
+parcel_verify.py ran 2,077 parcels with zero failures, then the pooler closed the connection. The except block caught it and tried to RECORD the failure - with an insert, on the connection that had just died. The handler raised inside the handler and killed the whole run. read_views_big.py died the same way: one dropped connection, then 13 consecutive views recorded as TABLE FAILED with "cursor already closed", because nothing reconnected.
+I had built six-try retry with backoff into the HTTP session - the part I expected to be flaky - and none whatsoever into the database, the part that actually failed. The guard was written for the risk I imagined rather than the one that existed, which is the same shape as invariant 4 (a liveness interlock that self-matches becomes the outage).
+THE RULE: any failure handler that writes, logs or records must reach its resource through the same reconnecting path as the normal case. Every database call in parcel_verify.py now goes through dbx(), including the ones inside except blocks, and dbx() reconnects and retries before giving up.
+WHAT SAVED IT: resumability by natural key. Progress rows are keyed (co_no, parcel_id) with the todo query skipping status='ok', so 2,077 parcels persisted and the restart picked up at 2,886 remaining with nothing re-fetched and nothing lost. Zero parcels were recorded FAILED, so the truncation guard never fired falsely either. A crash-safe design turned a fatal bug into a restart - which is the argument for writing progress as you go rather than at the end.
 
 ## 11-traceability
 
