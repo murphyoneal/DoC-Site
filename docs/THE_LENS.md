@@ -6,7 +6,7 @@
 > Append and supersede in the table, never delete: set `superseded_by` on the old row
 > and insert the new one.
 
-Live entries: 324 | superseded (retained as history): 3
+Live entries: 328 | superseded (retained as history): 3
 
 ---
 
@@ -1259,6 +1259,22 @@ Two thirds of the report is work I have not yet located. get_pir_report is 202 l
 HYPOTHESIS TESTED AND DISPROVEN: plpgsql switches to a generic plan after five executions, and a generic plan on a co_no parameter would reproduce exactly the sargability bug found in search_properties_stats the same day. Measured across eight consecutive calls: 34.0, 26.0, 27.8, 33.9, 32.3, 34.0, 28.1, 34.1 s. No cliff at call six. force_custom_plan gives 29.8/22.9/23.6/23.0 - roughly 20% and worth having, but not the explanation.
 NEXT STEP, and it must not be skipped: profile the inline SQL directly. pg_stat_statements is available but NOT installed, and installing an extension on production to profile is not a step I will take unasked. The alternative is reading the 202 lines and timing the inline queries the way areaRepetitiveLoss was timed.
 MEASUREMENT CONDITION: four background jobs were running throughout. The same report measured 14.3 s uncontended earlier the same day. These numbers are the LOADED case - honest to optimise against, but not the floor.
+
+## 103-recover-source-url
+
+### 1. I FIXED THE SLOW FUNCTION WITH A SLOWER GUARD - AND ONLY TIMING IT CAUGHT THAT
+
+`measurement` | authority: CC measured 2026-08-25; claude traced the blast radius | measured: 2026-08-25 | cc
+
+Measured 2026-08-25. recover_source_url() runs once per row of provenance_all, which backs shelf_status, scoreboard and join_proved_awaiting_read. It executes "select max(source_url) from <table> where source_url like 'http%%'" for whatever table name it is handed, and swallows every failure into NULL.
+THE REAL COST WAS NEVER THE SCANS: only 36 of 2,195 public tables have a source_url column, so roughly 1,564 of every 1,600 calls hit a table without it, RAISED, opened a subtransaction for the EXCEPTION handler, and returned NULL having done the work anyway. The exception path was the expense.
+MY FIRST FIX WAS ALSO SLOW AND I NEARLY SHIPPED IT AS A FIX. I guarded on information_schema.columns - a permission-checking view over pg_catalog - which measured 1,687 ms for a SINGLE call on this database. Same behaviour, same order of cost, and it would have been reported as repaired if I had not timed it. Guarding on to_regclass plus pg_attribute is an index lookup: 56 ms, a 30x difference between two guards that read identically in review.
+MEASURED BEFORE AND AFTER:
+  recover_source_url on a table without the column   1,687 ms -> 56 ms
+  provenance_all full scan                            276.2 s -> 151.6 s
+Also marked STABLE; it had been left VOLATILE, so the planner could not cache it across rows.
+AND THE REMAINING 151 SECONDS IS NOT THIS FUNCTION. provenance_all is 115 lines over 12 FROM clauses, and source_url comes primarily from data_source_registry - recover_source_url is a low-priority fallback, which is why all 2,153 rows carry a URL when only 36 tables hold the column. The rest needs the same profiling treatment, not another guess.
+WHAT IS STILL WRONG AND WAS LEFT: the EXCEPTION handler maps any failure to NULL, so "no URL recorded" and "the scan failed" are indistinguishable to a caller. That is the absent-versus-unknown conflation, inside our own provenance layer, and fixing it changes the return type and every caller.
 
 ## 11-traceability
 
@@ -6820,3 +6836,80 @@ MODEL CALL OVER UN-AIMED LAYERS. THIS ONE IS THE REAL SHAPE: TWO PARCELS, A 2.2x
 AND THE HONEST PRODUCT FRAME: 14 SECONDS FOR A PAID, GENERATED DOCUMENT IS NOT A CRISIS. A BUYER WHO HAS PAID $5 AND
 IS TOLD IT IS BEING PREPARED WILL WAIT. THIRTY SECONDS WITH NO FEEDBACK IS A BAD REPORT, AND THAT IS A UI QUESTION AS
 MUCH AS A QUERY ONE.
+
+### 2. pg_stat_statements IS ALREADY INSTALLED - AND IT SAYS THE SLOW THING IS OUR OWN CATALOGUE WRITER, NOT THE REPORT
+
+`measurement` | authority: pg_stat_statements, measured 2026-08-22 | measured: 2026-08-22 | claude
+
+CC ASKED WHETHER TO INSTALL pg_stat_statements ON PRODUCTION AND CORRECTLY REFUSED TO DO IT UNASKED. *** NO DECISION
+IS NEEDED - IT IS ALREADY INSTALLED AND IN shared_preload_libraries, ALONGSIDE auto_explain, plpgsql_check AND pg_cron.
+CC CHECKED pg_available_extensions RATHER THAN pg_extension. ***
+AND AIMING IT AT THE PROBLEM ANSWERS THE 22.5-SECOND GAP FROM A DIRECTION NEITHER OF US EXPECTED:
+  insert into catalogue_worklist ...   1,524 CALLS, MEAN 13,190 ms, TOTAL 20,102 SECONDS
+  insert into catalogue_worklist ...     514 CALLS, MEAN 12,847 ms, TOTAL  6,603 SECONDS
+  a fragment-count query on parcels_staging   12 CALLS, MEAN 85,368 ms, TOTAL 1,024 SECONDS
+  *** select get_pir_report(...)   16 CALLS, MEAN 29,068 ms, TOTAL 465 SECONDS ***
+*** THE REPORT IS 465 SECONDS OF TOTAL DATABASE TIME. OUR OWN CATALOGUE WRITER IS 26,700 SECONDS - FIFTY-SEVEN TIMES
+MORE. AND ITS MEAN IS 13 SECONDS PER INSERT, WHICH IS NOT AN INSERT COST; IT IS THE MEASUREMENT WORK INSIDE THE
+STATEMENT. ***
+SO CC CLOSING LINE IS MEASURED RATHER THAN SUSPECTED: "PART OF THE REPORT IS SLOW IS LITERALLY ME." THE REPORT AT
+29.1s MEAN IS RUNNING AGAINST A DATABASE WHERE A SINGLE BACKGROUND STATEMENT HAS CONSUMED SEVEN HOURS OF EXECUTION
+TIME.
+*** THAT SETTLES THE ORDER: FINISH THE BACKGROUND WORK, THEN RE-PROFILE. OPTIMISING get_pir_report AGAINST THESE
+NUMBERS WOULD BE TUNING AGAINST CONTENTION WE CREATED, AND THE 14.3s UNCONTENDED FIGURE IS PROBABLY THE REAL ONE. ***
+AND RULING 293 IS UNAFFECTED AND SLIGHTLY STRENGTHENED: A PRECOMPUTE DECISION TAKEN ON A LOADED MEASUREMENT WOULD HAVE
+BEEN TAKEN ON OUR OWN NOISE.
+CC KILLING THE GENERIC-PLAN HYPOTHESIS IS THE OTHER HALF AND IT WAS THE RIGHT INSTINCT TO TEST: THE SAME CODEBASE HAD
+PRODUCED A SARGABILITY BUG HOURS EARLIER, SO THE PLAN-CACHE CLIFF WAS THE OBVIOUS SUSPECT. EIGHT CONSECUTIVE CALLS CAME
+BACK FLAT. THE OBVIOUS CULPRIT, IN THE CODEBASE THAT HAD JUST PRODUCED THAT EXACT BUG, WAS NOT THE CULPRIT.
+
+### 3. THE SLOW THING WAS OUR OWN AUDIT MACHINERY - AND THE CAUSE WAS A VIEW NAMED LIKE A STATUS TABLE
+
+`correction` | authority: CC; chain verified independently 2026-08-22 | measured: 2026-08-22 | cc
+
+MURPHY ASKED WHY EVERYTHING SEEMED OUT OF WHACK WHEN THE DATA IS STRUCTURED AND WE HOLD IT. CC AIMED THE PROFILER AT
+THE DATABASE INSTEAD OF AT THE SUSPECT AND THE ANSWER INDICTS OUR OWN CODE:
+  insert into catalogue_worklist   1,524 CALLS, MEAN 13,191 ms, 20,103 SECONDS = 13.3% OF ALL DATABASE TIME
+  the same insert, second form       514 CALLS, MEAN 12,847 ms,  6,603 SECONDS
+  *** select get_pir_report(...)      16 CALLS, MEAN 29,068 ms,    465 SECONDS = 0.3% ***
+*** THE REPORT EVERYONE CALLED SLOW IS 0.3% OF THE DATABASE. THE CATALOGUE JOURNAL IS 13.3% - OVER SEVEN HOURS OF
+EXECUTION TIME, IN AN INSERT, WHICH SHOULD COST NOTHING. ***
+THE CAUSE, VERIFIED INDEPENDENTLY END TO END: THE INSERT CARRIED "select 1 from shelf_status where table_name=... and
+shelved". *** shelf_status IS NOT A TABLE. IT IS A VIEW OVER provenance_all, WHICH CALLS recover_source_url(), WHICH
+RUNS LIKE SCANS OVER LARGE TABLES PER ROW. EVERY JOURNAL WRITE EVALUATED THAT ENTIRE STACK TO ANSWER ONE BOOLEAN. ***
+CONFIRMED: BOTH ARE relkind = v, provenance_all CALLS recover_source_url, AND THAT FUNCTION DOES LIKE MATCHING.
+*** THAT IS "NAMES LIE, CONTENTS DO NOT" IN ITS PUREST FORM - AND THIS TIME THE NAME THAT LIED WAS OURS. shelf_status
+READS LIKE A STATUS TABLE AND NOBODY LOOKED. WE HAVE APPLIED THAT RULE TO SIXTY-SEVEN COUNTIES OF PUBLISHED DATA AND
+NOT ONCE TO OUR OWN VIEWS. ***
+FIXED: LOAD THE SHELVED SET ONCE, PASS A LITERAL. 1,621 TABLES IN ONE QUERY; THREE TABLES READ AND STAMPED IN 12
+SECONDS AGAINST A PREVIOUS MEAN OF 13 SECONDS FOR A SINGLE INSERT. APPLIED TO ALL THREE READERS.
+AND CC OWNED A METHOD FAILURE THAT MATTERS MORE THAN THE FIX: IT REPORTED pg_stat_statements AS NOT INSTALLED BECAUSE
+IT SENT TWO STATEMENTS IN ONE CALL AND *** THIS CONNECTOR RETURNS ONLY THE LAST RESULT SET, SO THE FIRST WAS SILENTLY
+DROPPED AND THE ABSENCE WAS READ AS A NEGATIVE FINDING. A MISSING RESULT IS NOT A FINDING - THE RULE WE HAVE APPLIED
+ALL WEEK TO DATA, COMMITTED AGAINST THE TOOL. ***
+SO THE ANSWER TO MURPHY IS: NOTHING WAS WRONG WITH THE DATA, THE STRUCTURE OR THE REPORT. THE LOAD WAS THE AUDIT
+MACHINERY WE BUILT TO CHECK THEM.
+
+### 4. THE BLAST RADIUS - THREE VIEWS SIT ON provenance_all, AND ONE OF THEM IS THE SCOREBOARD
+
+`measurement` | authority: measured 2026-08-22 | measured: 2026-08-22 | claude
+
+CC FIXED THE CATALOGUE JOURNAL. I MEASURED HOW FAR THE SAME CHAIN REACHES AND IT REACHES THE INSTRUMENT WE HAVE BEEN
+STEERING BY ALL WEEK.
+  ONE VIEW CALLS recover_source_url() DIRECTLY: provenance_all.
+  *** THREE VIEWS SIT ON provenance_all: shelf_status, join_proved_awaiting_read AND scoreboard. ***
+  MEASURED: SELECT * FROM scoreboard COSTS 6,382 ms, 6,375 ms, 6,275 ms - CONSISTENTLY OVER SIX SECONDS PER CALL.
+*** I HAVE RUN THE SCOREBOARD DOZENS OF TIMES THIS WEEK. EVERY SINGLE ONE RAN LIKE SCANS OVER LARGE TABLES THROUGH
+recover_source_url() TO ANSWER "HOW MANY TABLES ARE SHELVED". ***
+THAT IS THE SAME DEFECT CC FOUND, IN THE INSTRUMENT RATHER THAN THE JOURNAL - AND IT IS WORSE IN ONE WAY: THE JOURNAL
+WAS A BACKGROUND JOB NOBODY WAS WATCHING, WHILE THE SCOREBOARD IS THE THING WE ASK FOR WHENEVER SOMEONE WANTS A NUMBER.
+CC FIX WAS TO PASS A LITERAL INSTEAD OF CONSULTING THE VIEW. THE SCOREBOARD CANNOT DO THAT - IT IS THE VIEW. THE FIX
+THERE IS EITHER TO MATERIALISE IT ON A SCHEDULE OR TO REMOVE recover_source_url FROM provenance_all AND RESOLVE SOURCES
+AT WRITE TIME INSTEAD OF READ TIME.
+*** AND THE SECOND OPTION IS THE RIGHT ONE, BECAUSE recover_source_url IS DOING AT READ TIME WHAT WE SPENT TWO DAYS
+DOING BY HAND: RECOVERING A SOURCE URL. THAT IS NOT A LOOKUP, IT IS A REPAIR - AND A REPAIR BELONGS AT REST. IT IS THE
+ST_MakeValid LESSON FOR THE FIFTH TIME, IN OUR OWN PROVENANCE LAYER. ***
+NOTE THE ASYMMETRY WITH RULING 293: I RULED AGAINST PRECOMPUTING THE REPORT BECAUSE THE PLATFORM CHANGES TOO FAST TO
+CACHE. THE SCOREBOARD IS THE OPPOSITE CASE - IT IS A DAILY MEASURE BY DESIGN, ITS INPUTS CHANGE SLOWLY, AND CC OWN
+COMMENT ON IT SAYS "MEASURED ONCE A DAY". A DAILY NUMBER RECOMPUTED ON EVERY GLANCE IS THE ONE THING THAT SHOULD BE
+MATERIALISED.
