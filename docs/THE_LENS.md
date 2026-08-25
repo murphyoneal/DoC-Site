@@ -6,7 +6,7 @@
 > Append and supersede in the table, never delete: set `superseded_by` on the old row
 > and insert the new one.
 
-Live entries: 316 | superseded (retained as history): 3
+Live entries: 318 | superseded (retained as history): 3
 
 ---
 
@@ -1208,6 +1208,16 @@ THE REAL FINDING IS THE VOCABULARY. Across 47 getters the absence values are: no
 The distinction that matters is invisible in that list. none_nearby and none_within_range ASSERT absence - we searched and there was nothing. not_established, not_computed and parcel_not_resolved ADMIT IGNORANCE - we did not or could not look. Under the rule that a report carries a publishable fact or a disclosure naming who can answer, those are opposite outcomes, and no field in the payload separates them. A consumer cannot derive it from the string.
 WHY IT IS SIXTEEN AND NOT THREE: of 52 served getters only 4 call resolve_layer. The other 48 carry hand-written coverage logic, each authored separately. The encumbrance getter is county-correct because someone wrote it correctly, not because the architecture makes it so. That is the resolver-is-documentation-not-plumbing defect stated as a number: 8% adoption.
 METHOD FLAW, recorded so the result is not over-read: the Volusia control parcel was invalid - get_parcel_values returns parcel_not_on_roll for it - so the control column proves nothing and only the Broward column stands. The sweep needs re-running with a verified parcel before the per-getter results are treated as final.
+
+### 2. TWO OF MY OWN NUMBERS WERE ARTIFACTS - BUT not_established IS REAL, AND IT IS THE MOST COMMON NON-PRESENT STATUS
+
+`correction` | authority: CC measured 2026-08-24; corrects 100/1 and my own overstatement | measured: 2026-08-24 | cc
+
+Measured 2026-08-24 from function source rather than one probe parcel. Correcting 100/1 and my own follow-up before either is acted on.
+WHAT DOES NOT SURVIVE: I reported "5 of 50 getters canonical-only" and "11 emit dialects and never a canonical state". Both are artifacts of matching LITERAL field_status strings. A getter that assigns field_status dynamically - or nests it - is invisible to that regex. get_parcel_water_facts is the disproof: source shows only not_established, yet the served probe returned present for Broward. Its not_established appears solely in the geometry-failure guard.
+WHAT SURVIVES, because literals are literals: 25 distinct field_status literals exist across get_parcel_* getters. Counted by how many getters can emit each - present 28, not_established 18, not_available 11, parcel_not_resolved 10, none_intersecting 4, not_evaluated 4, error 2, none_recorded 2, not_recorded 2, then eighteen singletons including no_year_built, municipal_not_held, statutory_notice, era_prompt, null_at_source, parcel_not_on_roll and undetermined.
+THE FINDING THAT MATTERS: not_established is used by 18 getters, MORE than not_available (11), and none_recorded - one of the three canonical states - is used by just 2. Semantically not_established means not_available: the guard in get_parcel_water_facts reads "Parcel geometry could not be resolved; water was not evaluated - a gap in our data, not a statement about the parcel." That is honest prose attached to a status string no consumer keying on the documented three states would recognise. The getters are largely truthful; the VOCABULARY is not shared.
+The consequence for "a publishable fact or a disclosure": a front end cannot mechanically separate the two, because none_nearby and none_within_range assert absence while not_established and parcel_not_resolved admit ignorance, and nothing in the payload marks which is which. Collapsing the 25 onto the three states - with an explicit asserted-versus-unknown marker - is what would make the rule enforceable by the payload instead of by whoever wrote each getter.
 
 ## 11-traceability
 
@@ -6597,6 +6607,36 @@ Measured 2026-08-24 across all 67 <county>_nal_dor_source and <county>_sdf_dor_s
 BROWARD IS ZERO. broward_nal_dor_source holds 754,371 rows and broward_sdf_dor_source 115,745 - fully populated tables - with OR_BOOK1/OR_BOOK NULL on every row. Schema presence is not data presence, which is the layer-name trap in a new costume: the column is a DOR standard, so it exists everywhere the standard does, whether or not the county populated it.
 Where it exists the fill is 10-22% of parcels because the SDF is a sales file, so not_available is the honest answer for roughly 89% of Florida parcels.
 FORMATTING TRAP, and it cost me a wrong number: SDF zero-pads OR_BOOK and OR_PAGE to four characters (19.7% of pages carry a leading zero) while the clerk index pads neither. Raw string equality silently drops every page below 1000. I reported the parcel-to-deed link at 80.2% on raw equality; normalised it is 96.6%. Normalise both sides or lose a fifth of the pages.
+
+## 98-absence-vocabulary
+
+### 1. SIXTEEN ABSENCE DIALECTS ACROSS THE PAYLOAD - THE THREE-STATE RULE HELD IN EVERY RULING AND NEVER REACHED THE CODE
+
+`measurement` | authority: CC sweep; verified 2026-08-22 | measured: 2026-08-22 | cc
+
+CC SWEPT 47 GETTERS AND FOUND THE PAYLOAD SPEAKS SIXTEEN ABSENCE VALUES. I VERIFIED AND IT IS WORSE THAN THE HEADLINE:
+  50 get_parcel* FUNCTIONS
+  17 SAY not_available | 5 SAY none_recorded | *** 23 USE DIALECTS THAT ARE NEITHER - not_evaluated, not_established,
+  not_computed AND OTHERS. THE NON-STANDARD VOCABULARY IS THE MAJORITY. ***
+THE FULL SET CC FOUND: not_available, not_evaluated, not_established, not_computed, not_recorded, none_recorded,
+none_nearby, none_within_range, null_at_source, undetermined, no_year_built, not_in_municipality, parcel_not_resolved,
+parcel_not_on_roll, not_on_list, statutory_notice.
+*** AND THE SPLIT THAT MATTERS IS INVISIBLE IN THE PAYLOAD: none_nearby AND none_within_range ASSERT AN ABSENCE - WE
+LOOKED AND THERE IS NOTHING. not_established AND not_computed ADMIT IGNORANCE - WE NEVER LOOKED. NOTHING IN THE JSON
+MARKS WHICH IS WHICH, SO A FRONT END CANNOT RENDER "FACT OR DISCLOSURE" WITHOUT A HARDCODED LIST OF SIXTEEN STRINGS
+SOMEBODY HAS TO MAINTAIN. ***
+THIS IS THE THREE-STATE RULE - present, none_recorded, not_available, NEVER COLLAPSE TO TWO - WHICH HAS BEEN IN THE
+RECORD SINCE JULY AND IS CITED IN DOZENS OF RULINGS INCLUDING MINE THIS WEEK. IT HELD IN EVERY RULING AND REACHED
+FOUR-FIFTHS OF NO GETTER.
+*** THE CAUSE IS MEASURED: 4 OF 50 GETTERS CALL resolve_layer. THE ENCUMBRANCE BLOCK IS COUNTY-CORRECT BECAUSE SOMEONE
+WROTE IT CORRECTLY, NOT BECAUSE ANYTHING ENFORCES IT. EVERY OTHER GETTER HAND-ROLLS ITS OWN COVERAGE LOGIC AND ITS OWN
+VOCABULARY. ***
+THAT IS THE SESSION LESSON AT THE LARGEST SCALE IT HAS APPEARED: A RULE THAT CANNOT FAIL LOUDLY DOES NOT HOLD. The
+CHECK constraints held perfectly all week; the three-state rule was prose in a lens entry and drifted into sixteen
+values across fifty functions.
+AND CC FLAGGED A FLAW IN ITS OWN SWEEP RATHER THAN LETTING THE TABLE LOOK COMPLETE: THE VOLUSIA CONTROL PARCEL WAS
+INVALID - get_parcel_values RETURNS parcel_not_on_roll FOR IT - SO ONLY THE BROWARD COLUMN STANDS AND THE SWEEP NEEDS
+RE-RUNNING WITH A VERIFIED PARCEL. That caveat is worth as much as the finding.
 
 ## 98-clerk-indexes-by-parcel
 
