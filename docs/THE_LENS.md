@@ -6,7 +6,7 @@
 > Append and supersede in the table, never delete: set `superseded_by` on the old row
 > and insert the new one.
 
-Live entries: 320 | superseded (retained as history): 3
+Live entries: 324 | superseded (retained as history): 3
 
 ---
 
@@ -1240,6 +1240,25 @@ parcel_verify.py ran 2,077 parcels with zero failures, then the pooler closed th
 I had built six-try retry with backoff into the HTTP session - the part I expected to be flaky - and none whatsoever into the database, the part that actually failed. The guard was written for the risk I imagined rather than the one that existed, which is the same shape as invariant 4 (a liveness interlock that self-matches becomes the outage).
 THE RULE: any failure handler that writes, logs or records must reach its resource through the same reconnecting path as the normal case. Every database call in parcel_verify.py now goes through dbx(), including the ones inside except blocks, and dbx() reconnects and retries before giving up.
 WHAT SAVED IT: resumability by natural key. Progress rows are keyed (co_no, parcel_id) with the todo query skipping status='ok', so 2,077 parcels persisted and the restart picked up at 2,886 remaining with nothing re-fetched and nothing lost. Zero parcels were recorded FAILED, so the truncation guard never fired falsely either. A crash-safe design turned a fatal bug into a restart - which is the argument for writing progress as you go rather than at the end.
+
+## 102-report-profile
+
+### 1. THE REPORT COSTS THREE TIMES THE SUM OF EVERYTHING IT CALLS - THE COST IS INLINE, NOT IN THE GETTERS
+
+`measurement` | authority: CC measured 2026-08-25 under ruling 293 | measured: 2026-08-25 | cc
+
+Ruling 293 said profile before optimising. Measured 2026-08-25 on Volusia 321610030010, under load from four background jobs, each getter timed cold then warm.
+BIGGEST GETTERS (warm): get_parcel_transaction_facts 6.80 s = 62.7% of all getter time; get_parcel_contamination_facilities 0.98 s; get_parcel_identity_frame 0.65 s; get_parcel_brownfield_facts 0.47 s. Those four are 82% of getter time. The remaining 25 getters are 0.05-0.12 s each.
+THE ARITHMETIC DOES NOT CLOSE, AND THAT IS THE FINDING:
+  sum of 29 timed getters, warm      10.8 s
+  the two untimed getters (different signatures, measured separately) 0.13 s
+  the inline areaRepetitiveLoss subquery  0.16 s
+  WHOLE REPORT, warm                 33.6 s
+  UNATTRIBUTED                       22.5 s
+Two thirds of the report is work I have not yet located. get_pir_report is 202 lines with 32 getter calls but ALSO 43 FROM clauses and 26 ST_ calls inline - the property, land, values, tax, schools and amenities sections are built in the function body rather than by getters, and none of that is profiled yet.
+HYPOTHESIS TESTED AND DISPROVEN: plpgsql switches to a generic plan after five executions, and a generic plan on a co_no parameter would reproduce exactly the sargability bug found in search_properties_stats the same day. Measured across eight consecutive calls: 34.0, 26.0, 27.8, 33.9, 32.3, 34.0, 28.1, 34.1 s. No cliff at call six. force_custom_plan gives 29.8/22.9/23.6/23.0 - roughly 20% and worth having, but not the explanation.
+NEXT STEP, and it must not be skipped: profile the inline SQL directly. pg_stat_statements is available but NOT installed, and installing an extension on production to profile is not a step I will take unasked. The alternative is reading the 202 lines and timing the inline queries the way areaRepetitiveLoss was timed.
+MEASUREMENT CONDITION: four background jobs were running throughout. The same report measured 14.3 s uncontended earlier the same day. These numbers are the LOADED case - honest to optimise against, but not the floor.
 
 ## 11-traceability
 
@@ -6679,6 +6698,59 @@ EXPRESSION CANNOT BE CHARACTERISED BY READING ITS TEXT. THE ONLY SUFFICIENT MEAS
 VERIFIED PARCEL AND READING WHAT COMES BACK - WHICH IS THE SWEEP CC RAN AND HAD TO DISCARD BECAUSE ITS VOLUSIA CONTROL
 PARCEL WAS INVALID. ***
 
+### 2. DEFINITIVE - ZERO OVERSTATEMENTS ACROSS 47 GETTERS, AND CALLING FOUND WHAT NEITHER SOURCE SCAN COULD
+
+`measurement` | authority: CC sweep on verified parcels 2026-08-22 | measured: 2026-08-22 | cc
+
+CC RAN THE SWEEP ON VERIFIED PARCELS IN BOTH COUNTIES, 47 GETTERS, ZERO ERRORS. THE RESULT IS BETTER THAN EITHER OF US
+EXPECTED AND THE METHOD FINDING IS THE PART TO KEEP.
+*** NOT ONE GETTER OVERSTATES. The single flag was CC own false positive: get_parcel_web_history IS OUR OBSERVATION LOG,
+NOT A COUNTY RECORD, AND ITS none_recorded IS CORRECT - "Absence means we recorded nothing, NOT that the property was
+never listed or advertised." WE SEARCHED THE RECORD THAT EXISTS AND IT IS EMPTY. ***
+CC CAUGHT THAT ITSELF BY READING THE CAVEAT BEFORE FILING THE DEFECT. A naive rule - none_recorded plus a thin county
+equals suspect - FIRED ON A GETTER WHOSE RECORD IS NOT COUNTY-HELD AT ALL.
+AND COUNTY SCOPING WORKS: Broward and Volusia diverge exactly where they should - airport_proximity, permit_facts,
+storm_surge, wind_design, transaction_facts, tax_deed_status. Where we hold neither, water_service says not_available
+for both.
+*** THE VOCABULARY FINDING IS NOW PROVED RATHER THAN INFERRED, AND CALLING FOUND WHAT READING COULD NOT: ***
+  get_parcel_wetland        none_at_parcel
+  get_parcel_wetland_facts  none_on_parcel
+VERIFIED IN SOURCE. SAME CONCEPT, ADJACENT FUNCTIONS, ONE PREPOSITION APART. Plus none_intersecting and
+none_within_range - AND NONE OF THESE APPEARED IN EITHER OF OUR SOURCE SCANS.
+*** THAT IS THE PROOF THE METHOD NEEDED: A STATUS BUILT IN A CASE EXPRESSION CANNOT BE CHARACTERISED BY READING THE
+TEXT. MY 23-VS-17 AND CC 5-OF-50 WERE BOTH WRONG IN THE SAME DIRECTION, BY THE SAME MECHANISM, AND ONLY EXECUTION
+SETTLED IT. ***
+SO THE STANDING CONCLUSION, MEASURED: EVERY GETTER TELLS THE TRUTH AND NO CONSUMER CAN MECHANICALLY ACT ON IT.
+none_at_parcel ASSERTS ABSENCE; not_established ADMITS IGNORANCE; NOTHING IN THE PAYLOAD MARKS WHICH IS WHICH.
+THE HONESTY IS PER-GETTER AND HUMAN. THE FIX IS TO MAKE IT STRUCTURAL.
+
+### 3. A CHECK CONSTRAINT HAS NO SURFACE HERE - AND THE DISPOSITION COLUMN IS DRIFTING THE SAME WAY field_status DID
+
+`principle` | authority: CC; disposition drift measured 2026-08-22 | measured: 2026-08-22 | cc
+
+I RULED "THEN A CHECK CONSTRAINT ON THE STATE FIELD - THAT IS THE ONLY THING THAT HAS HELD ANYTHING THIS WEEK." CC
+CHECKED WHETHER SUCH A CONSTRAINT COULD EXIST AND IT CANNOT.
+*** NO DOMAIN, NO ENUM, AND THE GETTERS BUILD jsonb INLINE. A CHECK CONSTRAINT ENFORCES TABLE DATA AND field_status IS
+NEVER TABLE DATA - IT IS CONSTRUCTED IN A FUNCTION AND RETURNED. THERE IS NOTHING FOR DDL TO ATTACH TO. ***
+THAT IS A LIMIT ON THE LESSON I HAVE BEEN REPEATING ALL WEEK. CONSTRAINTS HELD WHERE PROSE FAILED - ladm_no_e0_without_
+class, the R7 trigger, the column_claim CHECKs, the unique index on landmark - BUT EVERY ONE OF THOSE GUARDED A TABLE.
+*** A VALUE THAT ONLY EXISTS IN A FUNCTION RETURN HAS NO DDL SURFACE, AND THE ENFORCEMENT MUST BE A SERVED-PATH
+DETECTION INSTEAD - WHICH IS THE MECHANISM THIS PROJECT ALREADY MANDATES FOR HIGH-CONSEQUENCE CONCEPTS. ***
+CC BUILT IT AND IT IS RED: served-field-status-vocabulary-not-three-states, ok=false, examined=86. IT WALKS THE WHOLE
+get_pir_report RECURSIVELY, SO IT CATCHES DRIFT IN ANY GETTER INCLUDING ONES ADDED LATER - WHICH A PER-GETTER TEST
+WOULD NOT.
+AND ONE REPORT ON ONE PARCEL WAS THE SHARPEST MEASUREMENT OF ALL: 86 STATUS VALUES, 13 DISTINCT, 22% OUTSIDE THE THREE
+STATES - INCLUDING none_within_radius AND assigned, WHICH NEITHER SOURCE SCAN NOR THE 47-GETTER SWEEP FOUND. *** READING
+FOUND SOME, CALLING ALL 47 FOUND MORE, WALKING ONE COMPOSED REPORT FOUND THE REST. THE SERVED ARTEFACT IS THE ONLY
+COMPLETE SURFACE. ***
+AND CC RECORDED THE LIMIT ITSELF: THE DETECTION PROVES THE VOCABULARY, NOT THE SEMANTICS. A getter could emit
+none_recorded while still meaning "we did not look" and this turns green with nothing fixed. THAT CAVEAT IS WHY THE
+GREEN WILL BE WORTH SOMETHING.
+*** AND THE SAME DRIFT IS ALREADY IN THE DEFECT REGISTRY ITSELF: disposition HAS NO CHECK CONSTRAINT AND CARRIES SEVEN
+VALUES - repair, transform_on_ingest, disclose, substitute PLUS normalise_at_read, container_repair, blocked AND
+undecided - WITH 12 OF 156 ACTIVE DEFECTS CARRYING NONE AT ALL. THE TABLE THAT TRACKS OUR DEFECTS HAS THE DEFECT IT
+TRACKS. ***
+
 ## 98-clerk-indexes-by-parcel
 
 ### 1. THE CLERK INDEXES BY PARCEL AND WE NEVER USED IT - THERE IS NO DETAIL PAGE, THERE IS A PARCEL SEARCH FIELD
@@ -6716,3 +6788,35 @@ COLLECTION IS INTACT: the collector searches by doctype NAME ("LIEN", "SATISFACT
 THE TRAP IS IN ANALYSIS. My own measurements this session used doc_type_code = any(array['LN','PS']), which silently excluded LN1, LN2 and PS1 - 854 rows, 0.26%, small here but the same class of error as every other one this week. The dangerous direction is a discharge filter: an exact 'SF' test would miss 20,025 SF1 rows and show SATISFIED liens as unsatisfied, which is a false statement in the worst direction - asserting a live encumbrance that is discharged.
 The existing satisfaction matcher passes this test - parcel_encumbrance_satisfaction carries RE1 alongside RE and SF, so variants were included. No SF1 appears, but that is absence of a match rather than evidence of exclusion, and it is not a defect.
 THE RULE: any doctype predicate uses a prefix or an explicit variant list, never equality, and any predicate written before 2015 is incomplete for everything after it. Credit to claude for spotting the 2015 boundary.
+
+## 99-precompute
+
+### 1. RULING 293 - THE MEASUREMENT SPEC PART I ASKED FOR ON 3 AUGUST HAS ARRIVED, AND THE ANSWER IS NOT PRECOMPUTE
+
+`rule` | authority: CC measurement; PIR_REPORT_SPEC_v5 Part I | measured: 2026-08-22 | murphy
+
+CC MEASURED THE FULL REPORT: VOLUSIA PARCEL 30.8s, PONCE INLET 14.3s, BOTH 38 SECTIONS, CONTAMINATION STEP 1.0-1.3s.
+*** PIR_REPORT_SPEC_v5 PART I HAS BEEN OPEN SINCE 3 AUGUST WAITING FOR EXACTLY THIS: "PRECOMPUTE IS THEREFORE UNDECIDED,
+NOT SETTLED. MEASURE AN AIMED LIVE QUERY - JURISDICTION-SCOPED, MODEL CALL EXCLUDED - BEFORE COMMITTING." THAT IS THE
+MEASUREMENT. ***
+AND THE v4 FIGURE IT WAS MEANT TO REPLACE - 75ms TO 1,210ms - WAS DISCARDED AS CONTAMINATED BECAUSE IT INCLUDED THE
+MODEL CALL OVER UN-AIMED LAYERS. THIS ONE IS THE REAL SHAPE: TWO PARCELS, A 2.2x SPREAD, NO MODEL CALL.
+*** RULED: DO NOT PRECOMPUTE. ***
+  THE SPEC ARGUMENT STANDS AND IS NOW STRONGER, NOT WEAKER: "A PRECOMPUTED STACK THAT GOES STALE INVISIBLY IS WORSE
+  THAN A LIVE QUERY THAT IS HONEST." THIS WEEK PRODUCED THE PROOF - THE SATISFACTION FRONTIER ADVANCED FROM 2019-03-06
+  TO 2026-08-21 BY ITSELF BECAUSE IT WAS DERIVED AT READ TIME, WHILE parcel_encumbrance_satisfaction SAT ON A TRUNCATED
+  WINDOW FOR SEVEN YEARS BECAUSE IT WAS MATERIALISED.
+  AND WE HAVE 156 ACTIVE DEFECTS, 83 BLOCKING. *** PRECOMPUTING NOW WOULD FREEZE 83 BLOCKING DEFECTS INTO A CACHE AND
+  EVERY FIX WOULD NEED A REBUILD BEFORE IT REACHED A BUYER. THE PLATFORM IS CHANGING TOO FAST TO CACHE. ***
+  THE SECOND MEASUREMENT IS THE ONE THAT DECIDES IT: 30.8s WAS UNDER LOAD FROM FOUR CONCURRENT BACKGROUND JOBS.
+  14.3s WAS THE SAME REPORT WITHOUT THAT CONTENTION. THE COST IS NOT INHERENT - IT IS CONTENTION, AND CACHING WOULD
+  HIDE A CONTENTION PROBLEM RATHER THAN FIX IT.
+*** WHAT TO DO INSTEAD, IN THIS ORDER: ***
+  1. PROFILE THE 38 SECTIONS AND FIND WHERE THE TIME IS. Do not optimise before profiling - the last time we guessed,
+     the answer was ST_MakeValid running per call and the guess had been "missing parcel-id indexes."
+  2. EXPECT ONE OR TWO SECTIONS TO HOLD MOST OF IT. The detection batch was 365s and 13 of 153 predicates held 88%,
+     and the worst was a single cast on an indexed column.
+  3. ONLY THEN CONSIDER CACHING, AND CACHE THE SLOW SECTION RATHER THAN THE REPORT.
+AND THE HONEST PRODUCT FRAME: 14 SECONDS FOR A PAID, GENERATED DOCUMENT IS NOT A CRISIS. A BUYER WHO HAS PAID $5 AND
+IS TOLD IT IS BEING PREPARED WILL WAIT. THIRTY SECONDS WITH NO FEEDBACK IS A BAD REPORT, AND THAT IS A UI QUESTION AS
+MUCH AS A QUERY ONE.
