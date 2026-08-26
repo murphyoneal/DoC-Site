@@ -574,6 +574,11 @@ export interface PirReport {
   zoningFacts?: PirZoningFacts | null
   economic: PirEconomic
   disclosures?: PirDisclosure[] | null
+  // Envelope sibling of disclosures (get_parcel_disclosures_facts). Additive: the array
+  // above is unchanged. field_status separates "registry searched, nothing applies"
+  // (none_recorded) from "registry not consulted" (not_available) - the second cannot be
+  // rendered as silence without implying the source has no known limitations.
+  disclosuresFacts?: Record<string, unknown> | null
   marineBlock?: PirMarineBlock | null
   floodBlock?: PirFloodBlock | null
   groundElevation?: Record<string, unknown> | null

@@ -196,7 +196,7 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
   const pb = renderPermitsBlock(r.permitFacts)
   const fb = renderFloodBlock(r.floodBlock)
   const rb = renderRestrictionsBlock(r.landRestrictionsFacts ?? r.landRestrictions)
-  const dv = disclosuresView(r.disclosures)
+  const dv = disclosuresView(r.disclosuresFacts ?? r.disclosures)
   const tv = taxDeedView(r.taxDeedStatus)
   // Brownfield is a CONTAMINATION fact, not an incentive (ruling 74 C2). Split it: the designated
   // area is §3 (on this parcel), the nearby FDEP sites + distances are §4 — never under an incentive heading.
@@ -945,6 +945,13 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
                 <ul style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {dv.items.map((it, i) => <li key={i} style={{ fontSize: 14, lineHeight: 1.5 }}>{it.text}</li>)}
                 </ul>
+              </Section>
+            ) : dv.mode === 'not_available' ? (
+              /* Rendering NOTHING here would imply the county source has no known limitations.
+                 mode 'none' means we searched and none apply - safe to stay silent. This mode
+                 means we never looked, and that has to be said. */
+              <Section title={dv.title}>
+                <div className="pir-note">{dv.note}</div>
               </Section>
             ) : null}
           </Grp>
