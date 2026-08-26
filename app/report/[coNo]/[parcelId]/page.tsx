@@ -139,7 +139,7 @@ function buildLead(r: PirReport): { identity: string; regulatory: string; none: 
     owner ? `owned by ${owner}` : null].filter(Boolean).join(', ')
 
   const fb = renderFloodBlock(r.floodBlock)
-  const rb = renderRestrictionsBlock(r.landRestrictions)
+  const rb = renderRestrictionsBlock(r.landRestrictionsFacts ?? r.landRestrictions)
   const restr = rb.established ? rb.items : []
   const gwca = restr.find((it: any) => /well|62-524|groundwater/i.test(`${it.value ?? ''} ${it.label ?? ''}`))
   const ic = restr.find((it: any) => /institutional control/i.test(it.label ?? ''))
@@ -195,7 +195,7 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
   const tb = renderTransactionsBlock(r.transactionFacts)
   const pb = renderPermitsBlock(r.permitFacts)
   const fb = renderFloodBlock(r.floodBlock)
-  const rb = renderRestrictionsBlock(r.landRestrictions)
+  const rb = renderRestrictionsBlock(r.landRestrictionsFacts ?? r.landRestrictions)
   const dv = disclosuresView(r.disclosures)
   const tv = taxDeedView(r.taxDeedStatus)
   // Brownfield is a CONTAMINATION fact, not an incentive (ruling 74 C2). Split it: the designated
