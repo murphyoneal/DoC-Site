@@ -1,0 +1,37 @@
+-- 126e — discover_county_layers enumerates from the CATALOG, not from a registry. Ruling 511.
+-- (126c used a temp table — illegal in a STABLE function. 126d was correct and took 25.1 SECONDS for
+--  Volusia. Both superseded by this. The measurements are kept because they are the argument.)
+--
+-- THE OLD BODY, AND ITS THREE MEASURED FAILURES (build_backlog 202):
+--   FROM county_layer_registry r JOIN county_registry cr ON cr.county_name = r.county
+--   WHERE cr.dor_county_no::numeric = p_co_no AND coalesce(r.row_count,0) > 0
+--   A. the cached row_count hid 19 of 48 Palm Beach tables. Counted every one dynamically:
+--      19 STALE, 0 genuinely empty, 399 rows hidden. A staleness test wearing an emptiness test's clothes.
+--   B. tables absent from the registry were invisible — 2 of 48, including palmbeach_subdivisions
+--      (10,929 rows, plat book and page), which produced a "go pay the Clerk for a plat we hold" false gap.
+--   C. the NAME JOIN dropped Saint Johns and Saint Lucie entirely. discover_county_layers(65) and (66)
+--      each returned ZERO ROWS while those counties hold 61 tables. Roz is told this function is the SOLE
+--      authority on coverage, so both counties were a false gap by construction, county-wide.
+--
+-- THE NEW BODY. Enumeration from information_schema; attribution from county_table_prefix (126a/126b,
+-- point-in-polygon verified, keyed on co_no). NO NAME COMPARISON ANYWHERE IN THE PATH. A registry is
+-- consulted only to NAME a concept, by LEFT JOIN, and can never remove a table from the answer.
+-- A county may have several prefixes — St. Johns carries both sjc_ and stjohns_.
+--
+-- EMPTINESS EXACT, MAGNITUDE ESTIMATED. The bug was never "the count was approximate"; it was that a
+-- stale ZERO REMOVED A TABLE FROM THE ANSWER. So emptiness is an O(1) EXISTS probe, never cached, and
+-- total_rows is pg_class.reltuples floored at 1 for any table proven non-empty — a stale statistic can no
+-- longer render "0 rows" for a table we just proved holds data, and can no longer hide anything at all.
+-- rows_are_estimates declares it on every row: Roz narrates total_rows, and an estimate presented as a
+-- count is the same class of defect as "3.55 ft".
+--
+-- MEASURED, BEFORE AND AFTER:
+--   Volusia latency      25,108 ms (126d, exact counts)  ->  391 ms      64x
+--   St. Johns   (65)     0 tables  -> 29        St. Lucie (66)  0 tables -> 39
+--   Palm Beach  (60)    27 tables  -> 70        Volusia   (74) 22 tables -> 182
+--   ACCEPTANCE TEST, all 67 counties: 1,931 attributable / 1,931 served / STILL_INVISIBLE = 0
+--   (Palm Beach exceeds its 48 palmbeach_* tables because six municipal prefixes — bocaraton,
+--    boyntonbeach, delraybeach, jupiter, wellington, westpalmbeach — verify into co_no 60 at modal
+--    share 1.000. City layers were a separate track and invisible to county discovery until now.)
+--
+-- The full function bodies as applied are in the Supabase migration of the same name.
