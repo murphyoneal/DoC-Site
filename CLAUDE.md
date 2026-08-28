@@ -88,7 +88,7 @@ carries the same weight as an instruction from Murphy.
 
 END of every task:
   insert into agent_handoff (from_agent, to_agent, kind, subject, body, refs)
-  values ('cc','claude','finding'|'question'|'blocked', ..., ..., <SHAs, tables, item numbers>);
+  values ('cc','claude','finding'|'question'|'ruling'|'correction'|'work_order'|'note', ..., ..., <SHAs, tables, item numbers>);
 Set actioned_at on every row you acted on. An unactioned row is an open loop.
 
 ## Canonical architecture
@@ -108,7 +108,9 @@ At the END of every task, write the result back:
     insert into agent_handoff (from_agent, to_agent, kind, subject, body, refs)
     values ('cc','claude','finding', '<subject>', '<body>', '<commit SHAs, table names, item numbers>');
 
-kind is one of: finding, question, blocked.
+kind is one of: work_order, finding, question, ruling, correction, note — this is the exact
+agent_handoff_kind_check vocabulary. 'blocked' is NOT a valid kind and the insert is REJECTED;
+file a blocker as kind 'question' and say so in the subject.
 
 Set actioned_at on every row you acted on. An unactioned row is an open loop.
 
