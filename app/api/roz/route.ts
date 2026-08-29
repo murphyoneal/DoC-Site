@@ -5,6 +5,7 @@ import { getSupabaseAdmin } from '@/lib/supabase/server'
 import { getSessionUser } from '@/lib/supabase/ssr-server'
 import { formatDistanceBand } from '@/lib/units'
 import { validateNarration } from '@/lib/numeric-provenance.mjs'
+import { redactFabricatedPrecision } from '@/lib/roz-tourniquet.mjs'
 
 const MODEL = 'claude-sonnet-5'
 const ROZ_VERSION = '0.1.0-alpha' // roz_version_register current; stamped per exchange
@@ -27,67 +28,6 @@ const CACHE_WRITE_MULT = 1.25, CACHE_READ_MULT = 0.1
 // for ZERO parcels statewide. Any sentence carrying them is fabricated — drop it and substitute the honest
 // withheld statement. Zero false positives by construction. This is the tourniquet; the durable general
 // fix is numeric-provenance validation (backlog) — every rendered number must trace to a payload value.
-const FABRICATION_RX = /\b3DEP\b|\blidar\b|\b95\s*%\s*confidence\b|±\s*\d|\bNVA\b|\bVVA\b|vertical accuracy/i
-
-// 2026-08-29 — MIGRATION 125a ARMED THIS GUARD AGAINST ITS OWN PAYLOAD, and the guard became the thing
-// manufacturing a false claim. The honest caveat 125a serves says "the USGS 3DEP 1m elevation model", so
-// FABRICATION_RX matched a TRUTHFUL SENTENCE, the tourniquet deleted it, and appended a hardcoded note
-// asserting the vertical datum was not recorded — over a payload that records NAVD88.
-// "Zero false positives by construction" held only while no honest payload carried these terms. It was
-// written as a permanent property and it was a contingent one.
-//
-// TWO CHANGES, and the split between them is the whole design:
-//   1. PER-TERM PAYLOAD EXEMPTION. A matched term that appears VERBATIM IN THE PAYLOAD is a quote, not an
-//      invention. Only terms absent from the payload are evidence of fabrication. This keeps provenance —
-//      "3DEP" stays in the served caveat, because the fix is to make the guard payload-aware, not to
-//      delete the program name that says where the figure came from.
-//      THE EXEMPTION IS PER-TERM, NEVER PER-SENTENCE. A fabricated accuracy band sitting next to a quoted
-//      program name must still be caught: the band's own terms (lidar, ±0.96, 95% confidence) are absent
-//      from the payload, so the sentence still falls. Asserted by the negative control in
-//      lib/roz-tourniquet.test.mjs, which replays roz_fabrication_block id 6 verbatim.
-//   2. THE SUBSTITUTE IS DERIVED FROM field_status, NEVER HARDCODED. A fixed sentence that was true when
-//      written is exactly what just failed; deriving it means the next payload change cannot make it a lie.
-export function elevationSubstitute(ge: Record<string, unknown> | null | undefined): string {
-  const status = ge && typeof ge.field_status === 'string' ? ge.field_status : null
-  if (status === 'present') {
-    const us = typeof ge?.value_us === 'string' ? ge.value_us : null
-    const datum = typeof ge?.vertical_datum === 'string' ? ge.vertical_datum : null
-    const v = ge?.value != null && typeof ge.units === 'string' ? `${ge.value} ${ge.units}` : null
-    const figure = v && us ? `${v} (${us})` : (us ?? v)
-    if (figure && datum) return `The record holds a ground elevation of ${figure} on ${datum}. It is a single sampled point, not a survey — a surveyed elevation certificate is the only authoritative figure for this parcel.`
-    if (figure) return `The record holds a ground elevation of ${figure}. It is a single sampled point, not a survey — a surveyed elevation certificate is the only authoritative figure for this parcel.`
-  }
-  if (status === 'not_available' || status === 'not_recorded') {
-    return 'No sampled ground elevation is held for this parcel. That is a gap in our holdings, not a finding that the parcel has no recorded elevation — a surveyed elevation certificate can establish it.'
-  }
-  // UNKNOWN STATE MUST ASSERT NOTHING IN EITHER DIRECTION. Claiming "not recorded" here is the defect this
-  // function exists to remove; claiming a value would be worse.
-  return 'A precise ground elevation is not being stated here. Obtain a surveyed elevation certificate for an authoritative figure.'
-}
-
-function redactFabricatedPrecision(
-  text: string,
-  payloadText = '',
-  elevationFact: Record<string, unknown> | null = null,
-): { text: string; triggered: boolean; terms: string; excerpt: string } {
-  if (!text || !FABRICATION_RX.test(text)) return { text, triggered: false, terms: '', excerpt: '' }
-  const g = new RegExp(FABRICATION_RX.source, 'gi')
-  const matched = Array.from(new Set((text.match(g) ?? []).map(s => s.trim())))
-  const hay = payloadText.toLowerCase()
-  // A term the payload itself contains is something Roz READ, not something it invented.
-  const unexempt = matched.filter(t => !hay.includes(t.toLowerCase()))
-  if (unexempt.length === 0) return { text, triggered: false, terms: '', excerpt: '' }
-  // Re-scan for ONLY the unexempt terms, so a quoted term never drags a sentence down with it.
-  const esc = unexempt.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')
-  const unexemptRx = new RegExp(esc, 'i')
-  const parts = text.split(/(?<=[.!?])\s+|\n+/)
-  const dropped = parts.filter(s => unexemptRx.test(s))
-  const kept = parts.filter(s => !unexemptRx.test(s))
-  let clean = kept.join(' ').replace(/\s{2,}/g, ' ').trim()
-  clean = (clean ? clean + ' ' : '') + elevationSubstitute(elevationFact)
-  return { text: clean, triggered: true, terms: unexempt.join(', '), excerpt: dropped.join(' ').slice(0, 2000) }
-}
-
 // DOR county code map. Reads of county_registry are denied to the app role, so the
 // name→co_no crosswalk is static (DOR is stable). Roz defaults to Volusia.
 const DOR: Record<string, number> = {

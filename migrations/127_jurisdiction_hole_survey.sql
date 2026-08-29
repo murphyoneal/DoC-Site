@@ -1,0 +1,50 @@
+-- 127 — survey_jurisdiction_holes(). READ-ONLY. Applied as 127a→127d; the DB carries the final body and
+-- its COMMENT. This file records the FOUR ITERATIONS, because each was wrong in a way worth keeping.
+--
+-- THE PROBLEM. collier_zoning_general holds 3 rows stamping three municipalities as "not ours", and
+-- collier_future_land_use holds 9 rows of lu_type 'IA' / descrition 'Incorporated Area'. Both served to a
+-- buyer as findings: get_parcel_zoning_facts(21,'20765320102') returned "CITY OF NAPLES" and "IA" with
+-- field_status 'present', 100% of parcel, on an $86.8M waterfront estate.
+--
+-- THE MECHANISM ALREADY EXISTED. layer_resolution.not_mine_values is read by _zoning_lookup ON THE SERVED
+-- PATH, and is populated for 4 of 79 zoning and 9 of 90 land_use layers. This was never a missing
+-- detection — it is an unpopulated column on 156 of 169 layers.
+--
+-- 127a  AREA-PER-ROW + jurisdiction name + vocabulary. Area-per-row was ranked FIRST on the reasoning that
+--       cardinality catches what a wordlist cannot. MEASURED: it caught ZERO of the three zoning holes and
+--       produced 138 flags, 40 of them matching rural-district patterns on the code alone (hardee A-1 at
+--       95.9% of layer area, calhoun AG 91.5%, lafayette AG 89.8%). IT FAILS BY CONSTRUCTION — a
+--       municipality is a SMALL share of a rural county (Naples is 0.711% of Collier), so a jurisdiction
+--       hole is AREA-NEGATIVE while a genuine agricultural district is area-positive. DROPPED, not tuned.
+--       It also scanned only col_role='code' and so MISSED HALF ITS OWN FOUNDING CASE: the FLU hole lives
+--       in the name column. A sweep that misses the report that prompted it is a vacuous check.
+-- 127b  Added the name column. Replaced area with spatial IoU against the SINGLE best-matching city.
+--       Caught the three zoning holes (Naples 0.986, Everglades City 0.902, Marco Island 0.815) and still
+--       missed 'IA' at 0.378 — because IA is the union of ALL NINE incorporated areas and coincides with
+--       no single city. A hole may name one municipality or all of them.
+-- 127c  Spatial signal became SHARE INSIDE THE UNION of city limits. Selected those cities by
+--       fl_city_limits.geo_id — WHICH IS NULL ON ALL 412 ROWS. The union was empty and the signal never
+--       computed. It reported sig_spatial NULL (untested), NOT false, which is the only reason this was
+--       visible instead of silently clean. Three coverage states, inside a survey, doing their job.
+-- 127d  Cities resolved BY GEOMETRY — every municipal polygon whose bbox intersects the value. No key, no
+--       name, no populated column. Joining fl_city_limits.county ('COLLIER') was rejected for the same
+--       reason it broke discover_county_layers this week: names lie, keys do not, and this column had
+--       neither.
+--
+-- FOUNDING CASE, FINAL, GREEN ON BOTH FIELDS AND BY THE NAME-INDEPENDENT SIGNAL:
+--   collier_zoning_general   CITY OF NAPLES        share 0.992  -> NAPLES
+--   collier_zoning_general   CITY OF MARCO ISLAND  share 0.994  -> MARCO ISLAND
+--   collier_zoning_general   EVERGLADES CITY       share 0.913  -> EVERGLADES CITY
+--   collier_future_land_use  IA / Incorporated Area share 0.775 -> the nine incorporated areas
+--   every other Collier value                      share 0.000
+-- 0.775 against 0.000 with nothing in between: a discriminator, not a tuned threshold.
+--
+-- SIGNAL ORDER, ON EVIDENCE: spatial coincidence, then jurisdiction name match, then vocabulary last.
+-- Vocabulary only ever catches what has already burned us — six logged sentinel instances did not stop
+-- '999 INCORPORATED' returning as 'CITY OF NAPLES'.
+--
+-- STILL TO DO: batch the sweep across all 169 layers (the unbatched run exceeds the connector timeout;
+-- p_geo_id exists for this and carries no meaning), then propose not_mine_values writes PER LAYER for
+-- review. Nothing is written by this function. When not_mine_values is populated, definition_note must
+-- route to the NAMING MUNICIPALITY — "read it against the Collier land development code" points a buyer
+-- at an authority with no entry for CITY OF NAPLES, which is a false finding and a false gap in one field.
