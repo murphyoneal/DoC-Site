@@ -131,6 +131,28 @@ PIR_SYSTEM_ARCHITECTURE.md is canonical and supersedes anything reconstructed fr
 - Never apply a payload-shape change to production ahead of the consuming front-end. Make it additive or hold the migration.
 - Report before implementing on any structural change. Audit, classify, wait for a ruling.
 
+## Thresholds carry no memory of where they were calibrated
+
+A measurement's MEANING depends on the population it runs against, and a threshold tuned on one population
+inverts silently on another. This has now cost two separate builds.
+
+- The land-area anchor measured 99.8% agreement in sample and 12.7% at scale — demoted from guard to lead.
+- The jurisdiction-hole signal inverted FOUR times: area-per-row was area-negative on the very holes it was
+  built for (a municipality is a small share of a rural county); single-city IoU missed a hole that was nine
+  cities at once; ungated share fired on every municipal layer, because a city's own zoning layer is 100%
+  inside that city by definition; one-way share fired on every urbanised county layer, because a district
+  polygon merely SITTING INSIDE a city is ordinary county zoning.
+
+**Before sweeping, run the signal against a population where it should stay silent, and check the candidate
+list — not the total.** A total of 605 looked plausible; the list was 605 city layers scoring 0.989. Reading
+the number would have shipped it.
+
+**Run every new predicate against what has already been declared or fixed by hand.** A survey that finds only
+NEW things has not been shown to find the RIGHT things. This positive control is what exposed that three of
+ten vocabulary patterns were dead — every `^`-anchored alternative, because the test was applied to
+`name || ' ' || code` and that string starts with a space. The founding sentinel `999` was invisible to the
+sweep built to catch its recurrence, and only the already-declared check found it.
+
 ## Detection contract
 
 Every `data_defect_registry.detection_sql` returns **exactly one row with a boolean column `ok`**, where `true` means clean. Anything else — no `ok` column, non-boolean `ok`, zero rows, multiple rows, or a raw error — is **errored**, and errored is never counted clean (`run_defect_detections()` enforces this). A bare `count`/`text`/`examined+hit` result does not conform; wrap it: `SELECT (<condition>) AS ok`.
