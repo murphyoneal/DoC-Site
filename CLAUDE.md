@@ -131,6 +131,26 @@ PIR_SYSTEM_ARCHITECTURE.md is canonical and supersedes anything reconstructed fr
 - Never apply a payload-shape change to production ahead of the consuming front-end. Make it additive or hold the migration.
 - Report before implementing on any structural change. Audit, classify, wait for a ruling.
 
+## A migration that succeeds is not a function that works
+
+`apply_migration` returns success when the **DDL is valid**. A plpgsql body is not fully type-checked at
+creation time, so a runtime type error deploys green and the function then fails on every call.
+
+On 2026-08-31 a one-word guard change compared a `text` column with `> 0`. The migration succeeded.
+`get_parcel_env_findings` then raised `operator does not exist: text > integer` for every parcel, and the
+only reason it was caught in minutes is that the founding case was re-run immediately afterwards.
+
+**After any migration that changes a function body, CALL THE FUNCTION.** A green migration is an artifact;
+the serving reality is what it returns. This is the same distinction as reading a table instead of the
+served payload — it just happens inside the deploy tooling, which is why it does not look like that class.
+
+Two habits that made the difference, both cheap:
+- Patch in place from `pg_get_functiondef` with an anchored `replace()` and `RAISE EXCEPTION` when the
+  anchor is missing, rather than re-pasting a large body. A moved anchor then aborts instead of applying a
+  half-change — which is exactly what happened when `landfill_distance_m` turned out to live in a different
+  function than the other two edits.
+- Re-run the founding case, not a fixture, immediately after applying.
+
 ## Names lie at the ORGANISATION level too
 
 The ambiguous-name trap is already recorded for layers and counties. It also applies to who OWNS a source.
