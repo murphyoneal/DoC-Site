@@ -131,6 +131,35 @@ PIR_SYSTEM_ARCHITECTURE.md is canonical and supersedes anything reconstructed fr
 - Never apply a payload-shape change to production ahead of the consuming front-end. Make it additive or hold the migration.
 - Report before implementing on any structural change. Audit, classify, wait for a ruling.
 
+## Names lie at the ORGANISATION level too
+
+The ambiguous-name trap is already recorded for layers and counties. It also applies to who OWNS a source.
+
+An ArcGIS org named `bce911gis` owns an item titled "Escambia County (FL) Parcels". Its other 43 items are
+Baldwin Co Road Centerlines, ALDOT Traffic Cameras, Gulf Shores Fire, Foley Named Places, and an address
+service on `gisportal.baldwincountyal.gov`. **It is Baldwin County, Alabama** — the county across the state
+line. Matching on the item title would have registered an Alabama 911 authority as Escambia County
+Florida's GIS source.
+
+Before attributing a SOURCE to a jurisdiction, read the org's other holdings, exactly as you read a layer's
+contents before attributing it. One matching title inside a body of non-matching ones is evidence against
+the match, not for it.
+
+## Cite the code, not the bill
+
+A bill is primary evidence of **what the legislature did**. A statute is primary evidence of **what the law
+says**. We publish what the law says, so we cite the code — and the two disagree more often than expected.
+
+Florida's 7-year construction repose: SB 360 (ch. 2023-22) amended *paragraph (c) of subsection (3)*, which
+is what the bill text says and what practitioner articles repeat. HB 837, signed weeks earlier the same
+session, renumbered s.95.11 wholesale — visible in the cross-references, where the 2023 text points to
+(5)(e) for the payment-bond provision and the 2024/2025 text points to (6)(e). The codified result is
+**s.95.11(3)(b)**. Both descriptions are true about different documents.
+
+Correcting a codified cite from a bill is how a correct citation gets broken. That was proposed on
+2026-08-31 and rejected against the 2024 and 2025 statute text; the reconciliation is recorded in
+`construction_defect_law.source_note` so the next reader does not repeat it.
+
 ## Thresholds carry no memory of where they were calibrated
 
 A measurement's MEANING depends on the population it runs against, and a threshold tuned on one population
