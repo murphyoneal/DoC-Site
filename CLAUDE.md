@@ -131,6 +131,28 @@ PIR_SYSTEM_ARCHITECTURE.md is canonical and supersedes anything reconstructed fr
 - Never apply a payload-shape change to production ahead of the consuming front-end. Make it additive or hold the migration.
 - Report before implementing on any structural change. Audit, classify, wait for a ruling.
 
+## A payload field name has THREE consumers, and one of them is prose
+
+Before renaming or redefining any served field, enumerate all three. The first two are code; the third is
+the one no compiler checks and the one most likely to fail silently.
+
+1. **Repo references** — `grep` the `.ts` / `.tsx` / `.mjs` tree.
+2. **Other database functions** — scan every `pg_proc` body, not just the obvious caller.
+3. **THE SYSTEM PROMPT.** `app/api/roz/route.ts` names payload fields inside instructions to the model.
+
+The third class was found on 2026-08-31 and it is the dangerous one. The units instruction reads: *"A radius
+baked into a field NAME (`pollution_notice_500m`, `superfund_sites_3km`) is a metric-native query threshold:
+state it as 'within 500 m (about 1,640 ft)'."* Renaming those fields would leave that instruction naming
+fields that no longer exist — and **the instruction exists specifically to mitigate the defect the rename is
+fixing**, so the mitigation would stop matching anything while still reading as intact.
+
+It is also a **coupled deploy in a specific direction**: the prompt ships through Vercel, the field name
+through a migration. The prompt goes FIRST, or the mitigation lapses in the gap between the two.
+
+A result from one field does not transfer. `frs_facilities_1km` had zero consumers of any class, which is
+why it was safe to rename in one step. Two of the next six are named in the prompt. Enumerate per field, or
+it is an assumption wearing a measurement's clothes.
+
 ## A migration that succeeds is not a function that works
 
 `apply_migration` returns success when the **DDL is valid**. A plpgsql body is not fully type-checked at
