@@ -6,6 +6,7 @@ import { getSessionUser } from '@/lib/supabase/ssr-server'
 import { formatDistanceBand } from '@/lib/units'
 import { validateNarration } from '@/lib/numeric-provenance.mjs'
 import { redactFabricatedPrecision } from '@/lib/roz-tourniquet.mjs'
+import { checkQualifiers } from '@/lib/qualifier-guard.mjs'
 
 const MODEL = 'claude-sonnet-5'
 const ROZ_VERSION = '0.1.0-alpha' // roz_version_register current; stamped per exchange
@@ -379,6 +380,10 @@ export async function POST(req: NextRequest) {
   // a null envelope yields a sentence that asserts nothing in either direction.
   let elevationFact: Record<string, unknown> | null = null
   let numericShadow: { flagged: unknown[]; claimCount: number; licensedCount: number; provenanceSize: number } | null = null  // item 95 shadow
+  // Qualifier guard (shadow). Catches the class the numeric shadow structurally cannot: a payload VALUE
+  // narrated without the QUALIFIER bound to it — a field name (D1), a note (D2), a field_status (D3), a
+  // unit sibling (D4), or a coverage gap turned into a checked zero (the Flora-Bama sinkhole line).
+  let qualifierShadow: { violations: unknown[]; absentFields: number; payloadNumbers: number; payloadRadii: number } | null = null
   let targetParcel: string | null = null, targetCounty = 74
   let success = true, errorMsg: string | null = null
   const t0 = Date.now()
@@ -429,6 +434,12 @@ export async function POST(req: NextRequest) {
             // ITEM 95 SHADOW: validate the RAW narration (before the tourniquet touches it) against the
             // payload Roz saw. Log-only — we read what it would flag against real reports before enforcing.
             try { numericShadow = validateNarration(reply, payloadParts.join('\n')) } catch { /* shadow is best-effort */ }
+            // QUALIFIER GUARD, shadow. Proven RED against the real Flora-Bama report and its real served
+            // payload before being wired — 1 violation (the sinkhole line) and 0 false positives on the
+            // correct wording from that same report. That order matters: roz_numeric_shadow was wired
+            // without it and has 0 rows lifetime, which read as "never cries wolf" when the truth was
+            // "cannot fire".
+            try { qualifierShadow = checkQualifiers(reply, payloadParts.join('\n')) } catch { /* shadow is best-effort */ }
             // TOURNIQUET: strip any fabricated lidar-accuracy claim (7th-occurrence class) BEFORE it stands.
             // The model can't talk past a mechanical gate at the response boundary; instruction couldn't.
             const fab = redactFabricatedPrecision(reply, payloadParts.join('\n'), elevationFact)
@@ -507,6 +518,21 @@ export async function POST(req: NextRequest) {
           p_claim_count: numericShadow.claimCount, p_licensed_count: numericShadow.licensedCount,
           p_provenance_size: numericShadow.provenanceSize, p_reply_excerpt: reply }) }
         catch (e) { console.error('[roz-numeric-shadow] log failed:', e instanceof Error ? e.message : String(e)) }
+      }
+
+      // QUALIFIER SHADOW — logged on EVERY exchange, CLEAN RUNS INCLUDED. A table holding only failures
+      // cannot distinguish "clean" from "not running", and that ambiguity is precisely what made
+      // roz_numeric_shadow read as a pass at 0 rows when it could not fire at all.
+      if (qualifierShadow) {
+        if (qualifierShadow.violations.length > 0) {
+          console.warn('[roz-qualifier] ' + qualifierShadow.violations.length + ' violation(s) parcel=' + targetParcel + ' ' + JSON.stringify(qualifierShadow.violations).slice(0, 400))
+        }
+        try { await admin.rpc('roz_log_qualifier_shadow', {
+          p_parcel_id: targetParcel, p_co_no: String(targetCounty), p_model: MODEL,
+          p_violations: JSON.stringify(qualifierShadow.violations),
+          p_absent: qualifierShadow.absentFields, p_numbers: qualifierShadow.payloadNumbers,
+          p_radii: qualifierShadow.payloadRadii, p_excerpt: reply }) }
+        catch (e) { console.error('[roz-qualifier] log failed:', e instanceof Error ? e.message : String(e)) }
       }
 
       // payload_hash = the record Roz actually saw (for later verifiability of an opinion)
