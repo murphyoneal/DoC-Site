@@ -153,6 +153,24 @@ A result from one field does not transfer. `frs_facilities_1km` had zero consume
 why it was safe to rename in one step. Two of the next six are named in the prompt. Enumerate per field, or
 it is an assumption wearing a measurement's clothes.
 
+## Error handling that cannot catch the dominant failure mode is not error handling
+
+A guard is only a guard against what it can actually intercept. Check that before trusting it, because a
+guard that can be jumped over reads exactly like one that works — it is present, it is correct, and it is
+never reached.
+
+`get_pir_map_geojson` had a `render_error` state so a flood or zoning layer that failed to draw would say
+so instead of returning a blank map that reads as "nothing here". It was built with `EXCEPTION WHEN OTHERS`.
+**PL/pgSQL cannot swallow a statement timeout** — Postgres re-raises it — and a timeout was the dominant
+failure mode, because the function carries `SET statement_timeout`. So the one case the honest state existed
+for was the one case that bypassed it: Hendry took 30,699 ms and returned an ERROR for the entire map RPC,
+not a blank map with an explanation. The fix was making the slow path fast (887x, by clipping before
+simplifying), not by catching harder — the timeout is not catchable, so it has to not happen.
+
+Same family as the tourniquet firing on honest text and the vocabulary regex whose `^` anchors were dead.
+For every guard, name the failure it is for and prove it fires on that failure — an untested guard is a
+comment with a runtime cost.
+
 ## A migration that succeeds is not a function that works
 
 `apply_migration` returns success when the **DDL is valid**. A plpgsql body is not fully type-checked at
