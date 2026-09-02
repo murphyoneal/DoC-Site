@@ -171,6 +171,28 @@ Same family as the tourniquet firing on honest text and the vocabulary regex who
 For every guard, name the failure it is for and prove it fires on that failure — an untested guard is a
 comment with a runtime cost.
 
+## The notation rule protects a PUBLISHER's figure. Where we are the publisher, US leads.
+
+The units instruction says a metric-native threshold is stated metric-first with the US form in the
+notation position — "within 500 m (about 1,640 ft)". That is right when a SOURCE published the number: FEMA
+publishes a BFE, USGS publishes an elevation, and restating their figure in our preferred units is an
+alteration wearing a translation's clothes.
+
+It does not follow for a number **we** chose. On 2026-09-02 a boat-ramp coverage note read *"no ramp falls
+within 8,000 m (about 5.0 miles)"*. 8,000 m is our own search radius. No source published it, so there was
+no publisher's figure to protect and metric-first was not notation — it was just metric leading, for a US
+reader, on a US property report. It now reads *"within about 5 miles (8,000 m)"*.
+
+**Ask who published the number before deciding which unit leads.** A source's figure keeps its units and
+gets a notation; our own threshold leads in US and carries the exact value in the notation position, so
+nothing is lost either way.
+
+**KNOWN CONTRADICTION, NOT YET RESOLVED.** The deployed Roz prompt applies metric-first to radii baked into
+our own field names (`pollution_notice_500m`, `superfund_sites_3km`) — thresholds we chose, which this
+refinement says should lead in US. Changing that text is a class-3 consumer edit and it is entangled with
+the field renames in items 223/224, so it wants its own decision rather than a quiet fix here. The rule
+above is the intent; the prompt is the exception still standing.
+
 ## The statement named in a timeout is where the deadline landed, not what was slow
 
 A `canceling statement due to statement timeout` names whatever was executing when the clock ran out. On a
