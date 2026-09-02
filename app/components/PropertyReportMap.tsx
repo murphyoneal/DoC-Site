@@ -138,11 +138,15 @@ export default function PropertyReportMap({ coNo, parcelId, layer, radiusM, heig
             const d = data as PirMapGeoJson
             const ring = circlePolygon(d.center.lng, d.center.lat, d.radiusM)
             const cov = layer === 'flood' ? d.floodCoverage : layer === 'zoning' ? d.zoningCoverage : null
-            if (cov && cov.field_status !== 'present') {
-              setCoverage({ status: cov.field_status, note: cov.note ?? '' })
-            } else if (cov && (((layer === 'flood' ? d.flood : d.zoning)?.features?.length ?? 0) === 0)) {
+            // Only a RECOGNISED state may caption a map. An absent or unknown state means we do not know,
+            // and a caption we cannot justify is worse than none - it would sit under a correct map
+            // telling the reader nothing was found.
+            const known = cov?.state === 'present' || cov?.state === 'not_available' || cov?.state === 'render_error'
+            if (known && cov!.state !== 'present') {
+              setCoverage({ status: cov!.state, note: cov!.note ?? '' })
+            } else if (known && (((layer === 'flood' ? d.flood : d.zoning)?.features?.length ?? 0) === 0)) {
               // present, but nothing drew here — say so rather than leave a blank ring
-              setCoverage({ status: 'present_empty', note: cov.note ?? '' })
+              setCoverage({ status: 'present_empty', note: cov!.note ?? '' })
             }
             if (layer === 'flood' && d.flood) {
               map.addSource('flood', { type: 'geojson', data: d.flood as any })

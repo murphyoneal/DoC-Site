@@ -656,8 +656,12 @@ export interface GeoJsonFeatureCollection {
 //   present       drawn from the county layer
 //   not_available no layer is held for this county — a gap in our holdings, never a finding
 //   render_error  a layer IS held and the draw FAILED — our fault, never "nothing here"
+// NOTE the key is `state`, not `field_status`. The map bundle is its own envelope and does not follow the
+// fact-envelope convention; this type describes the payload AS SERVED, verified against
+// get_pir_map_geojson output rather than assumed from the sibling types. Reading field_status here yields
+// undefined, which would have captioned every map - including correct ones - as "nothing mapped".
 export interface PirLayerCoverage {
-  field_status: 'present' | 'not_available' | 'render_error'
+  state: 'present' | 'not_available' | 'render_error'
   layer_used?: string | null
   /** zoning only: every layer that produced features, and those actually covering THIS parcel */
   layers_used?: string[] | null
