@@ -171,6 +171,22 @@ Same family as the tourniquet firing on honest text and the vocabulary regex who
 For every guard, name the failure it is for and prove it fires on that failure — an untested guard is a
 comment with a runtime cost.
 
+## The statement named in a timeout is where the deadline landed, not what was slow
+
+A `canceling statement due to statement timeout` names whatever was executing when the clock ran out. On a
+function that calls fifty others, that is close to a random sample weighted by duration — and it reads
+exactly like a diagnosis.
+
+Twice now it has pointed at the wrong thing. Hendry's map timeout named the flood query; the flood query was
+fine and the cost was a simplify+clip the planner evaluated three times per row. A `get_pir_report` timeout
+named `get_parcel_restrictions` reading `gwca_parcel_match` — a 195,358-row table with no indexes at all,
+which looks damning until you measure it at **19.8 ms**. The real cause was my own query referencing a CTE
+seven times, so the planner inlined it and ran the whole report seven times.
+
+**Time the named statement in isolation before believing it.** If it is fast, the timeout is telling you
+about the total, not the part — so measure the parts, or the caller. A plausible culprit with a bad index is
+the easiest false confession to accept.
+
 ## A migration that succeeds is not a function that works
 
 `apply_migration` returns success when the **DDL is valid**. A plpgsql body is not fully type-checked at
