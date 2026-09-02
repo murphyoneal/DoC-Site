@@ -60,6 +60,9 @@ export default function PropertyReportMap({ coNo, parcelId, layer, radiusM, heig
   const capturedRef = useRef(false)
   const [snapshot, setSnapshot] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  // ITEM 250. An empty FeatureCollection draws NOTHING, so the map alone cannot say whether the layer is
+  // absent, empty or broken. The coverage sibling carries that and is rendered below the map.
+  const [coverage, setCoverage] = useState<{ status: string; note: string } | null>(null)
   const [loading, setLoading] = useState(true)
 
   // A map that fails still reports "ready" (as an error) so the print gate,
@@ -134,6 +137,13 @@ export default function PropertyReportMap({ coNo, parcelId, layer, radiusM, heig
           } else {
             const d = data as PirMapGeoJson
             const ring = circlePolygon(d.center.lng, d.center.lat, d.radiusM)
+            const cov = layer === 'flood' ? d.floodCoverage : layer === 'zoning' ? d.zoningCoverage : null
+            if (cov && cov.field_status !== 'present') {
+              setCoverage({ status: cov.field_status, note: cov.note ?? '' })
+            } else if (cov && (((layer === 'flood' ? d.flood : d.zoning)?.features?.length ?? 0) === 0)) {
+              // present, but nothing drew here — say so rather than leave a blank ring
+              setCoverage({ status: 'present_empty', note: cov.note ?? '' })
+            }
             if (layer === 'flood' && d.flood) {
               map.addSource('flood', { type: 'geojson', data: d.flood as any })
               map.addLayer({ id: 'flood-fill', type: 'fill', source: 'flood', paint: { 'fill-color': matchColor('zone', FLOOD_STYLE, FLOOD_FALLBACK.color), 'fill-opacity': 0.45 } })
@@ -176,8 +186,24 @@ export default function PropertyReportMap({ coNo, parcelId, layer, radiusM, heig
       )}
       {loading && !error && <div style={overlayMsg}>Loading map…</div>}
       {error && <div style={overlayMsg}>{error}</div>}
+      {!loading && !error && coverage && (
+        <div style={coverageBar} data-coverage-status={coverage.status}>
+          <strong style={{ fontWeight: 600 }}>
+            {coverage.status === 'render_error' ? 'Layer held, not drawn — our fault'
+              : coverage.status === 'not_available' ? 'Not held for this county'
+              : 'Nothing mapped within this view'}
+          </strong>
+          {coverage.note ? <span style={{ opacity: 0.9 }}> {coverage.note}</span> : null}
+        </div>
+      )}
     </div>
   )
+}
+
+const coverageBar: React.CSSProperties = {
+  position: 'absolute', left: 0, right: 0, bottom: 0, padding: '8px 10px',
+  background: 'rgba(27,42,74,0.88)', color: '#fff', fontFamily: 'Georgia, serif', fontSize: 11.5,
+  lineHeight: 1.45,
 }
 
 const overlayMsg: React.CSSProperties = {

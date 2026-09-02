@@ -33,6 +33,13 @@ export interface PirProperty {
   ownerMailAddr: string | null
   ownerMailCity: string | null
   subdivision: string | null
+  /** Item 248. subdivision is a bare string and returns null for FIVE different reasons, so the state
+   *  travels beside it rather than replacing it (ruling 203 item 5 — additive, never a shape change).
+   *  A null subdivision means nothing on its own: read subdivisionCoverage.
+   *  NOTE the source split — where a county CAMA record exists the value is the ROLL's subdivision;
+   *  otherwise it is a subdivision overlay, which for Volusia is an UNRECORDED-subdivision layer.
+   *  Those are different facts, so render `source` as well as `field_status`. */
+  subdivisionCoverage?: PirSubdivisionCoverage | null
   neighborhood: string | null
   legal: string | null
   propertyType: string | null
@@ -187,9 +194,27 @@ export interface PirBoatRamp { name: string | null; waterbody: string | null; di
 //   not_available     no marine layer is held for the county — says nothing either way
 //   none_within_range layer held, genuinely no ramp within search_radius_m — a real negative
 //   present           ramps returned
+//   error             a layer IS held and the read FAILED — our fault, never "no ramp here". Item 251.
+//   parcel_not_resolved  geometry did not resolve, so nothing was searched for
 export interface PirBoatRampsCoverage {
-  field_status: 'present' | 'none_within_range' | 'not_available'
+  field_status: 'present' | 'none_within_range' | 'not_available' | 'error' | 'parcel_not_resolved'
   search_radius_m?: number
+  /** US-first rendering of search_radius_m, e.g. "about 5 miles (8,000 m)". The radius is OURS, not a
+   *  source's published figure, so the US form leads and the metric sits in the notation position. */
+  search_radius?: string | null
+  layer_used?: string | null
+  source?: string | null
+  error?: string | null
+  coverage_note?: string | null
+  who_can_answer?: string | null
+}
+
+export interface PirSubdivisionCoverage {
+  value?: string | null
+  field_status: 'present' | 'none_recorded' | 'not_available' | 'error' | 'parcel_not_resolved'
+  layer_used?: string | null
+  source?: string | null
+  error?: string | null
   coverage_note?: string | null
   who_can_answer?: string | null
 }
@@ -625,12 +650,32 @@ export interface GeoJsonFeatureCollection {
   features: Array<{ type: 'Feature'; properties: Record<string, unknown>; geometry: unknown }>
 }
 
+// Item 227. An empty FeatureCollection renders as NOTHING on a map, so on its own it cannot distinguish
+// "no zone here" from "we hold no layer for this county" from "a layer is held and we failed to draw it".
+// The coverage siblings carry that distinction and MUST be rendered — see PirLayerCoverage.field_status.
+//   present       drawn from the county layer
+//   not_available no layer is held for this county — a gap in our holdings, never a finding
+//   render_error  a layer IS held and the draw FAILED — our fault, never "nothing here"
+export interface PirLayerCoverage {
+  field_status: 'present' | 'not_available' | 'render_error'
+  layer_used?: string | null
+  /** zoning only: every layer that produced features, and those actually covering THIS parcel */
+  layers_used?: string[] | null
+  layers_covering_parcel?: string[] | null
+  jurisdictions_held?: string[] | null
+  error?: string | null
+  note?: string | null
+  who_can_answer?: string | null
+}
+
 export interface PirMapGeoJson {
   center: { lat: number; lng: number }
   radiusM: number
   parcel: unknown                    // GeoJSON geometry (parcel boundary)
-  flood: GeoJsonFeatureCollection    // features carry properties.zone
-  zoning: GeoJsonFeatureCollection   // features carry properties.category
+  flood: GeoJsonFeatureCollection    // features carry properties.zone and properties.sfha
+  floodCoverage?: PirLayerCoverage | null
+  zoning: GeoJsonFeatureCollection   // features carry properties.category, .codes, .jurisdiction
+  zoningCoverage?: PirLayerCoverage | null
 }
 
 // get_pir_parcel_closeup(co_no, parcel_id, radius) — tight boundary view:

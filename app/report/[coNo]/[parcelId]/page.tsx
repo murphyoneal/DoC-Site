@@ -35,6 +35,27 @@ export async function generateMetadata({ params }: { params: Promise<{ coNo: str
 }
 
 // ── small presentational pieces (server components) ─────────────────────────────
+// ITEM 248/250. `subdivision` is null for FIVE different reasons and an em dash showed all five
+// identically. The value still leads when we have one; otherwise the STATE is what the reader needs —
+// "we hold no layer" is a different sentence from "this parcel is in none", and neither is "—".
+function subdivisionDisplay(p: PirReport['property']): React.ReactNode {
+  const name = titleCase(p.subdivision)
+  if (name) return name
+  const c = p.subdivisionCoverage
+  if (!c) return '—'
+  const label =
+    c.field_status === 'none_recorded' ? 'None recorded'
+      : c.field_status === 'not_available' ? 'Not held for this county'
+      : c.field_status === 'error' ? 'Lookup failed — our fault'
+      : c.field_status === 'parcel_not_resolved' ? 'Not evaluated'
+      : '—'
+  return (
+    <span title={c.coverage_note ?? undefined} style={{ color: 'var(--color-sage)' }}>
+      {label}
+    </span>
+  )
+}
+
 function Fact({ l, v }: { l: string; v: React.ReactNode }) {
   return <div className="pir-fact"><div className="l">{l}</div><div className="v">{v}</div></div>
 }
@@ -319,7 +340,7 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
                 <Fact l="Beds / baths" v={p.bedrooms != null ? `${p.bedrooms} bd · ${p.bathrooms} ba` : '—'} />
                 <Fact l="Stories / buildings" v={`${p.stories ?? '—'} / ${p.numBuildings ?? '—'}`} />
                 <Fact l="Lot (GIS-calc)" v={p.gisAcres != null ? `${p.gisAcres.toFixed(2)} ac` : '—'} />
-                <Fact l="Subdivision" v={titleCase(p.subdivision) || '—'} />
+                <Fact l="Subdivision" v={subdivisionDisplay(p)} />
                 <Fact l="Neighborhood" v={titleCase(p.neighborhood) || '—'} />
                 <Fact l="Jurisdiction" v={`${p.incorporation ?? ''} ${p.jurisdiction ?? ''}`.trim() || '—'} />
                 <Fact l="Sec-Twp-Rng" v={[p.section, p.township, p.range].filter(Boolean).join('-') || '—'} />
@@ -613,6 +634,23 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
               <div style={{ marginTop: 12 }}>
                 {waterBadges.length ? <CompassBadgeGrid badges={waterBadges} /> : <div className="pir-note">No mapped water features within range.</div>}
               </div>
+              {/* ITEM 250. boatRampsCoverage has been honest in the payload since ruling 203 and no reader
+                  has ever seen it. An absent badge cannot say whether we searched and found none, hold no
+                  marine layer for the county, or failed to read one. */}
+              {r.water.boatRampsCoverage && r.water.boatRampsCoverage.field_status !== 'present' && (
+                <div className="pir-note" style={{ marginTop: 8 }}>
+                  <strong>
+                    {r.water.boatRampsCoverage.field_status === 'none_within_range' ? 'Boat ramps: none within range.'
+                      : r.water.boatRampsCoverage.field_status === 'not_available' ? 'Boat ramps: not held for this county.'
+                      : r.water.boatRampsCoverage.field_status === 'error' ? 'Boat ramps: lookup failed — our fault.'
+                      : 'Boat ramps: not evaluated.'}
+                  </strong>{' '}
+                  {r.water.boatRampsCoverage.coverage_note}
+                  {r.water.boatRampsCoverage.who_can_answer
+                    ? <> Who can answer: {r.water.boatRampsCoverage.who_can_answer}.</>
+                    : null}
+                </div>
+              )}
             </Section>
 
             <Section title="Assigned schools"
