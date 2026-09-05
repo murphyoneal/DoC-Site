@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Privacy notice | Department of Property</title>
+<meta name="description" content="What Department of Property collects, what it publishes, and the difference between a property record and a person.">
+<meta name="robots" content="index,follow">
+<link rel="icon" href="dop-seal.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400;62..125,500;62..125,600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box}
+:root{
+  --navy:#152441; --navy-2:#0E1A31; --ink:#0C1424; --gold:#C9A84C; --gold-dim:#A8873A;
+  --paper:#fff; --wash:#F6F7F9; --line:#E3E7EE; --line-2:#2B3B5E;
+  --grey:#5D6A82; --grey-navy:#93A3C0;
+  --sp:clamp(64px,8vw,116px);
+}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--paper);color:var(--ink);
+  font-family:'Archivo',system-ui,-apple-system,sans-serif;
+  font-size:17px;line-height:1.62;font-variation-settings:'wdth' 100;
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+.wrap{max-width:1120px;margin:0 auto;padding:0 32px}
+@media(max-width:600px){.wrap{padding:0 22px}}
+h1,h2,h3{margin:0;font-weight:600;line-height:1.06;letter-spacing:-.022em}
+h1{font-size:clamp(40px,6vw,74px);font-variation-settings:'wdth' 108}
+h2{font-size:clamp(28px,3.8vw,44px);font-variation-settings:'wdth' 104}
+h3{font-size:19px;line-height:1.3;letter-spacing:-.008em}
+p{margin:0 0 1.15em;max-width:64ch}
+a{color:inherit;text-underline-offset:3px;text-decoration-thickness:1px}
+img{max-width:100%;display:block}
+.num{font-variant-numeric:tabular-nums;font-feature-settings:'tnum'}
+.eyebrow{font-size:12px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--gold-dim);margin:0 0 18px}
+.eyebrow.on-navy{color:var(--gold)}
+.lede{font-size:clamp(18px,2.1vw,22px);line-height:1.5;color:#C9D4E8;max-width:58ch;margin:28px 0 0}
+.sub{color:var(--grey);max-width:60ch}
+
+/* nav */
+.nav{position:sticky;top:0;z-index:50;background:rgba(21,36,65,.94);
+  backdrop-filter:saturate(150%) blur(10px);border-bottom:1px solid var(--line-2)}
+.nav .wrap{display:flex;align-items:center;gap:28px;height:60px}
+.brand{display:flex;align-items:center;gap:11px;text-decoration:none;margin-right:auto;min-width:0}
+.brand img{width:30px;height:30px;border-radius:50%;background:#fff;padding:2px;flex:0 0 auto}
+.brand b{color:#fff;font-size:14.5px;font-weight:600;letter-spacing:.01em;
+  font-variation-settings:'wdth' 106;white-space:nowrap}
+.nav a.l{color:var(--grey-navy);text-decoration:none;font-size:14.5px;white-space:nowrap}
+.nav a.l:hover{color:#fff}
+.nav a.cta{color:var(--navy);background:var(--gold);padding:8px 16px;font-size:14.5px;
+  font-weight:600;text-decoration:none;white-space:nowrap}
+.nav a.cta:hover{background:#DCBB5C}
+@media(max-width:720px){.nav a.l{display:none}.nav .wrap{height:56px}}
+
+/* hero */
+.hero{background:var(--navy);color:#fff;padding:clamp(58px,8vw,104px) 0 clamp(64px,8vw,96px);
+  background-image:linear-gradient(180deg,#16274A 0%,var(--navy) 55%)}
+.hero h1{max-width:17ch}
+.hero .tag{display:inline-block;border:1px solid var(--gold);color:var(--gold);
+  font-size:11.5px;font-weight:600;letter-spacing:.15em;padding:5px 12px;margin-bottom:26px}
+
+/* coverage rows */
+.states{margin-top:clamp(42px,6vw,64px);border-top:1px solid var(--line-2)}
+.row{display:grid;grid-template-columns:18px 1fr;gap:18px;padding:19px 0;
+  border-bottom:1px solid var(--line-2);align-items:start}
+.tok{width:14px;height:14px;margin-top:7px;flex:0 0 auto}
+.tok.present{background:var(--gold)}
+.tok.none{border:2px solid var(--gold)}
+.tok.na{border:2px dashed #6E80A8}
+.row .fact{font-size:16.5px;color:#EAF0FA;margin:0;max-width:74ch;line-height:1.55}
+.row .fact em{font-style:normal;color:var(--grey-navy)}
+.row .who{font-size:14px;color:var(--gold);margin:6px 0 0}
+.key{display:flex;gap:30px;flex-wrap:wrap;margin-top:22px;font-size:13px;
+  color:var(--grey-navy);letter-spacing:.02em}
+.key i{display:inline-block;width:10px;height:10px;margin-right:8px;position:relative;top:1px}
+.key .present{background:var(--gold)}.key .none{border:2px solid var(--gold)}
+.key .na{border:2px dashed #6E80A8}
+
+section{padding:var(--sp) 0}
+section+section{border-top:1px solid var(--line)}
+.wash{background:var(--wash)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:clamp(32px,5vw,68px);margin-top:40px}
+@media(max-width:800px){.two{grid-template-columns:1fr;gap:34px}}
+.col h3{margin-bottom:10px}
+.col.rule{border-top:2px solid var(--gold);padding-top:20px}
+
+/* figures */
+.figs{display:grid;grid-template-columns:repeat(4,1fr);margin-top:48px;
+  border-top:1px solid var(--line)}
+@media(max-width:900px){.figs{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:520px){.figs{grid-template-columns:1fr}}
+.fig{padding:26px 26px 26px 0;border-bottom:1px solid var(--line)}
+.fig b{display:block;font-size:clamp(26px,3vw,34px);font-weight:600;letter-spacing:-.03em;
+  font-variation-settings:'wdth' 92;line-height:1;font-variant-numeric:tabular-nums}
+.fig span{display:block;font-size:14px;color:var(--grey);margin-top:10px;line-height:1.45;max-width:30ch}
+
+.pull{background:var(--navy);color:#fff;padding:clamp(56px,7vw,88px) 0}
+.pull p{font-size:clamp(24px,3.4vw,38px);line-height:1.24;font-weight:600;letter-spacing:-.02em;
+  font-variation-settings:'wdth' 104;max-width:20ch;margin:0}
+.pull small{display:block;font-size:16px;font-weight:400;color:var(--grey-navy);
+  margin-top:26px;max-width:58ch;line-height:1.62;letter-spacing:0}
+
+.btn{display:inline-block;background:var(--gold);color:var(--navy);text-decoration:none;
+  padding:15px 30px;font-weight:600;font-size:16.5px;border:0;cursor:pointer;
+  font-family:inherit;transition:background .15s}
+.btn:hover{background:#DCBB5C}
+.btn.dark{background:var(--navy);color:#fff}
+.btn.dark:hover{background:#1E3157}
+a:focus-visible,button:focus-visible,input:focus-visible,label:focus-within{
+  outline:3px solid var(--gold);outline-offset:3px}
+
+/* record card */
+.card{border:1px solid var(--line);margin-top:40px;position:relative;background:#fff}
+.chead{padding:28px 30px 24px;border-bottom:1px solid var(--line)}
+.chead h3{font-size:24px}
+.chead .m{font-size:14.5px;color:var(--grey);margin:7px 0 0}
+.stamp{position:absolute;top:24px;right:24px;transform:rotate(-4.5deg);
+  border:2.5px solid #B4741A;color:#8F5C13;background:#FDF6E9;padding:9px 14px;max-width:236px}
+.stamp b{display:block;font-size:12.5px;font-weight:600;letter-spacing:.13em;line-height:1.2}
+.stamp span{display:block;font-size:12.5px;line-height:1.42;margin-top:5px;letter-spacing:0}
+@media(max-width:760px){.stamp{position:static;transform:none;margin:18px 30px 0;max-width:none}}
+.cbody{padding:4px 30px 28px}
+.line{display:grid;grid-template-columns:170px 1fr;gap:22px;padding:17px 0;
+  border-bottom:1px solid var(--line);font-size:16px;align-items:start}
+.line:last-child{border-bottom:0}
+.line .lab{color:var(--grey);font-size:13px;font-weight:600;letter-spacing:.09em;
+  text-transform:uppercase;padding-top:3px}
+.line .val em{font-style:normal;color:var(--grey)}
+@media(max-width:640px){.line{grid-template-columns:1fr;gap:6px}}
+.ledger{list-style:none;margin:6px 0 0;padding:0;font-size:15.5px}
+.ledger li{padding:8px 0;border-bottom:1px solid var(--line);display:flex;gap:16px}
+.ledger li:last-child{border-bottom:0}
+.ledger time{color:var(--grey);flex:0 0 104px;font-variant-numeric:tabular-nums}
+
+/* forms */
+form{margin-top:40px;max-width:600px}
+fieldset{border:0;padding:0;margin:0 0 30px}
+legend{font-weight:600;font-size:13px;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--grey);margin-bottom:14px}
+.roles{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:560px){.roles{grid-template-columns:1fr}}
+.role{border:1px solid var(--line);padding:18px;cursor:pointer;display:block;transition:border-color .15s}
+.role:hover{border-color:#B9C3D4}
+.role:has(input:checked){border-color:var(--navy);box-shadow:inset 0 0 0 1px var(--navy)}
+.role input{margin-right:10px}
+.role b{font-weight:600;font-size:16.5px}
+.role span{display:block;font-size:14px;color:var(--grey);margin-top:5px;line-height:1.45}
+.field{margin-bottom:18px}
+label.f{display:block;font-size:13px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--grey);margin-bottom:7px}
+input[type=text],input[type=email],input[type=search]{width:100%;border:1px solid var(--line);
+  padding:14px 16px;font:inherit;font-size:16px;background:#fff;color:var(--ink);border-radius:0}
+input:hover{border-color:#B9C3D4}
+.check{display:flex;gap:12px;align-items:flex-start;font-size:15.5px;margin-bottom:20px;max-width:58ch}
+.check input{margin-top:5px;flex:0 0 auto}
+.smallprint{font-size:14px;color:var(--grey);margin-top:18px;max-width:58ch}
+
+/* search */
+.search{margin-top:40px;display:flex;max-width:600px;background:#fff}
+.search input{flex:1;border:0;padding:17px 20px;font:inherit;font-size:16.5px;min-width:0}
+.search button{border:0;background:var(--gold);color:var(--navy);font:inherit;font-weight:600;
+  font-size:16.5px;padding:17px 30px;cursor:pointer}
+.search button:hover{background:#DCBB5C}
+.hint{font-size:14px;color:var(--grey-navy);margin-top:14px}
+
+footer{background:var(--navy-2);color:var(--grey-navy);font-size:14px;
+  padding:clamp(44px,5vw,60px) 0 44px}
+footer p{max-width:78ch;margin:0 0 .8em;line-height:1.6}
+footer a{color:var(--gold)}
+.fseals{display:flex;gap:20px;align-items:center;margin-bottom:26px;flex-wrap:wrap}
+.fseals img{width:84px;border-radius:50%;background:#fff;padding:5px}
+.parent{font-size:14px;color:var(--gold);margin:0 0 20px}
+.flinks{display:flex;gap:26px;flex-wrap:wrap;margin:0 0 26px;padding-top:22px;
+  border-top:1px solid var(--line-2)}
+.flinks a{color:var(--grey-navy);text-decoration:none;font-size:14.5px}
+.flinks a:hover{color:#fff}
+</style>
+</head><body>
+<nav class="nav"><div class="wrap">
+<a class="brand" href="about.html"><img src="dop-seal.png" alt=""><b>Department of Property</b></a>
+<a class="l" href="about.html">What we do</a><a class="l" href="https://departmentofconstruction.com">Contractor register</a><a class="cta" href="register.html">Claim your entry</a>
+</div></nav>
+<header class="hero"><div class="wrap">
+<p class="tag">LAST UPDATED 5 SEPTEMBER 2026</p>
+<h1>Privacy notice.</h1>
+<p class="lede">What we collect, what we publish, and the difference between a record about a property and a record about a person.</p>
+</div></header>
+
+<section><div class="wrap">
+<p class="eyebrow">The short version</p>
+<h2>Three promises, and what they mean.</h2>
+<div class="two">
+<div class="col rule"><h3>Property-keyed, never person-keyed</h3>
+<p class="sub">Our records are organised by parcel. You can look up a property and see what the public registers say about it. You cannot ask us for everything we hold about a named person, because we do not assemble that.</p></div>
+<div class="col rule"><h3>Verified before published</h3>
+<p class="sub">A licence is checked against the state register before a name appears beside a report. We do not publish a profile for anyone who has not claimed one.</p></div>
+</div>
+<div class="two">
+<div class="col rule"><h3>Counts and dates, never a rating</h3>
+<p class="sub">We publish what is in the record: permits named, licences held, dates they were held. No stars, no score, no ranking. A score would be our opinion of a business, and that is not ours to give.</p></div>
+<div class="col rule"><h3>We do not sell personal information</h3>
+<p class="sub">We do not sell, rent or trade the details you give us on a form, and we do not pass them to advertisers.</p></div>
+</div>
+</div></section>
+
+<section class="wash"><div class="wrap">
+<p class="eyebrow">Public records</p>
+<h2>Most of what we publish was already public.</h2>
+<p class="sub">Parcel, permit, licence, flood, contamination and historic records are compiled from federal, state and county registers that publish them under Florida public-records law. Assembling them does not make them ours, and it does not make them private. Where a register names a person &mdash; a licence holder, a permit contractor, an owner of record &mdash; that name came from the public register and remains attached to the property record.</p>
+<p class="sub">If you believe a public register holds something incorrect about you, the authoritative fix is with the body that publishes it. We will tell you which body that is, and we will correct our copy once theirs is corrected.</p>
+<p class="sub">An unclaimed licence stays in the database and never gets a page of its own. Claiming is what grants publication.</p>
+</div></section>
+<section><div class="wrap">
+<p class="eyebrow">What you give us</p>
+<h2>What the forms collect.</h2>
+<p class="sub">Two forms on this site ask for information. Nothing else on the site collects anything about you.</p>
+<div class="two">
+<div class="col rule"><h3>Claiming an entry</h3>
+<p class="sub">Business name, state licence number, your name, and your email. We use these to find the record you are claiming, verify the licence against the state register, and reply to you. If you tick the box, we also send a QR code linking to your entry.</p></div>
+<div class="col rule"><h3>News and new records</h3>
+<p class="sub">Your email, and nothing else. Used only to tell you when a county, permit register or record set goes live. Every email carries an unsubscribe link.</p></div>
+</div>
+<p class="sub" style="margin-top:34px">Consent to these terms and this notice is a separate, unticked box on both forms. The newsletter is also unticked by default. We do not treat a form submission as consent to anything you did not tick.</p>
+</div></section>
+
+<section class="wash"><div class="wrap">
+<p class="eyebrow">Other services this site uses</p>
+<h2>Who else sees anything.</h2>
+<p class="sub"><b>Google Fonts.</b> These pages load a typeface from <em>fonts.googleapis.com</em> and <em>fonts.gstatic.com</em>. That request discloses your IP address and browser details to Google, as it does on any site using the service. We receive nothing from it.</p>
+<p class="sub"><b>Form handling.</b> Form submissions are processed by a third-party form provider so that they reach us as email. That provider is named here once it is in place; until then the forms on this site are inert and submit nowhere.</p>
+<p class="sub"><b>Hosting.</b> The site is served by a hosting provider that keeps standard server logs, including IP addresses, for security and troubleshooting.</p>
+<p class="sub">There is no analytics script, no advertising pixel and no cookie set by this site. You can confirm that by viewing the page source: these pages contain no JavaScript at all.</p>
+</div></section>
+
+<section><div class="wrap">
+<p class="eyebrow">Your choices</p>
+<h2>Correcting, or being left out.</h2>
+<p class="sub"><b>Correct your entry.</b> Claim it and tell us what is wrong. If our copy differs from the public register, we will say which is which rather than quietly overwriting one with the other.</p>
+<p class="sub"><b>Unsubscribe.</b> One click, in any email we send.</p>
+<p class="sub"><b>Ask us to delete what you gave us.</b> Write to us and we will delete the details you submitted on a form. We cannot delete a public record that a state or county register publishes &mdash; that request goes to the register, and we will point you to it.</p>
+<p class="sub"><b>Depending on where you live</b>, you may have further rights over personal information, including access and deletion. Ask us and we will tell you what we hold that came from you.</p>
+</div></section>
+
+<div class="pull"><div class="wrap">
+<p>A record about a property is not a record about a person.</p>
+<small>The distinction is the whole design. Parcels have histories that are public by law. People have privacy that is not ours to spend. Where the two meet &mdash; a name on a permit, a licence on a job &mdash; we publish what the register publishes, and no more than that.</small>
+</div></div>
+
+<section><div class="wrap">
+<p class="eyebrow">Contact</p>
+<h2>Asking us something.</h2>
+<p class="sub">Email <a href="mailto:register@departmentofproperty.com">register@departmentofproperty.com</a> with a privacy question, a correction, or a deletion request.</p>
+<p class="sub">If we change this notice we will change the date at the top of it. Material changes will be described here rather than made silently.</p>
+</div></section>
+<footer><div class="wrap">
+<div class="fseals"><img src="dop-seal.png" alt="Department of Property seal"><img src="doc-seal.png" alt="Department of Construction seal"></div>
+<div class="flinks">
+<a href="about.html">About</a><a href="register.html">Register your business</a>
+<a href="terms.html">Terms of use</a><a href="privacy.html">Privacy notice</a>
+<a href="https://departmentofconstruction.com">Contractor register</a>
+</div>
+<p>Department of Property holds land and property records. Department of Construction holds contractor and permit records. Both are technology companies. Neither is a licensing authority, a government agency, or affiliated with any government body.</p>
+<p>Parcel outlines are approximate boundaries drawn from county tax records. They are not surveys. Findings are a starting point for due diligence, not a substitute for a title search, a survey, a jurisdictional determination or an inspection.</p>
+</div></footer></body></html>
