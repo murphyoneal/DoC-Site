@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Department of Property — the public record, assembled</title>
+<meta name="description" content="Florida property records assembled from federal, state and county registers — flood, contamination, wetlands, historic listing, permits and ownership. Including what we can't answer, and who can.">
+<link rel="icon" href="dop-seal.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400;62..125,500;62..125,600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box}
+:root{
+  --navy:#152441; --navy-2:#0E1A31; --ink:#0C1424; --gold:#C9A84C; --gold-dim:#A8873A;
+  --paper:#fff; --wash:#F6F7F9; --line:#E3E7EE; --line-2:#2B3B5E;
+  --grey:#5D6A82; --grey-navy:#93A3C0;
+  --sp:clamp(64px,8vw,116px);
+}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--paper);color:var(--ink);
+  font-family:'Archivo',system-ui,-apple-system,sans-serif;
+  font-size:17px;line-height:1.62;font-variation-settings:'wdth' 100;
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+.wrap{max-width:1120px;margin:0 auto;padding:0 32px}
+@media(max-width:600px){.wrap{padding:0 22px}}
+h1,h2,h3{margin:0;font-weight:600;line-height:1.06;letter-spacing:-.022em}
+h1{font-size:clamp(40px,6vw,74px);font-variation-settings:'wdth' 108}
+h2{font-size:clamp(28px,3.8vw,44px);font-variation-settings:'wdth' 104}
+h3{font-size:19px;line-height:1.3;letter-spacing:-.008em}
+p{margin:0 0 1.15em;max-width:64ch}
+a{color:inherit;text-underline-offset:3px;text-decoration-thickness:1px}
+img{max-width:100%;display:block}
+.num{font-variant-numeric:tabular-nums;font-feature-settings:'tnum'}
+.eyebrow{font-size:12px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--gold-dim);margin:0 0 18px}
+.eyebrow.on-navy{color:var(--gold)}
+.lede{font-size:clamp(18px,2.1vw,22px);line-height:1.5;color:#C9D4E8;max-width:58ch;margin:28px 0 0}
+.sub{color:var(--grey);max-width:60ch}
+
+/* nav */
+.nav{position:sticky;top:0;z-index:50;background:rgba(21,36,65,.94);
+  backdrop-filter:saturate(150%) blur(10px);border-bottom:1px solid var(--line-2)}
+.nav .wrap{display:flex;align-items:center;gap:28px;height:60px}
+.brand{display:flex;align-items:center;gap:11px;text-decoration:none;margin-right:auto;min-width:0}
+.brand img{width:30px;height:30px;border-radius:50%;background:#fff;padding:2px;flex:0 0 auto}
+.brand b{color:#fff;font-size:14.5px;font-weight:600;letter-spacing:.01em;
+  font-variation-settings:'wdth' 106;white-space:nowrap}
+.nav a.l{color:var(--grey-navy);text-decoration:none;font-size:14.5px;white-space:nowrap}
+.nav a.l:hover{color:#fff}
+.nav a.cta{color:var(--navy);background:var(--gold);padding:8px 16px;font-size:14.5px;
+  font-weight:600;text-decoration:none;white-space:nowrap}
+.nav a.cta:hover{background:#DCBB5C}
+@media(max-width:720px){.nav a.l{display:none}.nav .wrap{height:56px}}
+
+/* hero */
+.hero{background:var(--navy);color:#fff;padding:clamp(58px,8vw,104px) 0 clamp(64px,8vw,96px);
+  background-image:linear-gradient(180deg,#16274A 0%,var(--navy) 55%)}
+.hero h1{max-width:17ch}
+.hero .tag{display:inline-block;border:1px solid var(--gold);color:var(--gold);
+  font-size:11.5px;font-weight:600;letter-spacing:.15em;padding:5px 12px;margin-bottom:26px}
+
+/* coverage rows */
+.states{margin-top:clamp(42px,6vw,64px);border-top:1px solid var(--line-2)}
+.row{display:grid;grid-template-columns:18px 1fr;gap:18px;padding:19px 0;
+  border-bottom:1px solid var(--line-2);align-items:start}
+.tok{width:14px;height:14px;margin-top:7px;flex:0 0 auto}
+.tok.present{background:var(--gold)}
+.tok.none{border:2px solid var(--gold)}
+.tok.na{border:2px dashed #6E80A8}
+.row .fact{font-size:16.5px;color:#EAF0FA;margin:0;max-width:74ch;line-height:1.55}
+.row .fact em{font-style:normal;color:var(--grey-navy)}
+.row .who{font-size:14px;color:var(--gold);margin:6px 0 0}
+.key{display:flex;gap:30px;flex-wrap:wrap;margin-top:22px;font-size:13px;
+  color:var(--grey-navy);letter-spacing:.02em}
+.key i{display:inline-block;width:10px;height:10px;margin-right:8px;position:relative;top:1px}
+.key .present{background:var(--gold)}.key .none{border:2px solid var(--gold)}
+.key .na{border:2px dashed #6E80A8}
+
+section{padding:var(--sp) 0}
+section+section{border-top:1px solid var(--line)}
+.wash{background:var(--wash)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:clamp(32px,5vw,68px);margin-top:40px}
+@media(max-width:800px){.two{grid-template-columns:1fr;gap:34px}}
+.col h3{margin-bottom:10px}
+.col.rule{border-top:2px solid var(--gold);padding-top:20px}
+
+/* figures */
+.figs{display:grid;grid-template-columns:repeat(4,1fr);margin-top:48px;
+  border-top:1px solid var(--line)}
+@media(max-width:900px){.figs{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:520px){.figs{grid-template-columns:1fr}}
+.fig{padding:26px 26px 26px 0;border-bottom:1px solid var(--line)}
+.fig b{display:block;font-size:clamp(26px,3vw,34px);font-weight:600;letter-spacing:-.03em;
+  font-variation-settings:'wdth' 92;line-height:1;font-variant-numeric:tabular-nums}
+.fig span{display:block;font-size:14px;color:var(--grey);margin-top:10px;line-height:1.45;max-width:30ch}
+
+.pull{background:var(--navy);color:#fff;padding:clamp(56px,7vw,88px) 0}
+.pull p{font-size:clamp(24px,3.4vw,38px);line-height:1.24;font-weight:600;letter-spacing:-.02em;
+  font-variation-settings:'wdth' 104;max-width:20ch;margin:0}
+.pull small{display:block;font-size:16px;font-weight:400;color:var(--grey-navy);
+  margin-top:26px;max-width:58ch;line-height:1.62;letter-spacing:0}
+
+.btn{display:inline-block;background:var(--gold);color:var(--navy);text-decoration:none;
+  padding:15px 30px;font-weight:600;font-size:16.5px;border:0;cursor:pointer;
+  font-family:inherit;transition:background .15s}
+.btn:hover{background:#DCBB5C}
+.btn.dark{background:var(--navy);color:#fff}
+.btn.dark:hover{background:#1E3157}
+a:focus-visible,button:focus-visible,input:focus-visible,label:focus-within{
+  outline:3px solid var(--gold);outline-offset:3px}
+
+/* record card */
+.card{border:1px solid var(--line);margin-top:40px;position:relative;background:#fff}
+.chead{padding:28px 30px 24px;border-bottom:1px solid var(--line)}
+.chead h3{font-size:24px}
+.chead .m{font-size:14.5px;color:var(--grey);margin:7px 0 0}
+.stamp{position:absolute;top:24px;right:24px;transform:rotate(-4.5deg);
+  border:2.5px solid #B4741A;color:#8F5C13;background:#FDF6E9;padding:9px 14px;max-width:236px}
+.stamp b{display:block;font-size:12.5px;font-weight:600;letter-spacing:.13em;line-height:1.2}
+.stamp span{display:block;font-size:12.5px;line-height:1.42;margin-top:5px;letter-spacing:0}
+@media(max-width:760px){.stamp{position:static;transform:none;margin:18px 30px 0;max-width:none}}
+.cbody{padding:4px 30px 28px}
+.line{display:grid;grid-template-columns:170px 1fr;gap:22px;padding:17px 0;
+  border-bottom:1px solid var(--line);font-size:16px;align-items:start}
+.line:last-child{border-bottom:0}
+.line .lab{color:var(--grey);font-size:13px;font-weight:600;letter-spacing:.09em;
+  text-transform:uppercase;padding-top:3px}
+.line .val em{font-style:normal;color:var(--grey)}
+@media(max-width:640px){.line{grid-template-columns:1fr;gap:6px}}
+.ledger{list-style:none;margin:6px 0 0;padding:0;font-size:15.5px}
+.ledger li{padding:8px 0;border-bottom:1px solid var(--line);display:flex;gap:16px}
+.ledger li:last-child{border-bottom:0}
+.ledger time{color:var(--grey);flex:0 0 104px;font-variant-numeric:tabular-nums}
+
+/* forms */
+form{margin-top:40px;max-width:600px}
+fieldset{border:0;padding:0;margin:0 0 30px}
+legend{font-weight:600;font-size:13px;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--grey);margin-bottom:14px}
+.roles{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:560px){.roles{grid-template-columns:1fr}}
+.role{border:1px solid var(--line);padding:18px;cursor:pointer;display:block;transition:border-color .15s}
+.role:hover{border-color:#B9C3D4}
+.role:has(input:checked){border-color:var(--navy);box-shadow:inset 0 0 0 1px var(--navy)}
+.role input{margin-right:10px}
+.role b{font-weight:600;font-size:16.5px}
+.role span{display:block;font-size:14px;color:var(--grey);margin-top:5px;line-height:1.45}
+.field{margin-bottom:18px}
+label.f{display:block;font-size:13px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--grey);margin-bottom:7px}
+input[type=text],input[type=email],input[type=search]{width:100%;border:1px solid var(--line);
+  padding:14px 16px;font:inherit;font-size:16px;background:#fff;color:var(--ink);border-radius:0}
+input:hover{border-color:#B9C3D4}
+.check{display:flex;gap:12px;align-items:flex-start;font-size:15.5px;margin-bottom:20px;max-width:58ch}
+.check input{margin-top:5px;flex:0 0 auto}
+.smallprint{font-size:14px;color:var(--grey);margin-top:18px;max-width:58ch}
+
+/* search */
+.search{margin-top:40px;display:flex;max-width:600px;background:#fff}
+.search input{flex:1;border:0;padding:17px 20px;font:inherit;font-size:16.5px;min-width:0}
+.search button{border:0;background:var(--gold);color:var(--navy);font:inherit;font-weight:600;
+  font-size:16.5px;padding:17px 30px;cursor:pointer}
+.search button:hover{background:#DCBB5C}
+.hint{font-size:14px;color:var(--grey-navy);margin-top:14px}
+
+footer{background:var(--navy-2);color:var(--grey-navy);font-size:14px;
+  padding:clamp(44px,5vw,60px) 0 44px}
+footer p{max-width:78ch;margin:0 0 .8em;line-height:1.6}
+footer a{color:var(--gold)}
+.fseals{display:flex;gap:20px;align-items:center;margin-bottom:26px;flex-wrap:wrap}
+.fseals img{width:84px;border-radius:50%;background:#fff;padding:5px}
+.parent{font-size:14px;color:var(--gold);margin:0 0 20px}
+.flinks{display:flex;gap:26px;flex-wrap:wrap;margin:0 0 26px;padding-top:22px;
+  border-top:1px solid var(--line-2)}
+.flinks a{color:var(--grey-navy);text-decoration:none;font-size:14.5px}
+.flinks a:hover{color:#fff}
+</style>
+</head><body>
+<nav class="nav"><div class="wrap">
+<a class="brand" href="about.html"><img src="dop-seal.png" alt=""><b>Department of Property</b></a>
+<a class="l" href="about.html">What we do</a><a class="l" href="https://departmentofconstruction.com">Contractor register</a><a class="cta" href="register.html" data-track="nav-cta">Register free</a>
+</div></nav>
+<header class="hero"><div class="wrap">
+<p class="tag">FLORIDA · ALL 67 COUNTIES</p>
+<h1>The public record on a property, assembled before you need it.</h1>
+<p class="lede">Flood, contamination, wetlands, historic listing, permits, ownership — pulled from federal, state and county registers and checked against each other. Including the parts we can't answer, and who can.</p>
+<div class="states">
+<div class="row"><div class="tok present"></div><div><p class="fact">41.8% of this parcel sits in FEMA Zone VE — coastal high hazard, base flood elevation 13&nbsp;ft NAVD88. <em>Flood insurance is federally required with a federally-backed mortgage.</em></p></div></div>
+<div class="row"><div class="tok none"></div><div><p class="fact">No wetland is mapped on this parcel. <em>The layer covers this county and returned nothing — a real negative.</em></p></div></div>
+<div class="row"><div class="tok na"></div><div><p class="fact">We hold no permit register for this county. <em>This is a gap in our coverage, not evidence that no permit exists.</em></p><p class="who">Ask the county building department.</p></div></div>
+<div class="key"><span><i class="present"></i>Found in the record</span><span><i class="none"></i>Checked, nothing there</span><span><i class="na"></i>Not held — who to ask</span></div>
+</div></div></header>
+
+<section><div class="wrap">
+<p class="eyebrow">What this is</p>
+<h2>Most property data tells you what it found.<br>Almost none tells you what it missed.</h2>
+<div class="two">
+<div class="col"><p class="sub">A blank field can mean two opposite things: we looked and there was nothing, or we never held the data at all. Read the wrong way, one of those becomes a clearance nobody gave.</p>
+<p class="sub">So every finding carries its state, its source and its date. A gap says it's a gap, and names the office that can answer it. That's a checklist item routed correctly — not a failure.</p></div>
+<div class="col"><p class="sub">The records come from the agencies that keep them: FEMA, FDEP, USFWS, the National Park Service, the Department of Revenue, and each county's property appraiser and clerk.</p>
+<p class="sub">Sixty-seven counties, no two structured alike. Ten formats for a parcel number. One county publishing its identifier wrapped in an HTML tag. Assembling that is the work.</p></div>
+</div>
+<div class="figs">
+<div class="fig"><b class="num">10.7M</b><span>Florida parcels, every county</span></div>
+<div class="fig"><b class="num">12,136,330</b><span>Acres mapped as wetland — 26.6% of Florida. A regional inventory, not a delineation</span></div>
+<div class="fig"><b class="num">757,767</b><span>Acres inside a designated contamination area. A floor: point-source registers counted separately</span></div>
+<div class="fig"><b class="num">3,196,637</b><span>Acres under a recorded encumbrance, wetlands excluded. Also a floor</span></div>
+<div class="fig"><b class="num">10,185</b><span>FDEP cleanup sites, with status and monitoring record</span></div>
+<div class="fig"><b class="num">74,262</b><span>Registered storage tank facilities</span></div>
+<div class="fig"><b class="num">1,731</b><span>National Register listings — and which can answer containment</span></div>
+<div class="fig"><b class="num">2,323,819</b><span>Homes built before 1978 — federal lead-paint disclosure duty</span></div>
+</div>
+<p class="sub" style="margin-top:30px">Where a figure is a floor rather than a total, the report says so. Wetland acreage excludes open water and deepwater — the difference between 26.6% of Florida and the 60% you get by counting a lake as a wetland.</p>
+</div></section>
+
+<div class="pull"><div class="wrap">
+<p>Every physical change should leave a trace in more than one register.</p>
+<small>Of 16,359 recorded marine improvements in one county, most have a building permit within a year of the recorded build year. Thousands do not — and most of those sit on parcels that do have permits. That isn't a value. It's a question worth asking, with the evidence attached.</small>
+</div></div>
+
+<section class="wash"><div class="wrap">
+<p class="eyebrow">Who it's for</p>
+<h2>Two questions, the same record.</h2>
+<div class="two">
+<div class="col rule"><h3>Before you list it</h3>
+<p class="sub">You're already the person who spots what the buyer missed. This is what you currently can't see — the groundwater restriction, the seawall, the improvement with no permit behind it.</p>
+<p class="sub">An agent who finds it first controls it. One who learns it from the buyer's inspector has lost the deal.</p></div>
+<div class="col rule"><h3>Before you buy it</h3>
+<p class="sub">Same record, different question. Not how do I manage this, but should I proceed — and what do I ask for.</p>
+<p class="sub">You get the findings, the authority behind each one, and a list of what to request from whom.</p></div>
+</div></div></section>
+
+<section><div class="wrap">
+<p class="eyebrow">Privacy</p>
+<h2>We tell agents about the property.<br>Never about you.</h2>
+<div class="two">
+<div class="col"><p class="sub">Roughly four in five buyers start looking without an agent, on purpose. Nothing here changes that.</p>
+<p class="sub">Reports are keyed to the parcel, not to a person. There is no people-search. An agent sees that a property drew interest — never who.</p></div>
+<div class="col"><p class="sub">We don't publish a profile for anyone who hasn't claimed one. A licence is verified against the state register before a name appears beside a report.</p>
+<p class="sub">Counts, not scores. What's in the record is what we'll say.</p></div>
+</div>
+<p style="margin-top:44px"><a class="btn" href="register.html" data-track="about-cta">Register your business — free</a></p>
+</div></section>
+<footer><div class="wrap">
+<div class="fseals"><img src="dop-seal.png" alt="Department of Property seal"><img src="doc-seal.png" alt="Department of Construction seal"></div>
+<div class="flinks">
+<a href="about.html">About</a><a href="register.html">Register your business</a>
+<a href="https://departmentofconstruction.com">Contractor register</a>
+</div>
+<p>Department of Property holds land and property records. Department of Construction holds contractor and permit records. Both are technology companies. Neither is a licensing authority, a government agency, or affiliated with any government body.</p>
+<p>Parcel outlines are approximate boundaries drawn from county tax records. They are not surveys. Findings are a starting point for due diligence, not a substitute for a title search, a survey, a jurisdictional determination or an inspection.</p>
+</div></footer></body></html>
