@@ -235,3 +235,31 @@ A detection that cannot fail is not a check, and one that cannot pass is not a c
 ## Commit hygiene
 
 One concern per commit. Never sweep in pre-existing working-tree changes. Push before ending a session.
+
+## Verifying a normaliser proves nothing about a source you did not run it against
+
+A slug function is only validated against the table you tested it on. Carrying that result to a
+different table is the same error as carrying a threshold to a different population — and it fails
+silently, because a wrong slug is still a plausible-looking slug.
+
+On 2026-09-06 the contractor county repair verified its normaliser against `fl_city_limits`, which
+spells them "St. Johns"/"St. Lucie", and reproduced all 66 existing values exactly. The migration then
+joined **`county_registry`**, which spells them **"Saint Johns"/"Saint Lucie"**. The regexp folded
+`Miami-Dade -> dade` but had no rule for `Saint`, so 3,217 rows were written into a SECOND spelling
+beside a residual 19 in the first. A county filter on `st_johns` would have returned 17 rows instead
+of 1,552. This is the trap already recorded three rules above — `county_registry` "Saint" vs
+`geo_reference` "St." — met from the other direction and not recognised.
+
+**What caught it was the county count, not the migration.** The migration succeeded. Every number
+predicted beforehand came back exact — 102,617 repaired, 27,511 former source_file, 28,754 changed.
+The one figure nobody had a prediction for was `count(distinct county_name) = 69`, against Florida's
+67. Predicted numbers confirm the change you intended; they cannot see the change you did not.
+**Always assert the cardinality of a closed set — 67 counties, 50 states, 12 months — after any write
+that touches its key.**
+
+The corollary bites twice: the same unfolded regexp sat in the MEASUREMENT query too, scoring 2,837
+St Johns / St Lucie rows as disagreeing with an identical value and depressing the reported
+geometry agreement from 98.79% to 94.5%. A normaliser bug corrupts the control and the repair
+together, so the control cannot catch it. **Extract the primitive** (`public.county_slug(text)`) so
+one fold serves both, and prove it against every source it will touch — not the one that was
+convenient to test.
