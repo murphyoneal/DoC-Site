@@ -145,6 +145,39 @@ PIR_SYSTEM_ARCHITECTURE.md is canonical and supersedes anything reconstructed fr
 - Report before implementing on any structural change. Audit, classify, wait for a ruling.
 - Append-only binds to what a source PUBLISHED, not to what our loader DERIVED from it.
 
+## `LIMIT` without `ORDER BY` is not a sample. It is whatever sits next on disk.
+
+An unordered `LIMIT` returns rows in physical storage order. On a clustered table that is a
+*contiguous region* — and FDGL publishes `parcels_staging` clustered with counties adjacent on
+disk. So the rows come back internally consistent, the query looks clean, and **it reproduces
+exactly on re-run**, which is the property that makes it so convincing. Reproducibility is not
+validity: the same wrong region is still there the second time.
+
+Two agents measured how often roll acreage disagrees with polygon area by more than 10%, both with
+`LIMIT 200000` and no `ORDER BY`. They got **0.80%** and **15.62%** — twenty-fold apart, with no
+error in either query. One had landed in a region where the roll and the geometry agree almost
+perfectly; the other in a region where they diverge badly. Not a biased sample of one varied
+population: two different populations, each coherent, neither representative.
+
+The truth, from `TABLESAMPLE BERNOULLI` run independently by both agents on different seeds:
+**7.2–7.8%** (7.17/7.22 by one formula, 7.69/7.77 by the other). Far below the alarming number,
+above the reassuring one, and it took two matching random samples to establish rather than one.
+
+**Two plausible diagnoses died on the way, and both are worth knowing as failure modes:**
+
+- *"Non-random slices of a population that varies by county."* Dead: the county rate ranges 43% to
+  100%, and a weighted average cannot fall below its minimum member, so no county subset produces
+  0.80% or 15.62%.
+- *"The two predicates differ."* They genuinely did — `diff/greatest` versus `diff/smaller`, one
+  systematically stricter. Also dead: on identical rows they disagree on **0.52%** of them, half a
+  point, nowhere near twenty-fold.
+
+Both diagnoses were reasonable, and each would have sent someone to fix a layer that was working —
+sampling discipline, or metric definitions. **When two measurements disagree by an order of
+magnitude, suspect the row selection before the arithmetic.** Then use
+`TABLESAMPLE BERNOULLI (n) REPEATABLE (seed)`, state the predicate beside the number, and have
+someone else reproduce it on a different seed.
+
 ## A distribution is a description, not a verdict. Test the key against truth.
 
 Reading a column's contents is the right instinct — it is the rule two sections up. But a value
