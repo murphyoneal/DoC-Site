@@ -201,7 +201,8 @@ footer a{color:var(--gold)}
 <section class="wash" id="claim"><div class="wrap">
 <p class="eyebrow">Takes two minutes</p>
 <h2>Claim your entry.</h2>
-<form data-track="register-form" method="post" action="#">
+<form data-track="register-form" method="post" action="https://formspree.io/f/xrpgyrjp">
+<input type="hidden" name="_subject" value="New claim - Department of Property">
 <fieldset><legend>What do you do?</legend>
 <div class="roles">
 <label class="role" data-track="role-contractor"><input type="radio" name="role" value="contractor" checked><b>Trade or contractor</b><span>Roofing, building, plumbing, electrical, pool, HVAC and the rest</span></label>
@@ -211,6 +212,10 @@ footer a{color:var(--gold)}
 <div class="field"><label class="f" for="lic">State licence number</label><input type="text" id="lic" name="licence" placeholder="e.g. CCC1329994 or SL3123456"></div>
 <div class="field"><label class="f" for="nm">Your name</label><input type="text" id="nm" name="name" autocomplete="name"></div>
 <div class="field"><label class="f" for="em">Email</label><input type="email" id="em" name="email" autocomplete="email"></div>
+<div class="field"><label class="f" for="web">Website</label><input type="text" id="web" name="website" placeholder="yourbusiness.com" autocomplete="url"></div>
+<div class="field"><label class="f" for="ph">Public phone</label><input type="text" id="ph" name="phone" autocomplete="tel"></div>
+<div class="field"><label class="f" for="cty">Counties you work</label><input type="text" id="cty" name="counties_worked" placeholder="Volusia, Flagler, Seminole"></div>
+<div class="field"><label class="f" for="ins">Insurance &amp; workers&rsquo; comp <span style="text-transform:none;letter-spacing:0;font-weight:400">(optional)</span></label><input type="text" id="ins" name="insurance" placeholder="e.g. GL and WC current to 03/2027"></div>
 <div class="check"><input type="checkbox" id="qr" name="qr" checked><label for="qr">Send me a free QR code linking to my entry</label></div>
 <div class="check"><input type="checkbox" id="news" name="newsletter"><label for="news">Email me when new counties, permit registers or records go live</label></div>
 <div class="check"><input type="checkbox" id="terms" name="terms" required><label for="terms">I confirm I am authorised to claim this business, and I agree to the <a href="terms.html">terms of use</a> and <a href="privacy.html">privacy notice</a>. <span style="color:#B4741A">Required</span></label></div>
@@ -228,7 +233,8 @@ footer a{color:var(--gold)}
 <p class="eyebrow">Just want the updates?</p>
 <h2>News and new records.</h2>
 <p class="sub">We're adding counties, permit registers and clerk records continuously. Get an email when something lands that affects where you work.</p>
-<form data-track="newsletter-form" method="post" action="#">
+<form data-track="newsletter-form" method="post" action="https://formspree.io/f/mbgjzqwo">
+<input type="hidden" name="_subject" value="Newsletter signup - Department of Property">
 <div class="field"><label class="f" for="em2">Email</label><input type="email" id="em2" name="email" autocomplete="email"></div>
 <div class="check"><input type="checkbox" id="terms2" name="terms" required><label for="terms2">I agree to the <a href="terms.html">terms of use</a> and <a href="privacy.html">privacy notice</a>. <span style="color:#B4741A">Required</span></label></div>
 <button class="btn dark" type="submit" data-track="newsletter-submit">Sign me up</button>
