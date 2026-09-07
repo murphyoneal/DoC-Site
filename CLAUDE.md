@@ -143,6 +143,34 @@ PIR_SYSTEM_ARCHITECTURE.md is canonical and supersedes anything reconstructed fr
 - DONE means committed, pushed, and verified in production. Not tsc-clean, not dev-curl, not verified locally.
 - Never apply a payload-shape change to production ahead of the consuming front-end. Make it additive or hold the migration.
 - Report before implementing on any structural change. Audit, classify, wait for a ruling.
+- Append-only binds to what a source PUBLISHED, not to what our loader DERIVED from it.
+
+## Append-only protects evidence; it does not protect a defect once proven
+
+The rule exists so a source's record survives our processing of it. It is not a reason to keep
+serving a value our own code invented — and the two are easy to confuse, because a derived value
+sits in the same column as a recorded one and looks exactly as authoritative.
+
+On 2026-09-06 an instruction said not to overwrite 27,511 `contractors.county_name` values because
+they came from the source file. They did not. They were our loader's output: it took the DOR county
+number DBPR publishes (11–77) and used it as an index into DBPR's *alphabetical* county list
+(1–67). One mechanism, 98.2% of the disagreement — Ocala served as Pinellas, Hollywood as Duval,
+Orlando as Sarasota, on live pages. Preserving them preserved our bug, not a fact; and nothing was
+at risk of being lost, because the true value was still sitting in `county_code` in the same row.
+
+**The test is provenance, not column.** Ask who produced the value. A figure the source published
+is evidence and is protected. A value we computed, parsed, joined or inferred is a derivation, and
+a derivation proven wrong is a defect that gets corrected — while **preserving the original beside
+it** (`county_name_prior`, `county_name_method_prior`) so the bug stays auditable rather than
+erased. That preservation is the append-only half, and it is what makes the correction safe rather
+than a second uncontrolled write.
+
+Two corollaries earned the same day. **Control the replacement, not just the thing you replaced** —
+disproving the old values says nothing about the new ones; the corrected column was checked against
+`fl_city_limits`, a third evidence path that is neither the geocode nor the source file. And
+**a correction is not finished until its residual is characterised**: 804 rows still disagree with
+geometry, 85.4% of them an adjacent county, which is an address over a county line rather than an
+error. A residual you have not looked at is an assumption.
 
 ## A payload field name has THREE consumers, and one of them is prose
 
