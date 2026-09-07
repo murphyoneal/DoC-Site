@@ -77,6 +77,19 @@ The maintainer (Murphy) has detailed knowledge from prior research sessions abou
    assert `count(*) == count(DISTINCT natural_key)` after every load. A pull that can't be run
    twice safely is not done. See §10 invariant 6 (empty≠done) — this is its idempotence twin.
 
+10. **HTTP 200 is not "this file is current." Check `Last-Modified`.**
+    DBPR publishes `CONSTRUCTIONLICENSE_1.csv` (46 MB, refreshed weekly). `_2.csv` and `_3.csv`
+    are still served, still return **200**, and were last modified **12 Oct 2019** — seven years
+    stale, and unlinked from the page that documents the extract. A loader that iterates parts
+    until it gets a 404 ingests 2019 licences as this week's register, and every count it
+    reports will look plausible.
+    Read `Last-Modified` on every downloaded file, record it as the source's posted date, and
+    **abort when it is older than the cadence the source claims**. The page displays no posted
+    date at all, so the header is the only date available — and the source itself says a file
+    can lag, which is precisely why the check has to exist rather than be assumed away.
+    Same family as invariant 2: a source that answers is not a source that is telling you
+    something current.
+
 Full findings and evidence: docs/DATA_JOIN_FINDINGS.md
 Compliance framework: docs/PROVIDER_REASONABLE_PROCEDURES.md
 ## Message bus — do this first, every task
