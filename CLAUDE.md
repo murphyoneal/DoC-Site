@@ -145,6 +145,29 @@ PIR_SYSTEM_ARCHITECTURE.md is canonical and supersedes anything reconstructed fr
 - Report before implementing on any structural change. Audit, classify, wait for a ruling.
 - Append-only binds to what a source PUBLISHED, not to what our loader DERIVED from it.
 
+## A distribution is a description, not a verdict. Test the key against truth.
+
+Reading a column's contents is the right instinct — it is the rule two sections up. But a value
+*distribution* only describes shape, and shape alone cannot say whether a column means what it
+claims. Deciding from it feels like measurement and is not.
+
+`contractors.county_code` was rejected as "not a county identifier" because one load held 124
+distinct values ranging to 816, and another reached 32,759, against Florida's 67 counties. Every
+one of those figures was true. The conclusion was still wrong: `county_code` **is** the DOR county
+number, 98.59% against ground truth, and confirmed again at source scale in DBPR's own file, whose
+top values are 23, 16, 60, 39, 46, 62 — Dade, Broward, Palm Beach, Hillsborough, Lee, Pinellas. The
+out-of-range values were out-of-state addresses, ~10% of rows that simply fail to join. A dirty
+tail was read as a dirty column, and the correct key sat unused while a corrupted one was served.
+
+**The test is one join against something that already knows the answer** — here, a city's published
+county — not an inspection of the value spread. It cost minutes; the distribution argument had
+stood for weeks and both agents repeated it.
+
+The inversion is the part to remember: the consumers reading the "garbage" column
+(`search_contractors`, `forCounty()`) were correct all along, and the consumers reading the trusted
+column (`county_name`, two display paths) were the broken ones. Confidence in a column had
+propagated in exactly the wrong direction, so the audit was aimed at the working code.
+
 ## Append-only protects evidence; it does not protect a defect once proven
 
 The rule exists so a source's record survives our processing of it. It is not a reason to keep
