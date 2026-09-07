@@ -145,6 +145,29 @@ PIR_SYSTEM_ARCHITECTURE.md is canonical and supersedes anything reconstructed fr
 - Report before implementing on any structural change. Audit, classify, wait for a ruling.
 - Append-only binds to what a source PUBLISHED, not to what our loader DERIVED from it.
 
+## A rule everyone follows and nobody wrote down is not a rule, and it fails silently
+
+The other lessons here are checks that existed and did not catch what they were for. This one is
+worse: a check that was never written while two of us believed it was.
+
+`LIMIT` without `ORDER BY` had been avoided in practice for months. On 2026-09-06 a served function
+was found doing exactly that, and it was described in writing as *"the LIMIT-without-ORDER-BY class
+the pipeline invariants already name."* It named nothing. Grepping this file for `LIMIT`, `ORDER
+BY`, `BERNOULLI`, `TABLESAMPLE` and "random sample" returned no such rule. It felt like settled
+practice because it was settled practice — and shared habit is invisible to the person writing the
+next function, which is precisely how `search_contractors` shipped a limit inside a subquery with
+no ordering and discarded 8 of 9 matching rows while looking correct.
+
+**The mechanism that caught it is the transferable part: citation forces verification.** The rule
+was only checked because it was about to be cited by name. Paraphrasing an existing rule from memory
+asserts its existence; quoting it proves it. So when invoking a standing rule — in a commit message,
+a bus finding, a code comment, a review — **name it and check it is there.** If it turns out not to
+be, that absence is a finding in its own right and worth more than the point you were making.
+
+Corollary: an unwritten convention is not inherited by new code, new contributors, or a future
+session with no memory of this one. If a practice matters enough to rely on, it belongs in this
+file, where it can be cited — and where a grep can prove it exists.
+
 ## `LIMIT` without `ORDER BY` is not a sample. It is whatever sits next on disk.
 
 An unordered `LIMIT` returns rows in physical storage order. On a clustered table that is a
