@@ -153,6 +153,39 @@ A result from one field does not transfer. `frs_facilities_1km` had zero consume
 why it was safe to rename in one step. Two of the next six are named in the prompt. Enumerate per field, or
 it is an assumption wearing a measurement's clothes.
 
+## Patching a SECURITY DEFINER function REVOKES its grants
+
+The anchored `pg_get_functiondef` + `replace()` + `EXECUTE` idiom recommended below is the safe way
+to change a function body. It is also, on this database, the way to silently take a public endpoint
+offline — and the two facts live one section apart, so read them together.
+
+`trg_revoke_public_on_new_secdef` auto-locks SECURITY DEFINER functions to `service_role`. It fires
+on the function's **own** DDL, and `CREATE OR REPLACE` is that DDL. Proven in a rolled-back
+transaction on 2026-09-08: re-applying an **identical** body took
+`has_function_privilege('anon', …)` from **true to false**. Unrelated DDL elsewhere does *not*
+strip it — tested the same way — so this is not a general hazard, it is specific to touching the
+function itself.
+
+The cost was a live outage. `contractor_register_search` is the public contractor register search.
+It was granted to `anon`, then two migrations patched it the next day — one a disclosure-wording
+fix, one deriving a date from a table. Neither touched permissions, neither mentioned them, and
+each removed the grant. The register search returned nothing for a day, and the browser saw:
+
+```
+HTTP 401 — {"code":"42501","message":"permission denied for function contractor_register_search"}
+```
+
+**The status code lies about the cause.** A 401 reads as a bad API key and sends you to rotate a key
+that is perfectly fine; the body names the actual fault. That is the second time in one session that
+reading the body rather than the status produced the real answer — the first was diagnosing the
+Supabase secret key as dead when it was a table grant.
+
+**So: any migration that replaces a function reachable from the browser must re-`GRANT` in the same
+migration, and assert the grant afterwards.** A permission is not part of the function body, so
+`pg_get_functiondef` does not carry it and nothing in the diff will remind you. The standing check is
+detection `register-search-anon-execute-missing`, which asserts both halves — the grant exists *and*
+the function still returns a payload.
+
 ## A migration that succeeds is not a function that works
 
 `apply_migration` returns success when the **DDL is valid**. A plpgsql body is not fully type-checked at
