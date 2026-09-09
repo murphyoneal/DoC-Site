@@ -162,9 +162,33 @@ offline — and the two facts live one section apart, so read them together.
 `trg_revoke_public_on_new_secdef` auto-locks SECURITY DEFINER functions to `service_role`. It fires
 on the function's **own** DDL, and `CREATE OR REPLACE` is that DDL. Proven in a rolled-back
 transaction on 2026-09-08: re-applying an **identical** body took
-`has_function_privilege('anon', …)` from **true to false**. Unrelated DDL elsewhere does *not*
-strip it — tested the same way — so this is not a general hazard, it is specific to touching the
-function itself.
+`has_function_privilege('anon', …)` from **true to false**.
+
+> **CORRECTED 2026-09-09 — this IS a general hazard, and the previous wording here caused a second
+> outage.** This section used to read "Unrelated DDL elsewhere does *not* strip it — tested the same
+> way — so this is not a general hazard, it is specific to touching the function itself." **That is
+> false.** Read the trigger body: `revoke_public_on_new_secdef` is `ON ddl_command_end` and it does
+> **not** look at which object the DDL touched. It loops over **every** SECURITY DEFINER function in
+> `public` not owned by `supabase_admin` that currently holds an `anon` or `authenticated` grant, and
+> revokes all of them. So **ANY DDL anywhere in the database** — a `CREATE INDEX`, an `ALTER TABLE`,
+> a new unrelated function — silently strips **every** browser-reachable SECURITY DEFINER endpoint.
+>
+> How it recurred: building `agent_register_search` ran three migrations containing DDL
+> (`ALTER TABLE dbpr_snapshot_log`, `CREATE INDEX` ×3, `CREATE FUNCTION`). None of them mentioned
+> `contractor_register_search`. Each one revoked its grant anyway. The contractor register was
+> serving `401 / 42501` again within hours of the first outage being written up, and it was found
+> only because a routine `has_function_privilege` check was run while composing a handoff.
+>
+> **So: after ANY migration containing ANY DDL, re-assert the grants on every browser-called RPC.**
+> Today that set is exactly two — `contractor_register_search` and `agent_register_search` — and it
+> is enumerable in one command: `grep -rhoE "rpc/[a-zA-Z_]+" public/*.html ../DoC-Public/*.html`.
+> Everything else the front end calls goes through server routes on `service_role`, which bypasses
+> grants, which is why those 24 functions having no `anon` grant is the trigger working as intended
+> and **not** evidence of an outage. Do not "fix" those.
+>
+> A bare `GRANT` does **not** fire the sweep, so a grants-only migration is safe and is the correct
+> repair. It is also why a grant issued *after* the `CREATE` in the same migration survives — the
+> trigger already fired on the `CREATE`.
 
 The cost was a live outage. `contractor_register_search` is the public contractor register search.
 It was granted to `anon`, then two migrations patched it the next day — one a disclosure-wording
