@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import ScanTracker from '@/app/components/ScanTracker'
+import { CATEGORY_LABELS } from '@/lib/tradeCategories'
 
 const SB_HOST = 'eaifqorwmgayiqmbtzcg.supabase.co'
 // Read from the environment — never hardcode the key. Set SUPABASE_SECRET_KEY in
@@ -36,35 +37,6 @@ async function getPermitSummary(slug: string) {
   return await permitRes.json()
 }
 
-const CATEGORY_LABELS: Record<string, string> = {
-  general_contractor: 'General Contractor',
-  building_contractor: 'Building Contractor',
-  underground_utility: 'Underground Utility',
-  pollutant_storage: 'Pollutant Storage',
-  tank_testing: 'Precision Tank Testing',
-  education_provider: 'Continuing Education Provider',
-  qualifier_business: 'Business Registration',
-  roofing: 'Roofing',
-  plumbing: 'Plumbing',
-  hvac: 'HVAC',
-  electrical: 'Electrical',
-  pool_spa: 'Pool & Spa',
-  specialty: 'Specialty Contractor',
-  sheet_metal: 'Sheet Metal',
-  solar: 'Solar',
-  painting: 'Painting',
-  flooring: 'Flooring',
-  masonry: 'Masonry',
-  landscaping: 'Landscaping',
-  windows_doors: 'Windows & Doors',
-  insulation: 'Insulation',
-  drywall: 'Drywall',
-  fencing: 'Fencing',
-  fire_protection: 'Fire Protection',
-  residential_contractor: 'Residential Contractor',
-  general_engineering: 'General Engineering',
-  pressure_washing: 'Pressure Washing',
-}
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params

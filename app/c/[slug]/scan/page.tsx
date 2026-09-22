@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation'
 import ScanLanding from '@/app/components/ScanLanding'
+import { CATEGORY_LABELS } from '@/lib/tradeCategories'
 
 const SB_HOST = 'eaifqorwmgayiqmbtzcg.supabase.co'
 // Read from the environment — never hardcode the key. Set SUPABASE_SECRET_KEY in
@@ -7,35 +8,6 @@ const SB_HOST = 'eaifqorwmgayiqmbtzcg.supabase.co'
 const SB_KEY  = process.env.SUPABASE_SECRET_KEY ?? ''
 const SB_HEADERS = { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
 
-const CATEGORY_LABELS: Record<string, string> = {
-  general_contractor: 'General Contractor',
-  building_contractor: 'Building Contractor',
-  underground_utility: 'Underground Utility',
-  pollutant_storage: 'Pollutant Storage',
-  tank_testing: 'Precision Tank Testing',
-  education_provider: 'Continuing Education Provider',
-  qualifier_business: 'Business Registration',
-  roofing: 'Roofing',
-  plumbing: 'Plumbing',
-  hvac: 'HVAC',
-  electrical: 'Electrical',
-  pool_spa: 'Pool & Spa',
-  specialty: 'Specialty Contractor',
-  sheet_metal: 'Sheet Metal',
-  solar: 'Solar',
-  painting: 'Painting',
-  flooring: 'Flooring',
-  masonry: 'Masonry',
-  landscaping: 'Landscaping',
-  windows_doors: 'Windows & Doors',
-  insulation: 'Insulation',
-  drywall: 'Drywall',
-  fencing: 'Fencing',
-  fire_protection: 'Fire Protection',
-  residential_contractor: 'Residential Contractor',
-  general_engineering: 'General Engineering',
-  pressure_washing: 'Pressure Washing',
-}
 
 async function getContractor(slug: string) {
   const res = await fetch(
