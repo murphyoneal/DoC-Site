@@ -1,62 +1,46 @@
-// The ONE display map for contractors.doc_category.
+// GENERATED FILE — DO NOT EDIT.
+// Source of truth: the trade_display_category table.
+// Regenerate with: npm run categories:generate
 //
-// This existed as three hand-maintained copies — app/c/[slug]/page.tsx,
-// app/c/[slug]/scan/page.tsx and app/components/ContractorMap.tsx — and they had
-// drifted, twice over:
+// Hand-editing this file recreates exactly the defect it replaced. CATEGORY_LABELS was three
+// hand-maintained copies and drifted twice — qualifier_business absent from one (407 rows would
+// have rendered the raw slug) and labelled "General Contractor" in another, asserting an
+// unlimited licence scope on 407 business registrations, live on the homepage map.
 //
-//   * qualifier_business was absent from the profile copy entirely, so 407 served
-//     rows would have rendered the raw slug.
-//   * the map copy labelled qualifier_business 'General Contractor' — a business
-//     registration displayed as an unlimited-scope licence, which is the same
-//     overstatement that s.489.105 work had just removed everywhere else. It
-//     survived in the third copy because nothing compared them.
-//
-// Three copies of one vocabulary is the same shape as two columns storing one
-// fact; it just fails in the display layer instead of the data layer. One map,
-// imported.
-//
-// The KEYS are contractors.doc_category values. Those are set from
-// trade_code_registry.display_category for every code whose licence determines
-// the trade, and left alone for QB, which carries a per-business category the
-// code cannot supply. So a new key appears here only when the registry gains a
-// new display_category — and an unmapped value is NOT inert: it falls through to
-// trade_label on the profile and renders the raw slug on the map.
-//
-// The labels must not overstate the licence. Under s.489.105 a Certified General
-// Contractor is unlimited as to type of work; a Building Contractor is limited to
-// three storeys; a Residential Contractor to one-, two- and three-family homes.
-// Only general_contractor may read "General Contractor".
+// Keys are contractors.doc_category values. An unmapped value is NOT inert: it falls through to
+// trade_label on the profile and renders the raw slug on the map. Only general_contractor may
+// read "General Contractor" — see s.489.105.
 export const CATEGORY_LABELS: Record<string, string> = {
-  // licence scope, per s.489.105
-  general_contractor: 'General Contractor',
-  building_contractor: 'Building Contractor',
-  residential_contractor: 'Residential Contractor',
-  underground_utility: 'Underground Utility',
-  pollutant_storage: 'Pollutant Storage',
-  tank_testing: 'Precision Tank Testing',
+  // licence scope, per s.489.105 — these describe what may legally be built
+  building_contractor: "Building Contractor",
+  general_contractor: "General Contractor",
+  pollutant_storage: "Pollutant Storage",
+  residential_contractor: "Residential Contractor",
+  tank_testing: "Precision Tank Testing",
+  underground_utility: "Underground Utility",
   // trades
-  roofing: 'Roofing',
-  plumbing: 'Plumbing',
-  hvac: 'HVAC',
-  electrical: 'Electrical',
-  pool_spa: 'Pool & Spa',
-  specialty: 'Specialty Contractor',
-  sheet_metal: 'Sheet Metal',
-  solar: 'Solar',
-  painting: 'Painting',
-  flooring: 'Flooring',
-  masonry: 'Masonry',
-  landscaping: 'Landscaping',
-  windows_doors: 'Windows & Doors',
-  insulation: 'Insulation',
-  drywall: 'Drywall',
-  fencing: 'Fencing',
-  fire_protection: 'Fire Protection',
-  general_engineering: 'General Engineering',
-  pressure_washing: 'Pressure Washing',
-  // not a trade at all
-  qualifier_business: 'Business Registration',
-  education_provider: 'Continuing Education Provider',
+  drywall: "Drywall",
+  electrical: "Electrical",
+  fencing: "Fencing",
+  fire_protection: "Fire Protection",
+  flooring: "Flooring",
+  general_engineering: "General Engineering",
+  hvac: "HVAC",
+  insulation: "Insulation",
+  landscaping: "Landscaping",
+  masonry: "Masonry",
+  painting: "Painting",
+  plumbing: "Plumbing",
+  pool_spa: "Pool & Spa",
+  pressure_washing: "Pressure Washing",
+  roofing: "Roofing",
+  sheet_metal: "Sheet Metal",
+  solar: "Solar",
+  specialty: "Specialty Contractor",
+  windows_doors: "Windows & Doors",
+  // not a trade and not a scope
+  education_provider: "Continuing Education Provider",
+  qualifier_business: "Business Registration",
 }
 
 /** Display label for a doc_category, falling back to the licence's own trade label. */
