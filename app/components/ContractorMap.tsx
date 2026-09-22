@@ -94,6 +94,11 @@ export default function ContractorMap({ category, emergency, onCountChange }: Ma
 
       const CATEGORY_LABELS: Record<string, string> = {
         general_contractor: 'General Contractor',
+        building_contractor: 'Building Contractor',
+        underground_utility: 'Underground Utility',
+        pollutant_storage: 'Pollutant Storage',
+        tank_testing: 'Precision Tank Testing',
+        education_provider: 'Continuing Education Provider',
         roofing: 'Roofing',
         plumbing: 'Plumbing',
         hvac: 'HVAC',
