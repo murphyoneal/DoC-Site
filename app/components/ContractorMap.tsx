@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useCallback, useState } from 'react'
 import type { ContractorMapPin } from '@/types/contractor'
+import { CATEGORY_LABELS } from '@/lib/tradeCategories'
 
 // ── MAP LAYER TYPES ───────────────────────────────────────────────────────────
 type BaseLayer = 'streets' | 'satellite' | 'terrain'
@@ -92,35 +93,6 @@ export default function ContractorMap({ category, emergency, onCountChange }: Ma
 
       const mapboxgl = (await import('mapbox-gl')).default
 
-      const CATEGORY_LABELS: Record<string, string> = {
-        general_contractor: 'General Contractor',
-        building_contractor: 'Building Contractor',
-        underground_utility: 'Underground Utility',
-        pollutant_storage: 'Pollutant Storage',
-        tank_testing: 'Precision Tank Testing',
-        education_provider: 'Continuing Education Provider',
-        roofing: 'Roofing',
-        plumbing: 'Plumbing',
-        hvac: 'HVAC',
-        electrical: 'Electrical',
-        pool_spa: 'Pool & Spa',
-        specialty: 'Specialty Contractor',
-        sheet_metal: 'Sheet Metal',
-        solar: 'Solar',
-        painting: 'Painting',
-        flooring: 'Flooring',
-        masonry: 'Masonry',
-        landscaping: 'Landscaping',
-        windows_doors: 'Windows & Doors',
-        insulation: 'Insulation',
-        drywall: 'Drywall',
-        fencing: 'Fencing',
-        fire_protection: 'Fire Protection',
-        residential_contractor: 'Residential Contractor',
-        general_engineering: 'General Engineering',
-        qualifier_business: 'General Contractor',
-        pressure_washing: 'Pressure Washing',
-      }
 
       contractors.forEach(function(c) {
         if (c.lat == null || c.lng == null) return
