@@ -10,7 +10,7 @@ const SB_HEADERS = { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
 
 async function getContractor(slug: string) {
   const res = await fetch(
-    `https://${SB_HOST}/rest/v1/contractors?slug=eq.${encodeURIComponent(slug)}&select=slug,display_name,license_number,claimed,doc_category,city,state&limit=1`,
+    `https://${SB_HOST}/rest/v1/contractors_public?slug=eq.${encodeURIComponent(slug)}&select=slug,display_name,license_number,claimed,doc_category,city,state&limit=1`,
     { headers: SB_HEADERS, next: { revalidate: 60 } }
   )
   if (!res.ok) return null
