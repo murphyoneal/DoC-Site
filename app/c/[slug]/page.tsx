@@ -43,6 +43,8 @@ const CATEGORY_LABELS: Record<string, string> = {
   hvac: 'HVAC',
   electrical: 'Electrical',
   pool_spa: 'Pool & Spa',
+  specialty: 'Specialty Contractor',
+  sheet_metal: 'Sheet Metal',
   solar: 'Solar',
   painting: 'Painting',
   flooring: 'Flooring',
