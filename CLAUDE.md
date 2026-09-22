@@ -211,6 +211,38 @@ transaction on 2026-09-08: re-applying an **identical** body took
 > `pg_event_trigger` and the function, together, and then prove it with a negative control that is
 > supposed to FAIL — a control using the wrong DDL shape passed cleanly and nearly confirmed the
 > wrong story a third time.
+>
+> ---
+>
+> **FIXED 2026-09-22** (migration `scope_revoke_public_on_new_secdef_to_touched_objects`, approved
+> by Murphy). The collateral damage above is gone. The handler now selects from
+> `pg_event_trigger_ddl_commands()` joined on `p.oid = c.objid` with
+> `c.classid = 'pg_proc'::regclass`, so it only tightens the function the DDL actually touched.
+> Only the cursor's `FROM` clause changed — loop body untouched, `evttags` untouched. **This was a
+> repair, not a relaxation:** the trigger now does what its name says.
+>
+> Asserted four ways in a rolled-back transaction, then again against the live trigger after apply:
+>
+> | | |
+> |---|---|
+> | unrelated `CREATE FUNCTION` keeps other functions' grants | ✅ *(was ❌ — the bug)* |
+> | a new SECURITY DEFINER function is still locked down | ✅ guard intact |
+> | replacing a granted SECDEF function still revokes it | ✅ |
+> | `ALTER FUNCTION` on the function itself still revokes | ✅ |
+>
+> **So the rule below is now the whole rule, and it is the narrow one again:** replacing or altering
+> a browser-reachable function still revokes *its own* grant, so that migration must re-`GRANT` and
+> assert. Unrelated function DDL no longer touches it. Note that a migration replacing
+> `revoke_public_on_new_secdef` itself is still `CREATE FUNCTION` DDL and still strips the registers
+> on the way through — the fix migration re-granted both in the same transaction for exactly that
+> reason.
+>
+> Guarded by detection `secdef-guard-must-stay-scoped-to-touched-objects`, which asserts the handler
+> is scoped, `evttags` is still `{CREATE FUNCTION, ALTER FUNCTION}`, and the trigger is not disabled.
+> It is a catalog check and says so in its own `false_positive_notes`: it cannot exercise the
+> trigger, because a detection must not have side effects. The behavioural half stays with the two
+> `*-anon-execute-missing` detections, which assert the grants exist *and* the functions still
+> return a payload. Cause and consequence, checked separately.
 
 The cost was a live outage. `contractor_register_search` is the public contractor register search.
 It was granted to `anon`, then two migrations patched it the next day — one a disclosure-wording
