@@ -164,31 +164,53 @@ on the function's **own** DDL, and `CREATE OR REPLACE` is that DDL. Proven in a 
 transaction on 2026-09-08: re-applying an **identical** body took
 `has_function_privilege('anon', …)` from **true to false**.
 
-> **CORRECTED 2026-09-09 — this IS a general hazard, and the previous wording here caused a second
-> outage.** This section used to read "Unrelated DDL elsewhere does *not* strip it — tested the same
-> way — so this is not a general hazard, it is specific to touching the function itself." **That is
-> false.** Read the trigger body: `revoke_public_on_new_secdef` is `ON ddl_command_end` and it does
-> **not** look at which object the DDL touched. It loops over **every** SECURITY DEFINER function in
-> `public` not owned by `supabase_admin` that currently holds an `anon` or `authenticated` grant, and
-> revokes all of them. So **ANY DDL anywhere in the database** — a `CREATE INDEX`, an `ALTER TABLE`,
-> a new unrelated function — silently strips **every** browser-reachable SECURITY DEFINER endpoint.
+> **CORRECTED 2026-09-09, AND THE CORRECTION ITSELF CORRECTED 2026-09-22.** Two wrong statements
+> have stood here. Both came from reading one half of the mechanism. The trigger has **two parts —
+> what it SUBSCRIBES to, and what it DOES when it fires — and you have to read both.**
 >
-> How it recurred: building `agent_register_search` ran three migrations containing DDL
-> (`ALTER TABLE dbpr_snapshot_log`, `CREATE INDEX` ×3, `CREATE FUNCTION`). None of them mentioned
-> `contractor_register_search`. Each one revoked its grant anyway. The contractor register was
-> serving `401 / 42501` again within hours of the first outage being written up, and it was found
-> only because a routine `has_function_privilege` check was run while composing a handoff.
+> - `pg_event_trigger.evttags` is the subscription: **`{CREATE FUNCTION, ALTER FUNCTION}`**.
+> - `revoke_public_on_new_secdef` is the body, and it is **unscoped** — it ignores which object the
+>   DDL touched and loops over **every** SECURITY DEFINER function in `public` not owned by
+>   `supabase_admin` holding an `anon` or `authenticated` grant, revoking all of them.
 >
-> **So: after ANY migration containing ANY DDL, re-assert the grants on every browser-called RPC.**
-> Today that set is exactly two — `contractor_register_search` and `agent_register_search` — and it
-> is enumerable in one command: `grep -rhoE "rpc/[a-zA-Z_]+" public/*.html ../DoC-Public/*.html`.
-> Everything else the front end calls goes through server routes on `service_role`, which bypasses
-> grants, which is why those 24 functions having no `anon` grant is the trigger working as intended
-> and **not** evidence of an outage. Do not "fix" those.
+> **The first wrong version** (2026-09-08) read the *subscription* and concluded the hazard was
+> per-function: "Unrelated DDL elsewhere does *not* strip it — this is not a general hazard, it is
+> specific to touching the function itself." **The second wrong version** (2026-09-09, mine) read
+> the *body* and concluded the opposite extreme: "**ANY DDL anywhere** — a `CREATE INDEX`, an
+> `ALTER TABLE` — strips every endpoint." Both are false, in opposite directions.
+>
+> **What is actually true, measured 2026-09-22 in rolled-back transactions:**
+>
+> - `CREATE TABLE`, `ALTER TABLE`, `CREATE INDEX` → **grants survive.** The trigger never fires;
+>   those tags aren't subscribed. My 2026-09-09 wording was wrong and PR #7 shipped it.
+> - **One** unrelated `CREATE FUNCTION` — trivial, not even SECURITY DEFINER —
+>   (`create function public._x() returns int language sql as 'select 42'`) → took **both** public
+>   registers from `true` to `false` in a single statement. *That* is the collateral damage.
+>
+> So the rule is narrower than "any DDL" and far wider than "the function itself":
+> **creating or replacing ANY function anywhere in `public` strips EVERY browser-reachable
+> SECURITY DEFINER endpoint.** What actually caused the 2026-09-09 outage was the
+> `CREATE OR REPLACE FUNCTION agent_register_search` (command tag `CREATE FUNCTION`), not the index
+> or table migrations I blamed at the time.
+>
+> **So: after any migration containing function DDL, re-assert the grants on every browser-called
+> RPC.** That set is exactly two today — `contractor_register_search` and `agent_register_search` —
+> and it is enumerable, not guessable:
+> `grep -rhoE "rpc/[a-zA-Z_]+" public/*.html ../DoC-Public/*.html`. Everything else the front end
+> calls goes through server routes on `service_role`, which bypasses grants — which is why those 24
+> other functions having no `anon` grant is the trigger working as intended and **not** an outage.
+> Do not "fix" those.
 >
 > A bare `GRANT` does **not** fire the sweep, so a grants-only migration is safe and is the correct
 > repair. It is also why a grant issued *after* the `CREATE` in the same migration survives — the
 > trigger already fired on the `CREATE`.
+>
+> **The standing lesson, which is the reason this note has been wrong twice:** an event trigger's
+> behaviour is `evttags` **plus** the handler body. Reading `pg_get_functiondef` alone tells you
+> what it does and not when; reading `evttags` alone tells you when and not to what. Query
+> `pg_event_trigger` and the function, together, and then prove it with a negative control that is
+> supposed to FAIL — a control using the wrong DDL shape passed cleanly and nearly confirmed the
+> wrong story a third time.
 
 The cost was a live outage. `contractor_register_search` is the public contractor register search.
 It was granted to `anon`, then two migrations patched it the next day — one a disclosure-wording
