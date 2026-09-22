@@ -39,7 +39,9 @@ export default function ClaimForm({ slug, licenseNumber, displayName }: Props) {
 
     setLoading(true)
     try {
-      const res = await fetch('/api/claim', {
+      // The handler is app/claim/route.ts, which serves POST /claim. There is no /api/claim
+      // route and there never was — this posted to a 404 on every profile page.
+      const res = await fetch('/claim', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

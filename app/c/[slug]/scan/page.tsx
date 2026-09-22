@@ -31,7 +31,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 
 async function getContractor(slug: string) {
   const res = await fetch(
-    `https://${SB_HOST}/rest/v1/contractors?slug=eq.${encodeURIComponent(slug)}&select=slug,display_name,doc_category,trade_label,city,state,website,claimed&limit=1`,
+    `https://${SB_HOST}/rest/v1/contractors_public?slug=eq.${encodeURIComponent(slug)}&select=slug,display_name,doc_category,trade_label,city,state,website,claimed&limit=1`,
     { headers: SB_HEADERS, next: { revalidate: 60 } }
   )
   if (!res.ok) return null

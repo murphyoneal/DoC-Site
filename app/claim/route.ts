@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
 
     // Get contractor id from slug
     const lookupRes = await fetch(
-      `https://${SB_HOST}/rest/v1/contractors?slug=eq.${encodeURIComponent(slug)}&select=id,claimed&limit=1`,
+      `https://${SB_HOST}/rest/v1/contractors_public?slug=eq.${encodeURIComponent(slug)}&select=id,claimed&limit=1`,
       { headers: SB_HEADERS }
     )
     const contractors = await lookupRes.json()

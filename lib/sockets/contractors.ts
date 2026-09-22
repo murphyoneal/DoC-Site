@@ -29,12 +29,12 @@ export const contractorSocket = {
     ]
     if (filters.category) { parts.push('doc_category=eq.' + filters.category) }
     if (filters.emergency) { parts.push('emergency_available=eq.true') }
-    const data = await httpGet('/rest/v1/contractors?' + parts.join('&'))
+    const data = await httpGet('/rest/v1/contractors_public?' + parts.join('&'))
     return data as ContractorMapPin[]
   },
 
   forProfile: async function(slug: string): Promise<Contractor | null> {
-    const data = await httpGet('/rest/v1/contractors?select=*&slug=eq.' + slug + '&active=eq.true&limit=1')
+    const data = await httpGet('/rest/v1/contractors_public?select=*&slug=eq.' + slug + '&active=eq.true&limit=1')
     return data[0] as Contractor ?? null
   },
 
@@ -46,7 +46,7 @@ export const contractorSocket = {
       'order=verified.desc',
       'limit=' + limit,
     ]
-    const data = await httpGet('/rest/v1/contractors?' + parts.join('&'))
+    const data = await httpGet('/rest/v1/contractors_public?' + parts.join('&'))
     return data as Contractor[]
   },
 
@@ -55,7 +55,7 @@ export const contractorSocket = {
       const https = require('https')
       const req = https.get({
         hostname: SB_HOST,
-        path: '/rest/v1/contractors?in_volusia=eq.true&active=eq.true&select=id',
+        path: '/rest/v1/contractors_public?in_volusia=eq.true&active=eq.true&select=id',
         headers: Object.assign({}, SB_HEADERS, { 'Prefer': 'count=exact' })
       }, function(res: any) {
         const h = res.headers['content-range']
@@ -79,7 +79,7 @@ export const contractorSocket = {
       'order=verified.desc',
       'limit=' + limit,
     ]
-    const data = await httpGet('/rest/v1/contractors?' + parts.join('&'))
+    const data = await httpGet('/rest/v1/contractors_public?' + parts.join('&'))
     return data as Contractor[]
   },
 
@@ -91,7 +91,7 @@ export const contractorSocket = {
       'order=verified.desc',
       'limit=' + limit,
     ]
-    const data = await httpGet('/rest/v1/contractors?' + parts.join('&'))
+    const data = await httpGet('/rest/v1/contractors_public?' + parts.join('&'))
     return data as Contractor[]
   },
 
@@ -108,7 +108,7 @@ export const contractorSocket = {
       ]
       const req = https.get({
         hostname: SB_HOST,
-        path: '/rest/v1/contractors?' + parts.join('&'),
+        path: '/rest/v1/contractors_public?' + parts.join('&'),
         headers: Object.assign({}, SB_HEADERS, { 'Prefer': 'count=exact' })
       }, function(res: any) {
         const h = res.headers['content-range']
@@ -132,7 +132,7 @@ export const contractorSocket = {
       'order=verified.desc',
       'limit=' + limit,
     ]
-    const data = await httpGet('/rest/v1/contractors?' + parts.join('&'))
+    const data = await httpGet('/rest/v1/contractors_public?' + parts.join('&'))
     return data as Contractor[]
   },
 
