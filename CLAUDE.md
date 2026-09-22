@@ -162,9 +162,87 @@ offline — and the two facts live one section apart, so read them together.
 `trg_revoke_public_on_new_secdef` auto-locks SECURITY DEFINER functions to `service_role`. It fires
 on the function's **own** DDL, and `CREATE OR REPLACE` is that DDL. Proven in a rolled-back
 transaction on 2026-09-08: re-applying an **identical** body took
-`has_function_privilege('anon', …)` from **true to false**. Unrelated DDL elsewhere does *not*
-strip it — tested the same way — so this is not a general hazard, it is specific to touching the
-function itself.
+`has_function_privilege('anon', …)` from **true to false**.
+
+> **CORRECTED 2026-09-09, AND THE CORRECTION ITSELF CORRECTED 2026-09-22.** Two wrong statements
+> have stood here. Both came from reading one half of the mechanism. The trigger has **two parts —
+> what it SUBSCRIBES to, and what it DOES when it fires — and you have to read both.**
+>
+> - `pg_event_trigger.evttags` is the subscription: **`{CREATE FUNCTION, ALTER FUNCTION}`**.
+> - `revoke_public_on_new_secdef` is the body, and it is **unscoped** — it ignores which object the
+>   DDL touched and loops over **every** SECURITY DEFINER function in `public` not owned by
+>   `supabase_admin` holding an `anon` or `authenticated` grant, revoking all of them.
+>
+> **The first wrong version** (2026-09-08) read the *subscription* and concluded the hazard was
+> per-function: "Unrelated DDL elsewhere does *not* strip it — this is not a general hazard, it is
+> specific to touching the function itself." **The second wrong version** (2026-09-09, mine) read
+> the *body* and concluded the opposite extreme: "**ANY DDL anywhere** — a `CREATE INDEX`, an
+> `ALTER TABLE` — strips every endpoint." Both are false, in opposite directions.
+>
+> **What is actually true, measured 2026-09-22 in rolled-back transactions:**
+>
+> - `CREATE TABLE`, `ALTER TABLE`, `CREATE INDEX` → **grants survive.** The trigger never fires;
+>   those tags aren't subscribed. My 2026-09-09 wording was wrong and PR #7 shipped it.
+> - **One** unrelated `CREATE FUNCTION` — trivial, not even SECURITY DEFINER —
+>   (`create function public._x() returns int language sql as 'select 42'`) → took **both** public
+>   registers from `true` to `false` in a single statement. *That* is the collateral damage.
+>
+> So the rule is narrower than "any DDL" and far wider than "the function itself":
+> **creating or replacing ANY function anywhere in `public` strips EVERY browser-reachable
+> SECURITY DEFINER endpoint.** What actually caused the 2026-09-09 outage was the
+> `CREATE OR REPLACE FUNCTION agent_register_search` (command tag `CREATE FUNCTION`), not the index
+> or table migrations I blamed at the time.
+>
+> **So: after any migration containing function DDL, re-assert the grants on every browser-called
+> RPC.** That set is exactly two today — `contractor_register_search` and `agent_register_search` —
+> and it is enumerable, not guessable:
+> `grep -rhoE "rpc/[a-zA-Z_]+" public/*.html ../DoC-Public/*.html`. Everything else the front end
+> calls goes through server routes on `service_role`, which bypasses grants — which is why those 24
+> other functions having no `anon` grant is the trigger working as intended and **not** an outage.
+> Do not "fix" those.
+>
+> A bare `GRANT` does **not** fire the sweep, so a grants-only migration is safe and is the correct
+> repair. It is also why a grant issued *after* the `CREATE` in the same migration survives — the
+> trigger already fired on the `CREATE`.
+>
+> **The standing lesson, which is the reason this note has been wrong twice:** an event trigger's
+> behaviour is `evttags` **plus** the handler body. Reading `pg_get_functiondef` alone tells you
+> what it does and not when; reading `evttags` alone tells you when and not to what. Query
+> `pg_event_trigger` and the function, together, and then prove it with a negative control that is
+> supposed to FAIL — a control using the wrong DDL shape passed cleanly and nearly confirmed the
+> wrong story a third time.
+>
+> ---
+>
+> **FIXED 2026-09-22** (migration `scope_revoke_public_on_new_secdef_to_touched_objects`, approved
+> by Murphy). The collateral damage above is gone. The handler now selects from
+> `pg_event_trigger_ddl_commands()` joined on `p.oid = c.objid` with
+> `c.classid = 'pg_proc'::regclass`, so it only tightens the function the DDL actually touched.
+> Only the cursor's `FROM` clause changed — loop body untouched, `evttags` untouched. **This was a
+> repair, not a relaxation:** the trigger now does what its name says.
+>
+> Asserted four ways in a rolled-back transaction, then again against the live trigger after apply:
+>
+> | | |
+> |---|---|
+> | unrelated `CREATE FUNCTION` keeps other functions' grants | ✅ *(was ❌ — the bug)* |
+> | a new SECURITY DEFINER function is still locked down | ✅ guard intact |
+> | replacing a granted SECDEF function still revokes it | ✅ |
+> | `ALTER FUNCTION` on the function itself still revokes | ✅ |
+>
+> **So the rule below is now the whole rule, and it is the narrow one again:** replacing or altering
+> a browser-reachable function still revokes *its own* grant, so that migration must re-`GRANT` and
+> assert. Unrelated function DDL no longer touches it. Note that a migration replacing
+> `revoke_public_on_new_secdef` itself is still `CREATE FUNCTION` DDL and still strips the registers
+> on the way through — the fix migration re-granted both in the same transaction for exactly that
+> reason.
+>
+> Guarded by detection `secdef-guard-must-stay-scoped-to-touched-objects`, which asserts the handler
+> is scoped, `evttags` is still `{CREATE FUNCTION, ALTER FUNCTION}`, and the trigger is not disabled.
+> It is a catalog check and says so in its own `false_positive_notes`: it cannot exercise the
+> trigger, because a detection must not have side effects. The behavioural half stays with the two
+> `*-anon-execute-missing` detections, which assert the grants exist *and* the functions still
+> return a payload. Cause and consequence, checked separately.
 
 The cost was a live outage. `contractor_register_search` is the public contractor register search.
 It was granted to `anon`, then two migrations patched it the next day — one a disclosure-wording
