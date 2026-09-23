@@ -4,6 +4,12 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Florida real estate licence register — Department of Property</title>
 <meta name="description" content="Search Florida's real estate licence register — sales associates, brokers, brokerages and branch offices, with the licence type, county and status held on each record. Free to search.">
+<meta name="robots" content="noindex, nofollow">
+<!-- Nothing here is crawled until every form and function is tested and audited.
+     These pages live in public/ and are served directly by Vercel, so the site-wide
+     kill-switch in app/layout.tsx (SITE_INDEXABLE) never applied to them. robots.txt
+     covers the domain, but it asks a crawler not to FETCH and is not an index
+     directive — a page linked from elsewhere can be indexed without being fetched. -->
 <link rel="icon" href="dop-seal.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
