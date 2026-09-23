@@ -19,7 +19,12 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: '*',
         allow: '/',
-        disallow: ['/api/', '/claim/', '/_next/', '/prototype/'],
+        // /report/ is the $5 product. Its free teaser names the parcel owner, and the
+        // product emails permanent report links — so any forwarded link is a crawl path
+        // to a page about a named individual at their home address. One page per parcel,
+        // 10.7M parcels. The sitemap does not enumerate them; this stops them being
+        // crawled if they are found another way.
+        disallow: ['/api/', '/claim/', '/report/', '/_next/', '/prototype/'],
       },
       // Known SEO scrapers we don't want crawling regardless.
       {
