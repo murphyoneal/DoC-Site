@@ -71,7 +71,7 @@ export default async function ClaimPage({ params }: { params: Promise<{ slug: st
               </p>
               <p style={{ fontSize: '0.82rem', color: 'var(--color-sage)', margin: 0 }}>
                 Claiming your profile lets you update contact details, respond to enquiries, and verify your permit history.
-                We verify ownership using your DBPR licence number.
+                We check your licence number against the state register before your entry is published.
               </p>
             </div>
 
