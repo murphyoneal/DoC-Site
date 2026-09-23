@@ -39,6 +39,33 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'This profile has already been claimed' }, { status: 409 })
     }
 
+    // Compare the submitted licence against the record being claimed, and against the other
+    // records of the same business. This is RECORDED, never enforced: a mismatch is a claim that
+    // needs a person, not a rejection. Our own Terms say a licence number is not proof of
+    // authority — the cardholder and the qualifying agent are often different people.
+    //
+    // A failure here must not block the claim. Losing a verdict is recoverable; losing the claim
+    // is not, and the endpoint has never successfully run in production.
+    let licenceMatch: { state: string | null; note: string | null } = { state: null, note: null }
+    try {
+      const matchRes = await fetch(
+        `https://${SB_HOST}/rest/v1/rpc/evaluate_claim_licence`,
+        {
+          method: 'POST',
+          headers: { ...SB_HEADERS, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ p_contractor_id: contractor.id, p_submitted: license_number }),
+        }
+      )
+      if (matchRes.ok) {
+        const m = await matchRes.json()
+        licenceMatch = { state: m?.state ?? null, note: m?.note ?? null }
+      } else {
+        console.error('[claim] licence check returned', matchRes.status, await matchRes.text())
+      }
+    } catch (e) {
+      console.error('[claim] licence check failed', e)
+    }
+
     // Insert claim request
     const insertRes = await fetch(
       `https://${SB_HOST}/rest/v1/claim_requests`,
@@ -53,6 +80,9 @@ export async function POST(req: NextRequest) {
           license_number,
           message: message || null,
           status: 'pending',
+          // recorded for the reviewer; never a gate. claimed stays manual and is not set here.
+          licence_match_state: licenceMatch.state,
+          licence_match_note: licenceMatch.note,
         }),
       }
     )
