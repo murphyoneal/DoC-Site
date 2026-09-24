@@ -1,4 +1,5 @@
 ﻿import { NextRequest, NextResponse } from 'next/server'
+import { resolveBusinessSlug } from '@/lib/business'
 
 const SB_HOST = 'eaifqorwmgayiqmbtzcg.supabase.co'
 const SB_KEY = process.env.SUPABASE_SECRET_KEY!
@@ -25,9 +26,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
-    // Get contractor id from slug
+    // Get contractor id from slug. A retired slug (another licence record of the same business)
+    // resolves to the business's slug first, so a business is claimed once, not per licence.
+    const business = await resolveBusinessSlug(slug)
+    const claimSlug = business?.slug ?? slug
     const lookupRes = await fetch(
-      `https://${SB_HOST}/rest/v1/contractors_public?slug=eq.${encodeURIComponent(slug)}&select=id,claimed&limit=1`,
+      `https://${SB_HOST}/rest/v1/contractors_public?slug=eq.${encodeURIComponent(claimSlug)}&select=id,claimed&limit=1`,
       { headers: SB_HEADERS }
     )
     const contractors = await lookupRes.json()

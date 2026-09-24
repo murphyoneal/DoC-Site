@@ -1,6 +1,7 @@
-import { notFound } from 'next/navigation'
+import { notFound, permanentRedirect } from 'next/navigation'
 import Link from 'next/link'
 import ClaimForm from '@/app/components/ClaimForm'
+import { resolveBusinessSlug } from '@/lib/business'
 
 const SB_HOST = 'eaifqorwmgayiqmbtzcg.supabase.co'
 // Read from the environment — never hardcode the key. Set SUPABASE_SECRET_KEY in
@@ -27,6 +28,11 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 export default async function ClaimPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
+
+  // A business is claimed once, under its own slug — never per licence record.
+  const business = await resolveBusinessSlug(slug)
+  if (business?.redirect) permanentRedirect(`/claim/${business.slug}`)
+
   const c = await getContractor(slug)
   if (!c) notFound()
 

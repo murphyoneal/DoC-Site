@@ -1,16 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { contractorSocket } from '@/lib/sockets/contractors'
 import { SITE_URL } from '@/lib/site'
+import { resolveBusinessSlug } from '@/lib/business'
 
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
 ) {
-  const { slug } = await params
+  const { slug: rawSlug } = await params
 
-  if (!/^[a-z0-9-]+$/.test(slug)) {
+  if (!/^[a-z0-9-]+$/.test(rawSlug)) {
     return NextResponse.json({ error: 'Invalid slug' }, { status: 400 })
   }
+
+  // A saved contact must carry the business's slug, never a retired one.
+  const business = await resolveBusinessSlug(rawSlug)
+  const slug = business?.slug ?? rawSlug
 
   const c = await contractorSocket.forProfile(slug)
   if (!c) {

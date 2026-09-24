@@ -1,6 +1,7 @@
-import { notFound } from 'next/navigation'
+import { notFound, permanentRedirect } from 'next/navigation'
 import ScanLanding from '@/app/components/ScanLanding'
 import { CATEGORY_LABELS } from '@/lib/tradeCategories'
+import { resolveBusinessSlug, withQuery } from '@/lib/business'
 
 const SB_HOST = 'eaifqorwmgayiqmbtzcg.supabase.co'
 // Read from the environment — never hardcode the key. Set SUPABASE_SECRET_KEY in
@@ -37,7 +38,12 @@ export default async function ScanPage({
   searchParams: Promise<{ ref?: string }>
 }) {
   const { slug } = await params
-  const { ref } = await searchParams
+  const sp = await searchParams
+  const { ref } = sp
+
+  const business = await resolveBusinessSlug(slug)
+  if (business?.redirect) permanentRedirect(withQuery(`/c/${business.slug}/scan`, sp))
+
   const c = await getContractor(slug)
   if (!c) notFound()
 
