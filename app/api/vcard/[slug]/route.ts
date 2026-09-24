@@ -32,7 +32,7 @@ export async function GET(
     `FN:${c.display_name}`,
     c.phone ? `TEL;TYPE=WORK,VOICE:${c.phone}` : null,
     c.city && c.state
-      ? `ADR;TYPE=WORK:;;${c.address_line_1 ?? ''};${c.city};${c.state};${c.zip_code ?? ''};US`
+      ? `ADR;TYPE=WORK:;;;${c.city};${c.state};${c.zip_code ?? ''};US` // no street — see the profile page
       : null,
     c.trade_label ? `TITLE:${c.trade_label}` : null,
     `URL:${baseUrl}/c/${slug}`,

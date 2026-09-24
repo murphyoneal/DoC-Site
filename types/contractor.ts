@@ -10,7 +10,6 @@ export interface ContractorMapPin {
   display_name: string
   trade_label: string | null
   doc_category: string | null
-  address_line_1: string | null
   city: string | null
   state: string | null
   zip_code: string | null

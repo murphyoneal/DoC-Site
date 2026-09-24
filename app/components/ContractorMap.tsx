@@ -111,9 +111,9 @@ export default function ContractorMap({ category, emergency, onCountChange }: Ma
           ? (CATEGORY_LABELS[c.doc_category] || c.doc_category)
           : 'Contractor'
 
-        const addressLine = c.address_line_1
-          ? c.address_line_1 + (c.city ? ', ' + c.city : '') + (c.state ? ', ' + c.state : '') + (c.zip_code ? ' ' + c.zip_code : '')
-          : c.city ? c.city + (c.state ? ', ' + c.state : '') : ''
+        // City and state only. The registered street is usually a sole trader's home; it is shown
+        // only if the business chooses to at claim time (ruling 2026-09-24).
+        const addressLine = c.city ? c.city + (c.state ? ', ' + c.state : '') : ''
 
         const popupHtml =
           '<div style="font-family:Arial,sans-serif;padding:2px">' +
