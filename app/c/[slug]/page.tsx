@@ -78,7 +78,9 @@ export default async function ContractorProfilePage({
     c.license_status === 'active'  ? '#2d7d46' :
     c.license_status === 'expired' ? '#c0392b' : '#8B6F47'
 
-  const address = [c.address_line_1, c.city, c.state, c.zip_code].filter(Boolean).join(', ')
+  // No street: the registered address is usually a sole trader's home, and it is published only
+  // if the business chooses to at claim time (ruling 2026-09-24). contractors_public nulls it too.
+  const address = [c.city, c.state, c.zip_code].filter(Boolean).join(', ')
 
   const qrUrl = `/api/qr/${slug}?ref=profile&size=200`
   const scanUrl = `/c/${slug}/scan`

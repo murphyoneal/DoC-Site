@@ -19,7 +19,7 @@ export const contractorSocket = {
 
   forMap: async function(bounds: BoundingBox, filters: { category?: string; emergency?: boolean } = {}, limit: number = 50): Promise<ContractorMapPin[]> {
     const parts = [
-      'select=id,slug,display_name,trade_label,doc_category,address_line_1,city,state,zip_code,lat,lng,tier,verified,emergency_available,license_status',
+      'select=id,slug,display_name,trade_label,doc_category,city,state,zip_code,lat,lng,tier,verified,emergency_available,license_status',
       'active=eq.true',
       'lat=gte.' + bounds.south,
       'lat=lte.' + bounds.north,
