@@ -20,6 +20,23 @@ async function getContractor(slug: string) {
   return rows?.[0] ?? null
 }
 
+// The date the licence data was retrieved from DBPR — the same log row the public register
+// search stamps its results with, so the two surfaces can never show different dates.
+async function getRecordDate(): Promise<string | null> {
+  try {
+    const res = await fetch(
+      `https://${SB_HOST}/rest/v1/dbpr_snapshot_log?is_register_source=eq.true&select=capture_date&limit=1`,
+      { headers: SB_HEADERS, next: { revalidate: 3600 } }
+    )
+    if (!res.ok) return null
+    const rows = await res.json()
+    const d = rows?.[0]?.capture_date
+    return d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }) : null
+  } catch {
+    return null
+  }
+}
+
 async function getPermitSummary(slug: string) {
   const res = await fetch(
     `https://${SB_HOST}/rest/v1/contractors_public?slug=eq.${encodeURIComponent(slug)}&select=business_name&limit=1`,
@@ -67,6 +84,7 @@ export default async function ContractorProfilePage({
   if (!c) notFound()
 
   const licences = business ? await getBusinessLicences(business.slug) : []
+  const recordDate = await getRecordDate()
 
   const permits = await getPermitSummary(slug)
   const permitCount = permits?.length ?? 0
@@ -117,7 +135,13 @@ export default async function ContractorProfilePage({
                   padding: '4px 12px', borderRadius: '20px', fontSize: '0.78rem', fontWeight: 600,
                   background: statusColor + '18', color: statusColor, border: `1px solid ${statusColor}40`
                 }}>
-                  {c.license_status ? c.license_status.charAt(0).toUpperCase() + c.license_status.slice(1) : 'Unknown'}
+                  {/* DBPR's status field, reproduced — not our endorsement. */}
+                  Licence status: {c.license_status ? c.license_status.charAt(0).toUpperCase() + c.license_status.slice(1) : 'Unknown'}
+                </span>
+                {/* This is the page a QR code lands on: the reader has no other way to know how old
+                    the record is. */}
+                <span style={{ fontSize: '0.72rem', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--color-sage)', border: '1px solid var(--color-light-gray)', padding: '4px 10px', borderRadius: '20px' }}>
+                  {recordDate ? `Record dated ${recordDate}` : 'Record date not available'}
                 </span>
                 {c.verified && (
                   <span style={{ fontSize: '0.75rem', color: 'var(--color-navy)', background: '#e8f0fb', padding: '3px 10px', borderRadius: '20px' }}>
@@ -162,7 +186,7 @@ export default async function ContractorProfilePage({
             </div>
             {c.expiry_date && (
               <div>
-                <p style={{ fontSize: '0.72rem', color: 'var(--color-sage)', margin: '0 0 2px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Expiry</p>
+                <p style={{ fontSize: '0.72rem', color: 'var(--color-sage)', margin: '0 0 2px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Expiry (as recorded)</p>
                 <p style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--color-ink)', margin: 0 }}>{c.expiry_date}</p>
               </div>
             )}
@@ -172,6 +196,11 @@ export default async function ContractorProfilePage({
                 <p style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--color-ink)', margin: 0 }}>{c.county_name}</p>
               </div>
             )}
+            <p style={{ flexBasis: '100%', fontSize: '0.74rem', color: 'var(--color-sage)', margin: 0 }}>
+              Licence status and expiry are reproduced from the Florida DBPR public licence file
+              {recordDate ? ` as retrieved on ${recordDate}` : ''}. They may have changed since — a licence
+              may have been renewed, or its status changed. Confirm current standing at myfloridalicense.com.
+            </p>
           </div>
 
           {/* Every licence record of this business. DBPR publishes one row per licence, so a
