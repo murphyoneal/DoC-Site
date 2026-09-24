@@ -23,9 +23,9 @@ async function getContractor(slug: string) {
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
   const c = await getContractor(slug)
-  if (!c) return { title: 'Contractor | Department of Construction' }
+  if (!c) return { title: 'Contractor' }
   return {
-    title: `${c.display_name} | Department of Construction`,
+    title: `${c.display_name}`,
     description: `${CATEGORY_LABELS[c.doc_category] ?? 'Contractor'} in ${c.city ?? 'Florida'}.`,
   }
 }

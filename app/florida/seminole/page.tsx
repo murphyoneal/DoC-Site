@@ -9,7 +9,7 @@ export const metadata: Metadata = {
   description: `Find licensed contractors in ${county.name}, Florida — ${county.cities.map(c => c.name).join(', ')}. DBPR verified licence data.`,
   alternates: { canonical: `/florida/${county.slug}` },
   openGraph: {
-    title: `${county.name} Licensed Contractors | Department of Construction`,
+    title: `${county.name} Licensed Contractors`,
     description: county.blurb,
     url: `/florida/${county.slug}`,
     type: 'website',

@@ -4,10 +4,13 @@ import Link from 'next/link'
 import JsonLd from './components/JsonLd'
 import { SITE_URL } from '@/lib/site'
 
+// The canonical identity a crawler reads for this domain. departmentofproperty.com is
+// Department of Property; Department of Construction is a separate live product on its own
+// domain (lib/site.ts). No legal entity is named anywhere — none exists yet (ruling 2026-09-24).
 const ORG_JSONLD = {
   '@context': 'https://schema.org',
   '@type': 'Organization',
-  name: 'Department of Construction',
+  name: 'Department of Property',
   url: SITE_URL,
   logo: `${SITE_URL}/og-image.png`,
   description:
@@ -17,18 +20,18 @@ const ORG_JSONLD = {
 const WEBSITE_JSONLD = {
   '@context': 'https://schema.org',
   '@type': 'WebSite',
-  name: 'Department of Construction',
+  name: 'Department of Property',
   url: SITE_URL,
 }
 
-const SITE_NAME = 'Department of Construction'
+const SITE_NAME = 'Department of Property'
 const SITE_DESC =
   'Search licensed contractors by trade and location. Verify licence status, find emergency services, and connect with local professionals — powered by official government registry data.'
 
 export const metadata: Metadata = {
   title: {
-    default: 'Find Licensed Contractors Near You | Department of Construction',
-    template: '%s | Department of Construction',
+    default: 'Find Licensed Contractors Near You | Department of Property',
+    template: '%s | Department of Property',
   },
   description: SITE_DESC,
   metadataBase: new URL(SITE_URL),
@@ -45,14 +48,14 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     siteName: SITE_NAME,
-    title: 'Find Licensed Contractors Near You | Department of Construction',
+    title: 'Find Licensed Contractors Near You | Department of Property',
     description: SITE_DESC,
     url: '/',
     images: [{ url: '/og-image.png', width: 512, height: 512, alt: SITE_NAME }],
   },
   twitter: {
     card: 'summary',
-    title: 'Find Licensed Contractors Near You | Department of Construction',
+    title: 'Find Licensed Contractors Near You | Department of Property',
     description: SITE_DESC,
     images: ['/og-image.png'],
   },
@@ -71,7 +74,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <JsonLd data={ORG_JSONLD} />
         <JsonLd data={WEBSITE_JSONLD} />
         <div className="disclaimer-banner">
-          Department of Construction is a technology platform, not a licensing authority.
+          This site is a technology platform, not a licensing authority.
           Always verify licence status directly with the relevant government registry.{' '}
           <Link href="/disclaimer">Learn more</Link>
         </div>
@@ -80,11 +83,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <Link href="/" className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold"
                 style={{ background: 'var(--color-bronze)', color: 'var(--color-white)' }}>
-                DoC
+                DoP
               </div>
               <span className="text-lg font-bold tracking-wide hidden sm:block"
                 style={{ fontFamily: 'Georgia, serif', color: 'var(--color-white)' }}>
-                Department of Construction
+                Department of Property
               </span>
             </Link>
             <nav className="flex items-center gap-4 text-sm">
@@ -99,7 +102,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <div className="flex flex-col sm:flex-row justify-between gap-4 text-xs" style={{ color: '#7a8faa' }}>
               <div>
                 <p className="font-semibold mb-1" style={{ color: '#aab4c8', fontFamily: 'Georgia, serif' }}>
-                  Department of Construction
+                  Department of Property
                 </p>
                 <p>Licensed contractor search powered by official government registry data.</p>
               </div>
@@ -110,7 +113,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               </div>
             </div>
             <p className="mt-4 text-xs text-center" style={{ color: '#4a5f7a' }}>
-              © {new Date().getFullYear()} Department of Construction. Technology platform only. Not affiliated with any government agency.
+              {/* No legal entity is named: none exists yet, and naming one would invent a
+                  relationship (ruling 2026-09-24). Added when an entity exists. */}
+              Technology platform only. Not affiliated with any government agency.
             </p>
           </div>
         </footer>

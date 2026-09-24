@@ -25,7 +25,7 @@ export default function CountyLanding({ county }: { county: FloridaCounty }) {
     name: `${county.name} Licensed Contractors`,
     description: `Licensed contractors in ${county.name}, Florida — ${county.cities.map(c => c.name).join(', ')}. DBPR verified licence data.`,
     url,
-    isPartOf: { '@type': 'WebSite', name: 'Department of Construction', url: BASE },
+    isPartOf: { '@type': 'WebSite', name: 'Department of Property', url: BASE },
     about: {
       '@type': 'Place',
       name: county.name,

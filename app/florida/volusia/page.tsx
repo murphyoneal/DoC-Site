@@ -4,7 +4,7 @@ import { contractorSocket } from '@/lib/sockets/contractors'
 import ContractorCard from '@/app/components/ContractorCard'
 
 export const metadata: Metadata = {
-  title: 'Volusia County Licensed Contractors | Department of Construction',
+  title: 'Volusia County Licensed Contractors',
   description:
     'Find licensed contractors in Volusia County, Florida — Daytona Beach, Port Orange, New Smyrna Beach, Ormond Beach and surrounding areas. DBPR verified licence data.',
 }
@@ -48,7 +48,8 @@ export default async function VolusiaPage() {
           Volusia County Licensed Contractors
         </h1>
         <p className="text-base mb-2" style={{ color: 'var(--color-sage)' }}>
-          {total > 0 ? `${total.toLocaleString()} licensed contractors` : '2,007 licensed contractors'} in
+          {/* No hardcoded fallback count: when the live count fails, a stale number is a false one. */}
+          {total > 0 ? `${total.toLocaleString()} licensed contractors` : 'Licensed contractors'} in
           Volusia County — from Daytona Beach to New Smyrna Beach and inland to DeLand.
         </p>
         <p className="text-sm mb-4" style={{ color: 'var(--color-sage)' }}>

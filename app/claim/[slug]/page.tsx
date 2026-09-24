@@ -22,8 +22,8 @@ async function getContractor(slug: string) {
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
   const c = await getContractor(slug)
-  if (!c) return { title: 'Claim Profile | Department of Construction' }
-  return { title: `Claim ${c.display_name} | Department of Construction` }
+  if (!c) return { title: 'Claim Profile' }
+  return { title: `Claim ${c.display_name}` }
 }
 
 export default async function ClaimPage({ params }: { params: Promise<{ slug: string }> }) {
