@@ -2,9 +2,9 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 
 export const metadata: Metadata = {
-  title: 'Disclaimer | Department of Construction',
+  title: 'Disclaimer',
   description:
-    'Department of Construction is a technology platform that aggregates public government registry data. Read our full disclaimer before relying on any information on this site.',
+    'This site is a technology platform that aggregates public government registry data. Read the full disclaimer before relying on any information on this site.',
 }
 
 export default function DisclaimerPage() {
@@ -40,7 +40,8 @@ export default function DisclaimerPage() {
             1. Technology Platform — Not a Licensing Authority
           </h2>
           <p className="mb-3">
-            Department of Construction (&quot;DoC&quot;, &quot;we&quot;, &quot;this site&quot;) is a technology platform
+            {/* No legal entity is named: none exists yet (ruling 2026-09-24). */}
+            This site (&quot;we&quot;, &quot;this site&quot;) is a technology platform
             that aggregates publicly available contractor licence data from government
             registries. We are not a licensing authority, regulatory body, government agency,
             or official government website.
@@ -104,8 +105,7 @@ export default function DisclaimerPage() {
             4. No Liability
           </h2>
           <p className="mb-3">
-            Department of Construction, its officers, employees, and data providers accept
-            no liability for:
+            This site and its data providers accept no liability for:
           </p>
           <ul className="list-disc ml-6 space-y-1">
             <li>Inaccurate, outdated, or incomplete licence information</li>

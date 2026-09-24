@@ -4,9 +4,9 @@ import { contractorSocket } from '@/lib/sockets/contractors'
 import ContractorCard from '@/app/components/ContractorCard'
 
 export const metadata: Metadata = {
-  title: 'Licensed Contractors in Florida | Department of Construction',
+  title: 'Licensed Contractors in Florida',
   description:
-    'Search 228,000+ active licensed contractors across Florida. Verify DBPR licence status, find emergency services, and connect with local professionals.',
+    'Search nearly 100,000 Florida contracting businesses. Verify DBPR licence status, find emergency services, and connect with local professionals.',
 }
 
 const FLORIDA_COUNTIES = [
@@ -44,9 +44,12 @@ export default async function FloridaPage() {
           Licensed Contractors in Florida
         </h1>
         <p className="text-base mb-4" style={{ color: 'var(--color-sage)' }}>
-          228,000+ active licensed contractors registered with the Florida Department
-          of Business &amp; Professional Regulation (DBPR). Verify licence status and
-          find professionals near you.
+          {/* Measured 2026-09-24: 98,749 businesses from 114,104 DBPR licence records. The
+              previous "228,000+ active" was more than double, and "active" is a status we only
+              hold as of the record date. */}
+          Nearly 100,000 Florida contracting businesses, from the licence file published by the
+          Florida Department of Business &amp; Professional Regulation (DBPR). Verify licence
+          status and find professionals near you.
         </p>
         <Link
           href="/?state=FL"
@@ -127,7 +130,7 @@ export default async function FloridaPage() {
           Verify a licence directly at DBPR →
         </a>
         <p className="text-xs mt-3" style={{ color: 'var(--color-sage)' }}>
-          Department of Construction is a technology platform, not a licensing authority.{' '}
+          This site is a technology platform, not a licensing authority.{' '}
           <Link href="/disclaimer" className="underline">Read our disclaimer</Link>
         </p>
       </section>

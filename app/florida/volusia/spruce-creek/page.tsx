@@ -4,7 +4,7 @@ import { contractorSocket } from '@/lib/sockets/contractors'
 import ContractorCard from '@/app/components/ContractorCard'
 
 export const metadata: Metadata = {
-  title: 'Spruce Creek Contractors — Port Orange, Volusia County | Department of Construction',
+  title: 'Spruce Creek Contractors — Port Orange, Volusia County',
   description:
     'Find licensed contractors serving Spruce Creek Fly-In and Port Orange, Florida. DBPR verified roofing, electrical, plumbing, HVAC and general contractors.',
 }

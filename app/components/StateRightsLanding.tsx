@@ -36,7 +36,7 @@ export default function StateRightsLanding({
     '@type': 'Article',
     headline: `Construction-defect deadline in ${state.state_name}`,
     description: state.homeowner_summary ?? undefined,
-    isPartOf: { '@type': 'WebSite', name: 'Department of Construction', url: BASE },
+    isPartOf: { '@type': 'WebSite', name: 'Department of Property', url: BASE },
     url,
     ...(state.primary_source_url ? { citation: state.primary_source_url } : {}),
   }

@@ -61,7 +61,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const c = await getContractor(slug)
   if (!c) return { title: 'Contractor Not Found' }
   return {
-    title: `${c.display_name} | Department of Construction`,
+    title: `${c.display_name}`,
     description: `${CATEGORY_LABELS[c.doc_category] ?? 'Contractor'} in ${c.city ?? 'Florida'}. License ${c.license_number}.`,
   }
 }
@@ -111,7 +111,7 @@ export default async function ContractorProfilePage({
       {/* Header bar */}
       <div style={{ background: 'var(--color-navy)', padding: '12px 24px', display: 'flex', alignItems: 'center', gap: '12px' }}>
         <Link href="/" style={{ color: 'var(--color-bronze)', textDecoration: 'none', fontSize: '0.82rem' }}>
-          ← Department of Construction
+          ← Department of Property
         </Link>
       </div>
 
