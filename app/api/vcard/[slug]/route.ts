@@ -22,7 +22,9 @@ export async function GET(
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? SITE_URL
+  // Canonical host only — NEXT_PUBLIC_APP_URL resolved to do-c-site.vercel.app in production,
+  // and a saved contact card keeps whatever URL it was given.
+  const baseUrl = SITE_URL
 
   const lines = [
     'BEGIN:VCARD',
