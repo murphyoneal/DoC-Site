@@ -14,6 +14,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import QRCode from 'qrcode'
 import { contractorSocket } from '@/lib/sockets/contractors'
 import { SITE_URL } from '@/lib/site'
+import { resolveBusinessSlug } from '@/lib/business'
 
 const SCREEN_MAX = 512
 const PRINT_MAX  = 1200
@@ -22,16 +23,20 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
 ) {
-  const { slug } = await params
+  const { slug: rawSlug } = await params
   const { searchParams } = req.nextUrl
 
   const requestedSize = parseInt(searchParams.get('size') ?? '256', 10)
   const ref = searchParams.get('ref') ?? ''
 
   // Validate slug format
-  if (!/^[a-z0-9-]+$/.test(slug)) {
+  if (!/^[a-z0-9-]+$/.test(rawSlug)) {
     return NextResponse.json({ error: 'Invalid slug' }, { status: 400 })
   }
+
+  // A retired slug encodes the business's slug, so a new code never points at a retired one.
+  const business = await resolveBusinessSlug(rawSlug)
+  const slug = business?.slug ?? rawSlug
 
   // Look up contractor to verify it exists
   const contractor = await contractorSocket.forProfile(slug)

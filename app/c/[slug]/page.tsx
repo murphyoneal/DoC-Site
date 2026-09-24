@@ -1,7 +1,8 @@
-import { notFound } from 'next/navigation'
+import { notFound, permanentRedirect } from 'next/navigation'
 import Link from 'next/link'
 import ScanTracker from '@/app/components/ScanTracker'
 import { CATEGORY_LABELS } from '@/lib/tradeCategories'
+import { resolveBusinessSlug, getBusinessLicences, withQuery } from '@/lib/business'
 
 const SB_HOST = 'eaifqorwmgayiqmbtzcg.supabase.co'
 // Read from the environment — never hardcode the key. Set SUPABASE_SECRET_KEY in
@@ -48,10 +49,24 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   }
 }
 
-export default async function ContractorProfilePage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function ContractorProfilePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ slug: string }>
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
+}) {
   const { slug } = await params
+
+  // A retired slug (another licence record of the same business) redirects permanently to the
+  // business's slug, keeping ?ref so a printed QR scan is still attributed.
+  const business = await resolveBusinessSlug(slug)
+  if (business?.redirect) permanentRedirect(withQuery(`/c/${business.slug}`, await searchParams))
+
   const c = await getContractor(slug)
   if (!c) notFound()
+
+  const licences = business ? await getBusinessLicences(business.slug) : []
 
   const permits = await getPermitSummary(slug)
   const permitCount = permits?.length ?? 0
@@ -156,6 +171,32 @@ export default async function ContractorProfilePage({ params }: { params: Promis
               </div>
             )}
           </div>
+
+          {/* Every licence record of this business. DBPR publishes one row per licence, so a
+              business holding two licences was two profiles; it is one business now. */}
+          {licences.length > 1 && (
+            <div style={{ marginTop: '16px' }}>
+              <p style={{ fontSize: '0.72rem', color: 'var(--color-sage)', margin: '0 0 6px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Licence records for this business
+              </p>
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {licences.map(l => (
+                  <li key={`${l.link_basis}-${l.license_number}-${l.trade_code}`} style={{ fontSize: '0.84rem', color: 'var(--color-ink)' }}>
+                    <strong>{l.license_number ?? '—'}</strong>
+                    {' · '}{l.trade_label ?? l.trade_code}
+                    {l.license_status && <> · {l.license_status}</>}
+                    {l.expiry_date && <> · expires {l.expiry_date}</>}
+                    {l.link_basis === 'qualifier' && (
+                      <span style={{ color: 'var(--color-sage)' }}> · the licence DBPR records as qualifying this business{l.holder_name ? ` (${l.holder_name})` : ''}</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+              <p style={{ fontSize: '0.72rem', color: 'var(--color-sage)', margin: '6px 0 0' }}>
+                As published in the DBPR licence file. Confirm current standing at myfloridalicense.com.
+              </p>
+            </div>
+          )}
 
           {/* Contact */}
           {(c.phone || c.email || c.website) && (
