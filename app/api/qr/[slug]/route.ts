@@ -56,8 +56,10 @@ export async function GET(
     )
   }
 
-  // Build target URL
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? SITE_URL
+  // Build target URL. Always the canonical host, never NEXT_PUBLIC_APP_URL: in production that
+  // resolved to do-c-site.vercel.app, so every code issued encoded the Vercel host. A printed
+  // code is permanent — it must name the domain the redirects live on.
+  const baseUrl = SITE_URL
   const targetUrl = ref
     ? `${baseUrl}/c/${slug}?ref=${encodeURIComponent(ref)}`
     : `${baseUrl}/c/${slug}`
