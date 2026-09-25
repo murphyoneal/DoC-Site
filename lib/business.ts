@@ -50,6 +50,17 @@ export async function getBusinessLicences(slug: string): Promise<BusinessLicence
   return ((await rpc('get_business_licences', { p_slug: slug }, 300)) ?? []) as BusinessLicence[]
 }
 
+export type RelatedBusinesses = {
+  field_status: 'present' | 'none_recorded'
+  county_name: string | null
+  items: { slug: string; name: string; trade_label: string | null; city: string | null; claimed: boolean }[]
+}
+
+// Same trade, same county; claimed first then alphabetical — never a ranking (migration 133a).
+export async function getRelatedBusinesses(slug: string): Promise<RelatedBusinesses | null> {
+  return (await rpc('get_related_businesses', { p_slug: slug, p_limit: 6 }, 3600)) as RelatedBusinesses | null
+}
+
 // Rebuilds a query string for a redirect, so ?ref=download on a printed code survives the hop
 // and the scan is still attributed.
 export function withQuery(path: string, searchParams: Record<string, string | string[] | undefined>) {
