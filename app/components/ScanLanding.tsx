@@ -1,7 +1,5 @@
 'use client'
 
-import { useEffect } from 'react'
-
 interface Props {
   slug: string
   displayName: string
@@ -25,21 +23,8 @@ export default function ScanLanding({
   websiteUrl,
   ref_,
 }: Props) {
-  useEffect(() => {
-    fetch('/api/scan', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        slug,
-        ref: ref_,
-        action: 'scan_landing',
-        trade_category: tradeCategory,
-        city,
-        state,
-      }),
-    }).catch(() => {})
-  }, [slug, ref_, tradeCategory, city, state])
-
+  // The landing itself is logged server-side by the page request (lib/scan.ts). Only the
+  // visitor's clicks are logged from here.
   function handleSaveContact() {
     fetch('/api/scan', {
       method: 'POST',
