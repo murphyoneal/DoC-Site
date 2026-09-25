@@ -2,8 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSessionUser } from '@/lib/supabase/ssr-server'
 import { addressSocket } from '@/lib/sockets/address'
 import { checkRateLimit, pruneRateLimitStore } from '@/lib/rateLimit'
-// @ts-ignore — plain ESM shared with the fixture test
-import { readOriginal, stripForPublic, metadataFree } from '@/lib/work-pipeline.mjs'
+
+// The image pipeline (sharp, a native module) is imported only once a request has passed the
+// sign-in and claim gates. If the native library ever fails to load, the gates still answer
+// correctly and the failure is a stated error, not a whole-route 500.
+async function pipeline() {
+  // @ts-ignore — plain ESM shared with the fixture test
+  return await import('@/lib/work-pipeline.mjs')
+}
 
 // POST /api/work/upload — a claimed business uploads a photo of its work (653 (d); 611, 613).
 //
@@ -43,6 +49,26 @@ async function deleteObject(bucket: string, path: string) {
 }
 const fail = (status: number, error: string) => NextResponse.json({ ok: false, error }, { status })
 
+// GET — pipeline health. Uploads sit behind the claim gate, so without this nothing on production
+// can prove the native image library actually loads there (it did not, the first time). Loads the
+// pipeline and strips a tiny generated image; touches no data. Rate-limited per IP.
+export async function GET(req: NextRequest) {
+  pruneRateLimitStore()
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
+  if (!checkRateLimit('work-health:' + ip).allowed) return fail(429, 'Too many requests.')
+  try {
+    const { stripForPublic, metadataFree } = await pipeline()
+    const sharp = (await import('sharp')).default
+    const probe = await sharp({ create: { width: 8, height: 8, channels: 3, background: { r: 0, g: 0, b: 0 } } }).png().toBuffer()
+    const out = await stripForPublic(probe)
+    const check = await metadataFree(out.data)
+    return NextResponse.json({ ok: check.free, pipeline: 'loaded', stripped_is_metadata_free: check.free })
+  } catch (e) {
+    console.error('[work/upload] health: pipeline failed', e)
+    return fail(503, 'Photo processing is unavailable.')
+  }
+}
+
 export async function POST(req: NextRequest) {
   const user = await getSessionUser()
   if (!user?.email) return fail(401, 'Sign in to upload photos.')
@@ -66,6 +92,13 @@ export async function POST(req: NextRequest) {
   // Gate: only the requester of an APPROVED claim on this business.
   const gate = await rpc('work_upload_gate', { p_slug: slug, p_email: user.email })
   if (!gate?.allowed) return fail(403, 'Photo uploads open once your claim on this business is approved.')
+
+  let readOriginal: any, stripForPublic: any, metadataFree: any
+  try { ({ readOriginal, stripForPublic, metadataFree } = await pipeline()) }
+  catch (e) {
+    console.error('[work/upload] image pipeline failed to load', e)
+    return fail(503, 'Photo processing is unavailable right now. Nothing was uploaded.')
+  }
 
   const original = Buffer.from(await file.arrayBuffer())
   let orig: { format: string; gps: { lat: number; lng: number } | null }
