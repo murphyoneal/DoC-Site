@@ -1,6 +1,8 @@
 import { notFound, permanentRedirect } from 'next/navigation'
+import { headers } from 'next/headers'
+import { after } from 'next/server'
 import Link from 'next/link'
-import ScanTracker from '@/app/components/ScanTracker'
+import { logScanServer, requestMeta, firstParam } from '@/lib/scan'
 import { CATEGORY_LABELS } from '@/lib/tradeCategories'
 import { resolveBusinessSlug, getBusinessLicences, withQuery } from '@/lib/business'
 
@@ -74,14 +76,28 @@ export default async function ContractorProfilePage({
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }) {
   const { slug } = await params
+  const sp = await searchParams
+  const ref = firstParam(sp.ref)
+  // Request data must be read here: a Server Component cannot read headers inside after().
+  const meta = requestMeta(await headers())
 
   // A retired slug (another licence record of the same business) redirects permanently to the
-  // business's slug, keeping ?ref so a printed QR scan is still attributed.
+  // business's slug, keeping ?ref so a printed QR scan is still attributed. The hop itself is
+  // logged: it is how we learn an old slug — often a printed code — is still in circulation.
   const business = await resolveBusinessSlug(slug)
-  if (business?.redirect) permanentRedirect(withQuery(`/c/${business.slug}`, await searchParams))
+  if (business?.redirect) {
+    after(() => logScanServer({ slug, ref, action: 'slug_redirect', meta }))
+    permanentRedirect(withQuery(`/c/${business.slug}`, sp))
+  }
 
   const c = await getContractor(slug)
   if (!c) notFound()
+
+  // Logged by the request, not the browser: counts visitors without JavaScript too.
+  after(() => logScanServer({
+    slug, ref, action: 'page_view',
+    tradeCategory: c.doc_category, city: c.city, state: c.state, meta,
+  }))
 
   const licences = business ? await getBusinessLicences(business.slug) : []
   const recordDate = await getRecordDate()
@@ -106,7 +122,6 @@ export default async function ContractorProfilePage({
   return (
     <main style={{ minHeight: '100vh', background: 'var(--color-cream)', padding: '0' }}>
 
-      <ScanTracker slug={slug} tradeCategory={c.doc_category} city={c.city} state={c.state} />
 
       {/* Header bar */}
       <div style={{ background: 'var(--color-navy)', padding: '12px 24px', display: 'flex', alignItems: 'center', gap: '12px' }}>
