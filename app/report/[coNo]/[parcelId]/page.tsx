@@ -130,10 +130,14 @@ function riskChip(text: string, good: boolean) {
 // → historic district. First present wins; causally-linked facts combine (contamination + GWCA), ceiling of
 // TWO clauses. When none are present it SAYS SO — section 7 immediately qualifies what we could not check, so
 // silence never reads as clearance. Nothing here is originated; every clause traces to a rendered fact.
-function buildLead(r: PirReport): { identity: string; regulatory: string; none: boolean } {
+// withOwner=false for the free teaser: the owner's name is part of the paid report, never the
+// unauthenticated preview (ruling 631) — a named private person at their home address, free, on a
+// page that exists for every parcel. The frame label is a noun phrase at source (migration 131a).
+function buildLead(r: PirReport, withOwner = true): { identity: string; regulatory: string; none: boolean } {
   const idf: any = (r as any).identityFrame ?? null
   const p = r.property
-  const owner = idf?.signals?.owner ? titleCase(String(idf.signals.owner)) : (p.ownerName ? titleCase(p.ownerName) : null)
+  const owner = !withOwner ? null
+    : idf?.signals?.owner ? titleCase(String(idf.signals.owner)) : (p.ownerName ? titleCase(p.ownerName) : null)
   const frameLabel = idf?.frame_label ? String(idf.frame_label).toLowerCase() : null
   const identity = [frameLabel ? `This is ${/^[aeiou]/i.test(frameLabel) ? 'an' : 'a'} ${frameLabel}` : 'This property',
     owner ? `owned by ${owner}` : null].filter(Boolean).join(', ')
@@ -183,7 +187,7 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
         coNo={co}
         parcelId={parcelId}
         address={titleCase(r.property.address ?? '')}
-        identity={buildLead(r).identity}
+        identity={buildLead(r, false).identity}
       />
     )
   }
