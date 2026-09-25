@@ -35,3 +35,6 @@ jobs:
 
       - name: No client bundle calls a revoked (server-only) RPC
         run: node scripts/check-client-rpc.mjs
+
+      - name: Work-photo GPS reader — a missing or malformed fix is never a position
+        run: node lib/exif-gps.test.mjs
