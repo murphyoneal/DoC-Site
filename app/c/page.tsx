@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { COUNTY_KEYS, countyLabel } from '@/lib/county'
 
 // "Search another contractor" — where a profile's search box goes (work order 653 (c)).
 // Backed by contractor_register_search, the same function the public register uses, so the two
@@ -37,7 +38,12 @@ export default async function ContractorSearchPage({
   const sp = await searchParams
   const raw = Array.isArray(sp.q) ? sp.q[0] : sp.q
   const q = (raw ?? '').trim().slice(0, 100)
-  const data = q.length >= 2 ? await search(q) : null
+  const rawCounty = String(Array.isArray(sp.county) ? sp.county[0] : sp.county ?? '').toLowerCase()
+  const county = (COUNTY_KEYS as readonly string[]).includes(rawCounty) ? rawCounty : ''
+  // Every word must match (name, licence, trade, city or county); a picked county is a strict
+  // filter, sent as county:<key> so a word like "orange" cannot stand in for Orange County.
+  const query = [q, county ? `county:${county}` : ''].filter(Boolean).join(' ')
+  const data = q.length >= 2 || county ? await search(query) : null
 
   return (
     <main style={{ maxWidth: '760px', margin: '0 auto', padding: '32px 16px' }}>
@@ -46,28 +52,36 @@ export default async function ContractorSearchPage({
       </h1>
       <form action="/c" method="get" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '20px' }}>
         <label htmlFor="q" style={{ position: 'absolute', left: '-9999px' }}>Business name or licence number</label>
-        <input id="q" name="q" type="search" defaultValue={q} required minLength={2}
-          placeholder="Business name or licence number"
+        <input id="q" name="q" type="search" defaultValue={q} minLength={2}
+          placeholder="e.g. roofing, a business name, or a licence number"
           style={{ flex: '1 1 240px', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cfc8bd', fontSize: '0.9rem' }} />
+        <label htmlFor="county" style={{ position: 'absolute', left: '-9999px' }}>County</label>
+        <select id="county" name="county" defaultValue={county}
+          style={{ padding: '10px 12px', borderRadius: '8px', border: '1px solid #cfc8bd', fontSize: '0.9rem', background: 'white' }}>
+          <option value="">All Florida counties</option>
+          {[...COUNTY_KEYS].sort((a, b) => (countyLabel(a) ?? a).localeCompare(countyLabel(b) ?? b)).map(k => (
+            <option key={k} value={k}>{countyLabel(k)}</option>
+          ))}
+        </select>
         <button type="submit" style={{ padding: '10px 18px', borderRadius: '8px', border: 'none', background: 'var(--color-navy)', color: 'white', fontWeight: 600 }}>
           Search
         </button>
       </form>
 
-      {q.length >= 2 && data === null && (
+      {(q.length >= 2 || county) && data === null && (
         <p style={{ fontSize: '0.86rem', color: '#8a4a17' }}>The search could not be run just now. This is a fault on our side — please try again.</p>
       )}
 
       {data && data.field_status !== 'present' && (
         <p style={{ fontSize: '0.86rem', color: 'var(--color-sage)' }}>
-          No licence record matched &ldquo;{q}&rdquo;. This searches the Florida licence records we hold; a business that is not in them may still be licensed elsewhere.
+          No licence record matched &ldquo;{q}&rdquo;{county ? ` in ${countyLabel(county)} County` : ''}. Every word has to match a name, licence number, trade, city or county. This searches the Florida licence records we hold; a business that is not in them may still be licensed elsewhere.
         </p>
       )}
 
       {data && data.field_status === 'present' && (
         <>
           <p style={{ fontSize: '0.78rem', color: 'var(--color-sage)', margin: '0 0 10px' }}>
-            {data.count > data.returned ? `Showing ${data.returned} of ${data.count} matching licence records.` : `${data.count} matching licence record${data.count === 1 ? '' : 's'}.`}
+            {data.count > data.returned ? `Showing ${data.returned} of ${data.count} matching licence records — add a word or pick a county to narrow it.` : `${data.count} matching licence record${data.count === 1 ? '' : 's'}.`}
           </p>
           <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {data.results.map(r => (
