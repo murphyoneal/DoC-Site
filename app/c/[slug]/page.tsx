@@ -4,7 +4,16 @@ import { after } from 'next/server'
 import Link from 'next/link'
 import { logScanServer, requestMeta, firstParam } from '@/lib/scan'
 import { CATEGORY_LABELS } from '@/lib/tradeCategories'
-import { resolveBusinessSlug, getBusinessLicences, withQuery } from '@/lib/business'
+import { resolveBusinessSlug, getBusinessLicences, getRelatedBusinesses, withQuery } from '@/lib/business'
+
+// County landing pages that exist under /florida; everywhere else falls back to /florida.
+const COUNTY_LANDINGS: Record<string, string> = {
+  volusia: '/florida/volusia', 'miami-dade': '/florida/miami-dade', orange: '/florida/orange',
+  seminole: '/florida/seminole', osceola: '/florida/osceola', lake: '/florida/lake',
+}
+function titleCaseCounty(s: string | null | undefined): string {
+  return String(s ?? '').split(/([ -])/).map(w => w.length > 1 ? w[0].toUpperCase() + w.slice(1).toLowerCase() : w).join('') || 'this'
+}
 
 const SB_HOST = 'eaifqorwmgayiqmbtzcg.supabase.co'
 // Read from the environment — never hardcode the key. Set SUPABASE_SECRET_KEY in
@@ -101,6 +110,9 @@ export default async function ContractorProfilePage({
 
   const licences = business ? await getBusinessLicences(business.slug) : []
   const recordDate = await getRecordDate()
+  const related = business ? await getRelatedBusinesses(business.slug) : null
+  const countyTitle = titleCaseCounty(c.county_name)
+  const countyLanding = COUNTY_LANDINGS[String(c.county_name ?? '').toLowerCase()] ?? '/florida'
 
   const permits = await getPermitSummary(slug)
   const permitCount = permits?.length ?? 0
@@ -333,6 +345,48 @@ export default async function ContractorProfilePage({
           >
             ↓ Save Contact
           </a>
+        </div>
+
+        {/* Everything about THIS business comes first; alternatives come after the claim card
+            (ruling 2026-09-25). The order is claimed-first then alphabetical — never a ranking. */}
+        {related?.field_status === 'present' && related.items.length > 0 && (
+          <div style={{ background: 'var(--color-white)', borderRadius: '14px', border: '1px solid var(--color-light-gray)', padding: '20px', marginTop: '28px' }}>
+            <h2 style={{ fontFamily: 'Georgia, serif', color: 'var(--color-navy)', fontSize: '1rem', fontWeight: 700, margin: '0 0 4px' }}>
+              Other {tradeLabel} businesses in {countyTitle} County
+            </h2>
+            <p style={{ fontSize: '0.74rem', color: 'var(--color-sage)', margin: '0 0 12px' }}>
+              Listed alphabetically{related.items.some(r => r.claimed) ? ', claimed profiles first' : ''}. Not a ranking or a recommendation.
+            </p>
+            <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {related.items.map(r => (
+                <li key={r.slug} style={{ fontSize: '0.86rem' }}>
+                  <Link href={`/c/${r.slug}`} style={{ color: 'var(--color-navy)', fontWeight: 600, textDecoration: 'none' }}>{r.name}</Link>
+                  {r.city && <span style={{ color: 'var(--color-sage)' }}> · {r.city}</span>}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* The way off the page. Forward, not back: the header link only reached a finder by
+            accident of what the apex happens to serve. */}
+        <div style={{ marginTop: '20px', padding: '20px', borderRadius: '14px', background: 'var(--color-light-gray)' }}>
+          <form action="/c" method="get" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <label htmlFor="contractor-search" style={{ position: 'absolute', left: '-9999px' }}>Search another contractor</label>
+            <input
+              id="contractor-search" name="q" type="search" required minLength={2}
+              placeholder="Search another contractor by name or licence number"
+              style={{ flex: '1 1 240px', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cfc8bd', fontSize: '0.86rem' }}
+            />
+            <button type="submit" style={{ padding: '10px 18px', borderRadius: '8px', border: 'none', background: 'var(--color-navy)', color: 'white', fontSize: '0.84rem', fontWeight: 600 }}>
+              Search
+            </button>
+          </form>
+          <p style={{ fontSize: '0.78rem', margin: '10px 0 0' }}>
+            <Link href={countyLanding} style={{ color: 'var(--color-bronze)' }}>
+              {countyLanding === '/florida' ? 'Browse contractors across Florida →' : `Browse contractors in ${countyTitle} County →`}
+            </Link>
+          </p>
         </div>
 
       </div>
