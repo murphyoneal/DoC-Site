@@ -5,15 +5,7 @@ import Link from 'next/link'
 import { logScanServer, requestMeta, firstParam } from '@/lib/scan'
 import { CATEGORY_LABELS } from '@/lib/tradeCategories'
 import { resolveBusinessSlug, getBusinessLicences, getRelatedBusinesses, withQuery } from '@/lib/business'
-
-// County landing pages that exist under /florida; everywhere else falls back to /florida.
-const COUNTY_LANDINGS: Record<string, string> = {
-  volusia: '/florida/volusia', 'miami-dade': '/florida/miami-dade', orange: '/florida/orange',
-  seminole: '/florida/seminole', osceola: '/florida/osceola', lake: '/florida/lake',
-}
-function titleCaseCounty(s: string | null | undefined): string {
-  return String(s ?? '').split(/([ -])/).map(w => w.length > 1 ? w[0].toUpperCase() + w.slice(1).toLowerCase() : w).join('') || 'this'
-}
+import { countyLabel, countyLanding as countyLandingFor } from '@/lib/county'
 
 const SB_HOST = 'eaifqorwmgayiqmbtzcg.supabase.co'
 // Read from the environment — never hardcode the key. Set SUPABASE_SECRET_KEY in
@@ -111,8 +103,8 @@ export default async function ContractorProfilePage({
   const licences = business ? await getBusinessLicences(business.slug) : []
   const recordDate = await getRecordDate()
   const related = business ? await getRelatedBusinesses(business.slug) : null
-  const countyTitle = titleCaseCounty(c.county_name)
-  const countyLanding = COUNTY_LANDINGS[String(c.county_name ?? '').toLowerCase()] ?? '/florida'
+  const countyTitle = countyLabel(c.county_name)
+  const countyLanding = countyLandingFor(c.county_name)
 
   const permits = await getPermitSummary(slug)
   const permitCount = permits?.length ?? 0
@@ -220,7 +212,7 @@ export default async function ContractorProfilePage({
             {c.county_name && (
               <div>
                 <p style={{ fontSize: '0.72rem', color: 'var(--color-sage)', margin: '0 0 2px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>County</p>
-                <p style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--color-ink)', margin: 0 }}>{c.county_name}</p>
+                <p style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--color-ink)', margin: 0 }}>{countyTitle}</p>
               </div>
             )}
             <p style={{ flexBasis: '100%', fontSize: '0.74rem', color: 'var(--color-sage)', margin: 0 }}>
