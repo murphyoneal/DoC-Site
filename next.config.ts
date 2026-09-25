@@ -23,6 +23,16 @@ const nextConfig: NextConfig = {
 
   productionBrowserSourceMaps: false,
 
+  // sharp loads a native libvips shared library that file tracing does not follow, so the
+  // deployed /api/work/upload function failed with "libvips-cpp.so ... cannot open shared object
+  // file" (production, 2026-09-25). Ship sharp's linux binaries with that route explicitly.
+  outputFileTracingIncludes: {
+    '/api/work/upload': [
+      './node_modules/@img/sharp-linux-x64/**/*',
+      './node_modules/@img/sharp-libvips-linux-x64/**/*',
+    ],
+  },
+
   images: {
     remotePatterns: [
       {
