@@ -6,6 +6,7 @@ import { logScanServer, requestMeta, firstParam } from '@/lib/scan'
 import { CATEGORY_LABELS } from '@/lib/tradeCategories'
 import { resolveBusinessSlug, getBusinessLicences, getRelatedBusinesses, withQuery } from '@/lib/business'
 import { countyLabel, countyLanding as countyLandingFor } from '@/lib/county'
+import { statusLabel, fileDate, ABSENT, ABSENT_NOTE } from '@/lib/licence-status'
 
 const SB_HOST = 'eaifqorwmgayiqmbtzcg.supabase.co'
 // Read from the environment — never hardcode the key. Set SUPABASE_SECRET_KEY in
@@ -98,7 +99,10 @@ export default async function ContractorProfilePage({
   }))
 
   const licences = business ? await getBusinessLicences(business.slug) : []
-  const recordDate = await getRecordDate()
+  // The date of the state file THIS licence was last seen in (138a). Falls back to the register's
+  // single file date until that column exists.
+  const recordDate = fileDate(c.register_file_date) ?? await getRecordDate()
+  const absent = c.register_file_state === ABSENT
   const related = business ? await getRelatedBusinesses(business.slug) : null
   const countyTitle = countyLabel(c.county_name)
   const countyLanding = countyLandingFor(c.county_name)
@@ -108,6 +112,7 @@ export default async function ContractorProfilePage({
   const tradeLabel = CATEGORY_LABELS[c.doc_category] ?? c.trade_label ?? 'Contractor'
 
   const statusColor =
+    absent                         ? '#8B6F47' :
     c.license_status === 'active'  ? '#2d7d46' :
     c.license_status === 'expired' ? '#c0392b' : '#8B6F47'
 
@@ -150,12 +155,12 @@ export default async function ContractorProfilePage({
                   background: statusColor + '18', color: statusColor, border: `1px solid ${statusColor}40`
                 }}>
                   {/* DBPR's status field, reproduced — not our endorsement. */}
-                  Licence status: {c.license_status ? c.license_status.charAt(0).toUpperCase() + c.license_status.slice(1) : 'Unknown'}
+                  {absent ? 'Not in the latest state file' : `Licence status: ${statusLabel(c.license_status)}`}
                 </span>
                 {/* This is the page a QR code lands on: the reader has no other way to know how old
                     the record is. */}
                 <span style={{ fontSize: '0.72rem', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--color-sage)', border: '1px solid var(--color-light-gray)', padding: '4px 10px', borderRadius: '20px' }}>
-                  {recordDate ? `Record dated ${recordDate}` : 'Record date not available'}
+                  {recordDate ? (absent ? `Last seen in the state file of ${recordDate}` : `Record dated ${recordDate}`) : 'Record date not available'}
                 </span>
                 {c.verified && (
                   <span style={{ fontSize: '0.75rem', color: 'var(--color-navy)', background: '#e8f0fb', padding: '3px 10px', borderRadius: '20px' }}>
@@ -206,7 +211,7 @@ export default async function ContractorProfilePage({
             )}
             {c.expiry_date && (
               <div>
-                <p style={{ fontSize: '0.72rem', color: 'var(--color-sage)', margin: '0 0 2px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Expiry (as recorded)</p>
+                <p style={{ fontSize: '0.72rem', color: 'var(--color-sage)', margin: '0 0 2px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{absent ? 'Expiry (as last recorded)' : 'Expiry (as recorded)'}</p>
                 <p style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--color-ink)', margin: 0 }}>{c.expiry_date}</p>
               </div>
             )}
@@ -221,6 +226,9 @@ export default async function ContractorProfilePage({
               {recordDate ? ` as retrieved on ${recordDate}` : ''}. They may have changed since — a licence
               may have been renewed, or its status changed. Confirm current standing at myfloridalicense.com.
             </p>
+            {absent && (
+              <p style={{ flexBasis: '100%', fontSize: '0.78rem', color: 'var(--color-ink)', margin: 0 }}>{ABSENT_NOTE}</p>
+            )}
           </div>
 
           {/* Every licence record of this business. DBPR publishes one row per licence, so a
@@ -235,7 +243,7 @@ export default async function ContractorProfilePage({
                   <li key={`${l.link_basis}-${l.license_number}-${l.trade_code}`} style={{ fontSize: '0.84rem', color: 'var(--color-ink)' }}>
                     <strong>{l.license_number ?? '—'}</strong>
                     {' · '}{l.trade_label ?? l.trade_code}
-                    {l.license_status && <> · {l.license_status}</>}
+                    {l.license_status && <> · {statusLabel(l.license_status).toLowerCase()}</>}
                     {l.expiry_date && <> · expires {l.expiry_date}</>}
                     {l.link_basis === 'qualifier' && (
                       <span style={{ color: 'var(--color-sage)' }}> · the licence DBPR records as qualifying this business{l.holder_name ? ` (${l.holder_name})` : ''}</span>
