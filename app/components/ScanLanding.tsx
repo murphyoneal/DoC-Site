@@ -10,6 +10,10 @@ interface Props {
   hasWebsite: boolean
   websiteUrl: string | null
   ref_: string
+  licenseNumber: string | null
+  licenseStatus: string | null
+  expiryDate: string | null
+  recordDate: string | null
 }
 
 export default function ScanLanding({
@@ -22,7 +26,13 @@ export default function ScanLanding({
   hasWebsite,
   websiteUrl,
   ref_,
+  licenseNumber,
+  licenseStatus,
+  expiryDate,
+  recordDate,
 }: Props) {
+  const statusText = licenseStatus ? licenseStatus.charAt(0).toUpperCase() + licenseStatus.slice(1) : 'Unknown'
+  const statusColor = licenseStatus === 'active' ? '#2d7d46' : licenseStatus === 'expired' ? '#c0392b' : '#8B6F47'
   // The landing itself is logged server-side by the page request (lib/scan.ts). Only the
   // visitor's clicks are logged from here.
   function handleSaveContact() {
@@ -88,7 +98,7 @@ export default function ScanLanding({
     >
       <div style={{ marginBottom: '2rem', opacity: 0.5 }}>
         <span style={{ fontSize: '0.75rem', letterSpacing: '0.15em', color: 'var(--color-navy)', fontWeight: 700 }}>
-          DEPARTMENT OF CONSTRUCTION
+          DEPARTMENT OF PROPERTY
         </span>
       </div>
 
@@ -122,6 +132,20 @@ export default function ScanLanding({
             {city}, {state}
           </p>
         )}
+        {/* The licence, as the state file recorded it. Someone who has just scanned a van wants to
+            know first whether this business is licensed; the landing used to say only that the
+            data came "from official government registries" and show none of it. */}
+        <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--color-light-gray)' }}>
+          <p style={{ fontSize: '0.8rem', color: 'var(--color-ink)', margin: 0 }}>
+            Licence <strong>{licenseNumber ?? 'not recorded'}</strong>
+          </p>
+          <p style={{ fontSize: '0.8rem', fontWeight: 600, color: statusColor, margin: '0.25rem 0 0' }}>
+            Status: {statusText}{expiryDate ? ` · expires ${expiryDate}` : ''}
+          </p>
+          <p style={{ fontSize: '0.7rem', color: 'var(--color-sage)', margin: '0.35rem 0 0' }}>
+            As recorded in the state licence file{recordDate ? ` retrieved ${recordDate}` : ''}. It may have changed since.
+          </p>
+        </div>
       </div>
 
       <div
@@ -188,7 +212,7 @@ export default function ScanLanding({
       </div>
 
       <p style={{ fontSize: '0.72rem', color: 'var(--color-sage)', marginTop: '2rem', textAlign: 'center' }}>
-        Licensed contractor data from official government registries.<br />
+        Licence details from the Florida DBPR public licence file. Confirm current standing at myfloridalicense.com.<br />
         <a href="/disclaimer" style={{ color: 'var(--color-sage)' }}>Disclaimer</a>
       </p>
     </div>

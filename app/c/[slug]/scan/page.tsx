@@ -15,12 +15,28 @@ const SB_HEADERS = { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
 
 async function getContractor(slug: string) {
   const res = await fetch(
-    `https://${SB_HOST}/rest/v1/contractors_public?slug=eq.${encodeURIComponent(slug)}&select=slug,display_name,doc_category,trade_label,city,state,website,claimed&limit=1`,
+    `https://${SB_HOST}/rest/v1/contractors_public?slug=eq.${encodeURIComponent(slug)}&select=slug,display_name,doc_category,trade_label,city,state,website,claimed,license_number,license_status,expiry_date&limit=1`,
     { headers: SB_HEADERS, next: { revalidate: 60 } }
   )
   if (!res.ok) return null
   const rows = await res.json()
   return rows?.[0] ?? null
+}
+
+// The date of the state file the licence fields come from — the same stamp the profile shows.
+async function getRecordDate(): Promise<string | null> {
+  try {
+    const res = await fetch(
+      `https://${SB_HOST}/rest/v1/dbpr_snapshot_log?is_register_source=eq.true&select=capture_date&limit=1`,
+      { headers: SB_HEADERS, next: { revalidate: 3600 } }
+    )
+    if (!res.ok) return null
+    const rows = await res.json()
+    const d = rows?.[0]?.capture_date
+    return d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }) : null
+  } catch {
+    return null
+  }
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
@@ -61,6 +77,7 @@ export default async function ScanPage({
   }))
 
   const tradeLabel = CATEGORY_LABELS[c.doc_category] ?? c.trade_label ?? 'Contractor'
+  const recordDate = await getRecordDate()
 
   return (
     <ScanLanding
@@ -73,6 +90,10 @@ export default async function ScanPage({
       hasWebsite={!!c.website}
       websiteUrl={c.website ?? null}
       ref_={ref ?? 'qr'}
+      licenseNumber={c.license_number ?? null}
+      licenseStatus={c.license_status ?? null}
+      expiryDate={c.expiry_date ?? null}
+      recordDate={recordDate}
     />
   )
 }
