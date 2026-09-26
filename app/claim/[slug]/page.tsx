@@ -76,8 +76,9 @@ export default async function ClaimPage({ params }: { params: Promise<{ slug: st
                 {c.display_name}
               </p>
               <p style={{ fontSize: '0.82rem', color: 'var(--color-sage)', margin: 0 }}>
-                Claiming your profile lets you update contact details, respond to enquiries, and verify your permit history.
-                We check your licence number against the state register before your entry is published.
+                Every licensed business has an entry from the public register. Claiming lets you add your own
+                details &mdash; contact, photos, specialties &mdash; and nothing you add is published until you add it.
+                We compare the licence number you give with the state register and note what we find.
               </p>
             </div>
 
@@ -88,9 +89,9 @@ export default async function ClaimPage({ params }: { params: Promise<{ slug: st
               </p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {[
-                  ['1', 'Enter your DBPR licence number to verify ownership'],
+                  ['1', 'Enter the licence number you hold or work under'],
                   ['2', 'Provide your contact details'],
-                  ['3', 'We review and approve within 1–2 business days'],
+                  ['3', 'We review it and get in touch'],
                 ].map(([num, text]) => (
                   <div key={num} style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
                     <span style={{
@@ -108,7 +109,6 @@ export default async function ClaimPage({ params }: { params: Promise<{ slug: st
             {/* The form */}
             <ClaimForm
               slug={slug}
-              licenseNumber={c.license_number ?? ''}
               displayName={c.display_name}
             />
 

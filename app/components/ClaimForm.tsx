@@ -4,13 +4,17 @@ import { useState } from 'react'
 
 interface Props {
   slug: string
-  licenseNumber: string
   displayName: string
 }
 
 type Step = 'verify' | 'details' | 'submitted'
 
-export default function ClaimForm({ slug, licenseNumber, displayName }: Props) {
+// The licence number is NOT checked here. It used to be compared, in the browser, with the one
+// number printed on this page: anyone passed, and a real owner giving the business's OTHER licence
+// (Red Stag: CCC1329994 on the CBC profile) was blocked. The server compares it with the state
+// register via evaluate_claim_licence (matched / matched_sibling / mismatched / not_comparable)
+// and RECORDS the result for a person to review. A mismatch is never a rejection (ruling 2026-09-26).
+export default function ClaimForm({ slug, displayName }: Props) {
   const [step, setStep] = useState<Step>('verify')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -24,10 +28,6 @@ export default function ClaimForm({ slug, licenseNumber, displayName }: Props) {
   function handleVerify() {
     setError(null)
     if (!enteredLicense.trim()) { setError('Please enter your licence number.'); return }
-    if (enteredLicense.trim().toUpperCase() !== licenseNumber.toUpperCase()) {
-      setError('Licence number does not match our records. Please check and try again.')
-      return
-    }
     setStep('details')
   }
 
@@ -71,7 +71,7 @@ export default function ClaimForm({ slug, licenseNumber, displayName }: Props) {
           Claim Request Submitted
         </h2>
         <p className="text-sm mb-4" style={{ color: 'var(--color-sage)' }}>
-          We will review your request and contact you at {email} within 1-2 business days.
+          Thank you. We&rsquo;ll be in touch at {email}.
         </p>
         <a href={`/c/${slug}`} className="text-sm underline" style={{ color: 'var(--color-bronze)' }}>Back to profile</a>
       </div>
@@ -83,10 +83,12 @@ export default function ClaimForm({ slug, licenseNumber, displayName }: Props) {
       {step === 'verify' && (
         <>
           <h3 className="text-base font-bold mb-1" style={{ fontFamily: 'Georgia, serif', color: 'var(--color-navy)' }}>
-            Step 1 — Verify Your Licence
+            Step 1 — Your Licence Number
           </h3>
           <p className="text-sm mb-4" style={{ color: 'var(--color-sage)' }}>
-            Enter your licence number to confirm you are the licence holder for {displayName}.
+            Enter the licence number you hold or work under for {displayName}. We compare it with the
+            state register and note what we find; if it doesn&rsquo;t match, a person looks at the claim
+            rather than rejecting it.
           </p>
           <label className="block text-xs font-semibold mb-1" style={{ color: 'var(--color-ink)' }}>Licence Number</label>
           <input
@@ -99,7 +101,7 @@ export default function ClaimForm({ slug, licenseNumber, displayName }: Props) {
           />
           {error && <p className="text-xs mb-4" style={{ color: '#c0392b' }}>{error}</p>}
           <button onClick={handleVerify} className="w-full py-3 rounded-lg text-sm font-semibold" style={{ background: 'var(--color-navy)', color: 'white', border: 'none', cursor: 'pointer' }}>
-            Verify Licence
+            Continue
           </button>
         </>
       )}
