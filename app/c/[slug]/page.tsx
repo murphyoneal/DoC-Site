@@ -40,23 +40,10 @@ async function getRecordDate(): Promise<string | null> {
   }
 }
 
-async function getPermitSummary(slug: string) {
-  const res = await fetch(
-    `https://${SB_HOST}/rest/v1/contractors_public?slug=eq.${encodeURIComponent(slug)}&select=business_name&limit=1`,
-    { headers: SB_HEADERS, next: { revalidate: 300 } }
-  )
-  if (!res.ok) return null
-  const rows = await res.json()
-  if (!rows?.[0]?.business_name) return null
-
-  const name = rows[0].business_name.toUpperCase()
-  const permitRes = await fetch(
-    `https://${SB_HOST}/rest/v1/property_permit_history?contractor_name=ilike.*${encodeURIComponent(name)}*&select=trade_category,permit_date,job_value&limit=100`,
-    { headers: SB_HEADERS, next: { revalidate: 300 } }
-  )
-  if (!permitRes.ok) return null
-  return await permitRes.json()
-}
+// There is deliberately no permit section. It matched Volusia permits by business-name substring
+// (contractor_name is cut at 30 characters, so long names never matched and short ones matched
+// other firms) and showed "Permits Found: 100" — the query's limit, not a count. Permits stay off
+// profiles until the match is measured against an anchor (ruling 2026-09-26).
 
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
@@ -106,9 +93,6 @@ export default async function ContractorProfilePage({
   const countyTitle = countyLabel(c.county_name)
   const countyLanding = countyLandingFor(c.county_name)
 
-  const permits = await getPermitSummary(slug)
-  const permitCount = permits?.length ?? 0
-  const totalValue = permits?.reduce((sum: number, p: any) => sum + (p.job_value ?? 0), 0) ?? 0
 
   const tradeLabel = CATEGORY_LABELS[c.doc_category] ?? c.trade_label ?? 'Contractor'
 
@@ -269,32 +253,6 @@ export default async function ContractorProfilePage({
             </div>
           )}
         </div>
-
-        {/* Permit history summary */}
-        {permitCount > 0 && (
-          <div style={{ background: 'var(--color-white)', borderRadius: '14px', border: '1px solid var(--color-light-gray)', padding: '20px', marginBottom: '20px' }}>
-            <h2 style={{ fontFamily: 'Georgia, serif', color: 'var(--color-navy)', fontSize: '1rem', fontWeight: 700, margin: '0 0 12px' }}>
-              Permit History (Volusia County)
-            </h2>
-            <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap' }}>
-              <div>
-                <p style={{ fontSize: '0.72rem', color: 'var(--color-sage)', margin: '0 0 2px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Permits Found</p>
-                <p style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--color-navy)', margin: 0 }}>{permitCount}</p>
-              </div>
-              {totalValue > 0 && (
-                <div>
-                  <p style={{ fontSize: '0.72rem', color: 'var(--color-sage)', margin: '0 0 2px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Job Value</p>
-                  <p style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--color-navy)', margin: 0 }}>
-                    ${totalValue.toLocaleString()}
-                  </p>
-                </div>
-              )}
-            </div>
-            <p style={{ fontSize: '0.75rem', color: 'var(--color-sage)', margin: '12px 0 0' }}>
-              * Permit records are matched by business name and are unverified. Contractors can verify their permit history by claiming this profile.
-            </p>
-          </div>
-        )}
 
         {/* Claim CTA */}
         {!c.claimed && (
