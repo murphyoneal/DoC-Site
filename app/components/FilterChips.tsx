@@ -5,33 +5,19 @@ import { TRADE_CATEGORIES } from '@/lib/trade-categories'
 interface FilterChipsProps {
   selected: string | null
   onSelect: (value: string | null) => void
-  emergency: boolean
-  onEmergencyToggle: () => void
 }
 
-export default function FilterChips({
-  selected,
-  onSelect,
-  emergency,
-  onEmergencyToggle,
-}: FilterChipsProps) {
+// No Emergency chip: it filtered on emergency_available, which no business has stated (NULL on
+// every row since 136c). It always showed an empty map.
+export default function FilterChips({ selected, onSelect }: FilterChipsProps) {
   return (
     <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none" style={{ scrollbarWidth: 'none' }}>
       {/* All trades */}
       <button
-        className={`filter-chip ${!selected && !emergency ? 'active' : ''}`}
+        className={`filter-chip ${!selected ? 'active' : ''}`}
         onClick={() => { onSelect(null) }}
       >
         All Trades
-      </button>
-
-      {/* Emergency toggle */}
-      <button
-        className={`filter-chip ${emergency ? 'active' : ''}`}
-        style={emergency ? { background: '#C0392B', borderColor: '#C0392B' } : { borderColor: '#C0392B', color: '#C0392B' }}
-        onClick={onEmergencyToggle}
-      >
-        🚨 Emergency
       </button>
 
       {/* Trade categories */}
