@@ -26,7 +26,7 @@ const WEBSITE_JSONLD = {
 
 const SITE_NAME = 'Department of Property'
 const SITE_DESC =
-  'Search licensed contractors by trade and location. Verify licence status, find emergency services, and connect with local professionals — powered by official government registry data.'
+  'Search Florida construction contractors by trade and location, and see each licence’s status as recorded in the state licence file.'
 
 export const metadata: Metadata = {
   title: {
