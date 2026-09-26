@@ -45,6 +45,16 @@ async function getRecordDate(): Promise<string | null> {
 // other firms) and showed "Permits Found: 100" — the query's limit, not a count. Permits stay off
 // profiles until the match is measured against an anchor (ruling 2026-09-26).
 
+// "Licence first issued 2004". The year the LICENCE was first issued, from the DBPR file — not when
+// the business started: a certified licence belongs to the person who holds it. Anything that is
+// not a real MM/DD/YYYY date (6 rows carry a status letter) shows nothing rather than a guess.
+function firstIssuedYear(originalDate: string | null | undefined): number | null {
+  const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(String(originalDate ?? '').trim())
+  if (!m) return null
+  const y = Number(m[3])
+  return y >= 1900 && y <= new Date().getFullYear() ? y : null
+}
+
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
@@ -92,6 +102,7 @@ export default async function ContractorProfilePage({
   const related = business ? await getRelatedBusinesses(business.slug) : null
   const countyTitle = countyLabel(c.county_name)
   const countyLanding = countyLandingFor(c.county_name)
+  const issuedYear = firstIssuedYear(c.original_date)
 
 
   const tradeLabel = CATEGORY_LABELS[c.doc_category] ?? c.trade_label ?? 'Contractor'
@@ -187,6 +198,12 @@ export default async function ContractorProfilePage({
               <p style={{ fontSize: '0.72rem', color: 'var(--color-sage)', margin: '0 0 2px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>License Number</p>
               <p style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--color-ink)', margin: 0 }}>{c.license_number ?? '—'}</p>
             </div>
+            {issuedYear && (
+              <div>
+                <p style={{ fontSize: '0.72rem', color: 'var(--color-sage)', margin: '0 0 2px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Licence first issued</p>
+                <p style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--color-ink)', margin: 0 }}>{issuedYear}</p>
+              </div>
+            )}
             {c.expiry_date && (
               <div>
                 <p style={{ fontSize: '0.72rem', color: 'var(--color-sage)', margin: '0 0 2px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Expiry (as recorded)</p>
@@ -200,7 +217,7 @@ export default async function ContractorProfilePage({
               </div>
             )}
             <p style={{ flexBasis: '100%', fontSize: '0.74rem', color: 'var(--color-sage)', margin: 0 }}>
-              Licence status and expiry are reproduced from the Florida DBPR public licence file
+              Licence status, expiry and first-issue year are reproduced from the Florida DBPR public licence file
               {recordDate ? ` as retrieved on ${recordDate}` : ''}. They may have changed since — a licence
               may have been renewed, or its status changed. Confirm current standing at myfloridalicense.com.
             </p>
