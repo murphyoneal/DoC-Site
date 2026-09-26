@@ -1,6 +1,14 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Tailwind v4. The v3 directives that stood here (@tailwind base/components/utilities) load no
+   theme in v4, so every utility that needs one (spacing, font sizes, gaps, radii) was silently
+   never generated: px-4, text-lg, gap-3 did nothing on any page from the first commit. Theme and
+   utilities only; preflight is deliberately NOT imported, because every page was built against
+   browser defaults and a reset would restyle all of them at once. */
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+/* The one piece of preflight the utilities assume: w-full plus px-4 is 100% wide only with
+   border-box sizing. Without it the address box ran 9px past the viewport. */
+*, ::before, ::after { box-sizing: border-box; }
 
 :root {
   --color-ink:        #1C1C1C;
