@@ -20,21 +20,26 @@ const ContractorMap = dynamic(() => import('./ContractorMap'), {
 
 export default function HomeMapShell() {
   const [category, setCategory] = useState<string | null>(null)
-  const [emergency, setEmergency] = useState(false)
   const [count, setCount] = useState<number | null>(null)
-
-  const handleCategorySelect = (val: string | null) => {
-    setCategory(val)
-    if (val) setEmergency(false)
-  }
-
-  const handleEmergencyToggle = () => {
-    setEmergency(prev => !prev)
-    if (!emergency) setCategory(null)
-  }
 
   return (
     <div className="flex flex-col" style={{ height: 'calc(100vh - 96px)' }}>
+      {/* What this is, in one breath. The page had no heading or sentence at all: the title
+          promised contractors, and the only text box was a property-address lookup. */}
+      <div className="px-4 pt-3" style={{ background: 'var(--color-light-gray)' }}>
+        <div className="max-w-3xl mx-auto">
+          <h1 className="text-lg font-bold" style={{ fontFamily: 'Georgia, serif', color: 'var(--color-navy)', margin: 0 }}>
+            Florida&rsquo;s licensed construction contractors, on a map.
+          </h1>
+          <p className="text-sm" style={{ color: 'var(--color-sage)', margin: '4px 0 0' }}>
+            Every business here holds a licence in the state&rsquo;s construction licence file, placed near
+            the address on that licence, which is not always where it works. Pick a trade below, or{' '}
+            <a href="/c" style={{ color: 'var(--color-bronze)', textDecoration: 'underline' }}>search by name, licence number, city or county</a>.
+            To see the public record for a property, look up its address.
+          </p>
+        </div>
+      </div>
+
       {/* Property lookup — the entry point: an address resolves to that parcel's full
           report. Searches our own roll, so every suggestion has a report behind it; a
           non-match says so honestly rather than "not found". Relative + high z-index so
@@ -69,12 +74,7 @@ export default function HomeMapShell() {
               {count} found
             </span>
           )}
-          <FilterChips
-            selected={category}
-            onSelect={handleCategorySelect}
-            emergency={emergency}
-            onEmergencyToggle={handleEmergencyToggle}
-          />
+          <FilterChips selected={category} onSelect={setCategory} />
         </div>
       </div>
 
@@ -82,7 +82,7 @@ export default function HomeMapShell() {
       <div className="flex-1 relative">
         <ContractorMap
           category={category}
-          emergency={emergency}
+          emergency={false}
           onCountChange={setCount}
         />
       </div>

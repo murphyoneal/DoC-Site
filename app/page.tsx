@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   description:
     // Measured 2026-09-24: 98,749 businesses from 114,104 DBPR licence records, all Florida.
     // The previous "268,000+ … across Florida and beyond" was neither.
-    'Search nearly 100,000 Florida contracting businesses. Verify licence status, find emergency services, and discover local professionals — powered by official government registry data.',
+    'Nearly 100,000 Florida contracting businesses from the state construction licence file, on a map. Search by trade, name, licence number, city or county, and see each licence’s status as recorded.',
 }
 
 export default function HomePage() {
