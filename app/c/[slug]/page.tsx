@@ -303,7 +303,7 @@ export default async function ContractorProfilePage({
               Is this your business?
             </h2>
             <p style={{ fontSize: '0.84rem', color: 'var(--color-sage)', margin: '0 0 14px' }}>
-              Claim this profile to update your contact details, verify your permit history, and receive project enquiries.
+              Claim this entry to add your own details &mdash; contact, photos, specialties. Nothing you add is published until you add it.
             </p>
             <Link
               href={`/claim/${slug}`}
@@ -321,7 +321,7 @@ export default async function ContractorProfilePage({
         {c.claimed && (
           <div style={{ background: '#f0fdf4', borderRadius: '14px', border: '1px solid #bbf7d0', padding: '16px', marginBottom: '20px' }}>
             <p style={{ fontSize: '0.84rem', color: '#166534', margin: 0, fontWeight: 600 }}>
-              ✓ This profile has been claimed and verified by the licence holder.
+              ✓ This entry has been claimed by the business.
             </p>
           </div>
         )}
