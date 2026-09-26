@@ -10,6 +10,9 @@ const SB_HEADERS = {
   'Prefer': 'return=minimal',
 }
 
+// The register page's claim form (public/register.html posts to the same endpoint from the browser).
+const FORMSPREE_CLAIM_URL = 'https://formspree.io/f/xrpgyrjp'
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
@@ -31,7 +34,7 @@ export async function POST(req: NextRequest) {
     const business = await resolveBusinessSlug(slug)
     const claimSlug = business?.slug ?? slug
     const lookupRes = await fetch(
-      `https://${SB_HOST}/rest/v1/contractors_public?slug=eq.${encodeURIComponent(claimSlug)}&select=id,claimed&limit=1`,
+      `https://${SB_HOST}/rest/v1/contractors_public?slug=eq.${encodeURIComponent(claimSlug)}&select=id,claimed,display_name,license_number&limit=1`,
       { headers: SB_HEADERS }
     )
     const contractors = await lookupRes.json()
@@ -95,6 +98,34 @@ export async function POST(req: NextRequest) {
       const err = await insertRes.text()
       console.error('[claim] insert error', err)
       return NextResponse.json({ error: 'Failed to submit claim' }, { status: 500 })
+    }
+
+    // Tell a person. Until this, a claim was a row in a table nothing read: the claim button on every
+    // profile went nowhere (ruling 2026-09-26). It goes to the same Formspree form the register page
+    // uses, which already reaches the inbox. claim_requests above stays the durable record, so a
+    // Formspree failure is logged and never loses the claim or fails the request.
+    try {
+      const fs = await fetch(FORMSPREE_CLAIM_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({
+          _subject: `Profile claim: ${contractor.display_name ?? claimSlug}`,
+          source: 'claim form on a business profile (/claim)',
+          business: contractor.display_name ?? null,
+          profile: `https://departmentofproperty.com/c/${claimSlug}`,
+          profile_licence: contractor.license_number ?? null,
+          licence_given: license_number,
+          licence_check: licenceMatch.state ?? 'not evaluated',
+          licence_check_note: licenceMatch.note ?? null,
+          name: requester_name,
+          email: requester_email,
+          phone: requester_phone || null,
+          message: message || null,
+        }),
+      })
+      if (!fs.ok) console.error('[claim] formspree returned', fs.status, await fs.text())
+    } catch (e) {
+      console.error('[claim] formspree failed', e)
     }
 
     console.log('[claim] submitted', { slug, requester_email })
