@@ -40,22 +40,19 @@ async function getRecordDate(): Promise<string | null> {
   }
 }
 
-async function getPermitSummary(slug: string) {
-  const res = await fetch(
-    `https://${SB_HOST}/rest/v1/contractors_public?slug=eq.${encodeURIComponent(slug)}&select=business_name&limit=1`,
-    { headers: SB_HEADERS, next: { revalidate: 300 } }
-  )
-  if (!res.ok) return null
-  const rows = await res.json()
-  if (!rows?.[0]?.business_name) return null
+// There is deliberately no permit section. It matched Volusia permits by business-name substring
+// (contractor_name is cut at 30 characters, so long names never matched and short ones matched
+// other firms) and showed "Permits Found: 100" — the query's limit, not a count. Permits stay off
+// profiles until the match is measured against an anchor (ruling 2026-09-26).
 
-  const name = rows[0].business_name.toUpperCase()
-  const permitRes = await fetch(
-    `https://${SB_HOST}/rest/v1/property_permit_history?contractor_name=ilike.*${encodeURIComponent(name)}*&select=trade_category,permit_date,job_value&limit=100`,
-    { headers: SB_HEADERS, next: { revalidate: 300 } }
-  )
-  if (!permitRes.ok) return null
-  return await permitRes.json()
+// "Licence first issued 2004". The year the LICENCE was first issued, from the DBPR file — not when
+// the business started: a certified licence belongs to the person who holds it. Anything that is
+// not a real MM/DD/YYYY date (6 rows carry a status letter) shows nothing rather than a guess.
+function firstIssuedYear(originalDate: string | null | undefined): number | null {
+  const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(String(originalDate ?? '').trim())
+  if (!m) return null
+  const y = Number(m[3])
+  return y >= 1900 && y <= new Date().getFullYear() ? y : null
 }
 
 
@@ -105,10 +102,8 @@ export default async function ContractorProfilePage({
   const related = business ? await getRelatedBusinesses(business.slug) : null
   const countyTitle = countyLabel(c.county_name)
   const countyLanding = countyLandingFor(c.county_name)
+  const issuedYear = firstIssuedYear(c.original_date)
 
-  const permits = await getPermitSummary(slug)
-  const permitCount = permits?.length ?? 0
-  const totalValue = permits?.reduce((sum: number, p: any) => sum + (p.job_value ?? 0), 0) ?? 0
 
   const tradeLabel = CATEGORY_LABELS[c.doc_category] ?? c.trade_label ?? 'Contractor'
 
@@ -203,6 +198,12 @@ export default async function ContractorProfilePage({
               <p style={{ fontSize: '0.72rem', color: 'var(--color-sage)', margin: '0 0 2px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>License Number</p>
               <p style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--color-ink)', margin: 0 }}>{c.license_number ?? '—'}</p>
             </div>
+            {issuedYear && (
+              <div>
+                <p style={{ fontSize: '0.72rem', color: 'var(--color-sage)', margin: '0 0 2px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Licence first issued</p>
+                <p style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--color-ink)', margin: 0 }}>{issuedYear}</p>
+              </div>
+            )}
             {c.expiry_date && (
               <div>
                 <p style={{ fontSize: '0.72rem', color: 'var(--color-sage)', margin: '0 0 2px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Expiry (as recorded)</p>
@@ -216,7 +217,7 @@ export default async function ContractorProfilePage({
               </div>
             )}
             <p style={{ flexBasis: '100%', fontSize: '0.74rem', color: 'var(--color-sage)', margin: 0 }}>
-              Licence status and expiry are reproduced from the Florida DBPR public licence file
+              Licence status, expiry and first-issue year are reproduced from the Florida DBPR public licence file
               {recordDate ? ` as retrieved on ${recordDate}` : ''}. They may have changed since — a licence
               may have been renewed, or its status changed. Confirm current standing at myfloridalicense.com.
             </p>
@@ -269,32 +270,6 @@ export default async function ContractorProfilePage({
             </div>
           )}
         </div>
-
-        {/* Permit history summary */}
-        {permitCount > 0 && (
-          <div style={{ background: 'var(--color-white)', borderRadius: '14px', border: '1px solid var(--color-light-gray)', padding: '20px', marginBottom: '20px' }}>
-            <h2 style={{ fontFamily: 'Georgia, serif', color: 'var(--color-navy)', fontSize: '1rem', fontWeight: 700, margin: '0 0 12px' }}>
-              Permit History (Volusia County)
-            </h2>
-            <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap' }}>
-              <div>
-                <p style={{ fontSize: '0.72rem', color: 'var(--color-sage)', margin: '0 0 2px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Permits Found</p>
-                <p style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--color-navy)', margin: 0 }}>{permitCount}</p>
-              </div>
-              {totalValue > 0 && (
-                <div>
-                  <p style={{ fontSize: '0.72rem', color: 'var(--color-sage)', margin: '0 0 2px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Job Value</p>
-                  <p style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--color-navy)', margin: 0 }}>
-                    ${totalValue.toLocaleString()}
-                  </p>
-                </div>
-              )}
-            </div>
-            <p style={{ fontSize: '0.75rem', color: 'var(--color-sage)', margin: '12px 0 0' }}>
-              * Permit records are matched by business name and are unverified. Contractors can verify their permit history by claiming this profile.
-            </p>
-          </div>
-        )}
 
         {/* Claim CTA */}
         {!c.claimed && (
