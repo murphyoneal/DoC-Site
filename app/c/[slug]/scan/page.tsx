@@ -5,6 +5,7 @@ import ScanLanding from '@/app/components/ScanLanding'
 import { logScanServer, requestMeta } from '@/lib/scan'
 import { CATEGORY_LABELS } from '@/lib/tradeCategories'
 import { resolveBusinessSlug, withQuery } from '@/lib/business'
+import { fileDate, ABSENT } from '@/lib/licence-status'
 
 const SB_HOST = 'eaifqorwmgayiqmbtzcg.supabase.co'
 // Read from the environment — never hardcode the key. Set SUPABASE_SECRET_KEY in
@@ -15,7 +16,7 @@ const SB_HEADERS = { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
 
 async function getContractor(slug: string) {
   const res = await fetch(
-    `https://${SB_HOST}/rest/v1/contractors_public?slug=eq.${encodeURIComponent(slug)}&select=slug,display_name,doc_category,trade_label,city,state,website,claimed,license_number,license_status,expiry_date&limit=1`,
+    `https://${SB_HOST}/rest/v1/contractors_public?slug=eq.${encodeURIComponent(slug)}&select=*&limit=1`,
     { headers: SB_HEADERS, next: { revalidate: 60 } }
   )
   if (!res.ok) return null
@@ -77,7 +78,8 @@ export default async function ScanPage({
   }))
 
   const tradeLabel = CATEGORY_LABELS[c.doc_category] ?? c.trade_label ?? 'Contractor'
-  const recordDate = await getRecordDate()
+  // Per-licence file date (138a); the register's single date until that column exists.
+  const recordDate = fileDate(c.register_file_date) ?? await getRecordDate()
 
   return (
     <ScanLanding
@@ -94,6 +96,7 @@ export default async function ScanPage({
       licenseStatus={c.license_status ?? null}
       expiryDate={c.expiry_date ?? null}
       recordDate={recordDate}
+      absent={c.register_file_state === ABSENT}
     />
   )
 }

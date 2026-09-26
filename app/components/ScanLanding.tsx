@@ -1,5 +1,7 @@
 'use client'
 
+import { statusLabel } from '@/lib/licence-status'
+
 interface Props {
   slug: string
   displayName: string
@@ -14,6 +16,7 @@ interface Props {
   licenseStatus: string | null
   expiryDate: string | null
   recordDate: string | null
+  absent?: boolean
 }
 
 export default function ScanLanding({
@@ -30,9 +33,10 @@ export default function ScanLanding({
   licenseStatus,
   expiryDate,
   recordDate,
+  absent = false,
 }: Props) {
-  const statusText = licenseStatus ? licenseStatus.charAt(0).toUpperCase() + licenseStatus.slice(1) : 'Unknown'
-  const statusColor = licenseStatus === 'active' ? '#2d7d46' : licenseStatus === 'expired' ? '#c0392b' : '#8B6F47'
+  const statusText = statusLabel(licenseStatus)
+  const statusColor = absent ? '#8B6F47' : licenseStatus === 'active' ? '#2d7d46' : licenseStatus === 'expired' ? '#c0392b' : '#8B6F47'
   // The landing itself is logged server-side by the page request (lib/scan.ts). Only the
   // visitor's clicks are logged from here.
   function handleSaveContact() {
@@ -140,10 +144,12 @@ export default function ScanLanding({
             Licence <strong>{licenseNumber ?? 'not recorded'}</strong>
           </p>
           <p style={{ fontSize: '0.8rem', fontWeight: 600, color: statusColor, margin: '0.25rem 0 0' }}>
-            Status: {statusText}{expiryDate ? ` · expires ${expiryDate}` : ''}
+            {absent ? 'Not in the latest state licence file' : <>Status: {statusText}{expiryDate ? ` · expires ${expiryDate}` : ''}</>}
           </p>
           <p style={{ fontSize: '0.7rem', color: 'var(--color-sage)', margin: '0.35rem 0 0' }}>
-            As recorded in the state licence file{recordDate ? ` retrieved ${recordDate}` : ''}. It may have changed since.
+            {absent
+              ? `Last seen in the state file${recordDate ? ` of ${recordDate}` : ''}. Absence is not by itself evidence the licence has lapsed.`
+              : `As recorded in the state licence file${recordDate ? ` retrieved ${recordDate}` : ''}. It may have changed since.`}
           </p>
         </div>
       </div>
