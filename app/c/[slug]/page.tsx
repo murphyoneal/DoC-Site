@@ -195,7 +195,7 @@ export default async function ContractorProfilePage({
           {/* License info */}
           <div style={{ marginTop: '20px', padding: '14px', background: 'var(--color-cream)', borderRadius: '8px', display: 'flex', flexWrap: 'wrap', gap: '20px' }}>
             <div>
-              <p style={{ fontSize: '0.72rem', color: 'var(--color-sage)', margin: '0 0 2px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>License Number</p>
+              <p style={{ fontSize: '0.72rem', color: 'var(--color-sage)', margin: '0 0 2px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Licence Number</p>
               <p style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--color-ink)', margin: 0 }}>{c.license_number ?? '—'}</p>
             </div>
             {issuedYear && (

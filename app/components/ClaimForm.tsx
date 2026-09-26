@@ -86,7 +86,8 @@ export default function ClaimForm({ slug, displayName }: Props) {
             Step 1 — Your Licence Number
           </h3>
           <p className="text-sm mb-4" style={{ color: 'var(--color-sage)' }}>
-            Enter the licence number you hold or work under for {displayName}. We compare it with the
+            {/* "RED STAG CONTRACTING, INC." already ends in a full stop; don't add a second one. */}
+            Enter the licence number you hold or work under for {displayName.replace(/\.+$/, '')}. We compare it with the
             state register and note what we find; if it doesn&rsquo;t match, a person looks at the claim
             rather than rejecting it.
           </p>
