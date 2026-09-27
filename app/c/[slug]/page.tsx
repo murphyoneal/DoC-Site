@@ -288,7 +288,7 @@ export default async function ContractorProfilePage({
               Is this your business?
             </h2>
             <p style={{ fontSize: '0.84rem', color: 'var(--color-sage)', margin: '0 0 14px' }}>
-              Claim this entry to add your own details &mdash; contact, photos, specialties. Nothing you add is published until you add it.
+              Claim it to correct the record. A person reads every claim. The QR code above is free for your truck, whether or not you claim.
             </p>
             <Link
               href={`/claim/${slug}`}
