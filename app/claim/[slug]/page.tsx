@@ -76,8 +76,8 @@ export default async function ClaimPage({ params }: { params: Promise<{ slug: st
                 {c.display_name}
               </p>
               <p style={{ fontSize: '0.82rem', color: 'var(--color-sage)', margin: 0 }}>
-                Every licensed business has an entry from the public register. Claiming lets you add your own
-                details &mdash; contact, photos, specialties &mdash; and nothing you add is published until you add it.
+                Every licensed business has an entry from the public register. Claim it to correct the record:
+                a person reads every claim.
                 We compare the licence number you give with the state register and note what we find.
               </p>
             </div>
