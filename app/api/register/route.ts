@@ -39,7 +39,8 @@ export async function POST(req: NextRequest) {
     business_name: str(body.business_name, 200),
     state: str(body.state, 8),
     county: str(body.county, 12),
-    city: str(body.city, 100),
+    // a Census place geo_id from the dropdown, or the fixed value 'unincorporated'; never typed text
+    place: str(body.place, 20),
     trades: Array.isArray(body.trades) ? (body.trades as unknown[]).filter(t => typeof t === 'string').slice(0, 30) : [],
     other_services: str(body.other_services, 500),
     contact_name: str(body.contact_name, 200),

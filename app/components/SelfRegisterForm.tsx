@@ -19,7 +19,7 @@ type Reply =
   | { outcome: 'error' }
 
 const FIELD_NAMES: Record<string, string> = {
-  business_name: 'business name', state: 'state', county: 'county', contact_email: 'email address', credentials: 'credentials',
+  business_name: 'business name', state: 'state', county: 'county', place: 'city or town', contact_email: 'email address', credentials: 'credentials',
 }
 
 const blank = (state: string): Cred => ({ kind: 'licence', issuing_state: state, trade: '', number: '', issuer: '', expires_on: '', publish: false })
@@ -28,12 +28,24 @@ export default function SelfRegisterForm({ states, trades }: { states: Geo[]; tr
   const started = useRef(Date.now())
   const [state, setState] = useState('')
   const [counties, setCounties] = useState<Geo[]>([])
+  const [county, setCounty] = useState('')
+  const [places, setPlaces] = useState<{ geo_id: string; name: string }[] | null>(null)
   const [creds, setCreds] = useState<Cred[]>([blank('')])
   const [busy, setBusy] = useState(false)
   const [reply, setReply] = useState<Reply | null>(null)
 
+  // The city list follows the county: Census places in that county, plus the fixed rural value.
+  useEffect(() => {
+    setPlaces(null)
+    if (!county) return
+    let live = true
+    fetch(`/api/places?county=${encodeURIComponent(county)}`).then(r => r.json()).then(p => { if (live) setPlaces(p) }).catch(() => { if (live) setPlaces([]) })
+    return () => { live = false }
+  }, [county])
+
   useEffect(() => {
     setCounties([])
+    setCounty('')
     if (!state) return
     let live = true
     fetch(`/api/geo?state=${encodeURIComponent(state)}`).then(r => r.json()).then(c => { if (live) setCounties(c) }).catch(() => {})
@@ -61,7 +73,7 @@ export default function SelfRegisterForm({ states, trades }: { states: Geo[]; tr
           started_at: started.current,
           company_url: f.get('company_url'),
           business_name: f.get('business_name'),
-          state, county: f.get('county'), city: f.get('city'),
+          state, county, place: f.get('place'),
           trades: f.getAll('trades'),
           other_services: f.get('other_services'),
           contact_name: f.get('contact_name'), contact_email: f.get('contact_email'),
@@ -142,14 +154,18 @@ export default function SelfRegisterForm({ states, trades }: { states: Geo[]; tr
         </div>
         <div>
           <label className="finder-label" htmlFor="rb-county">County <span className="reg-opt">(optional)</span></label>
-          <select id="rb-county" name="county" className="finder-input" disabled={!counties.length}>
+          <select id="rb-county" value={county} onChange={e => setCounty(e.target.value)} className="finder-input" disabled={!counties.length}>
             <option value="">{state ? (counties.length ? 'Choose one' : 'Loading…') : 'Choose a state first'}</option>
             {counties.map(c => <option key={c.geo_id} value={c.geo_id}>{countyDisplay(c.name, c.level_type)}</option>)}
           </select>
         </div>
       </div>
-      <label className="finder-label" htmlFor="rb-city">City or town <span className="reg-opt">(optional)</span></label>
-      <input id="rb-city" name="city" maxLength={100} className="finder-input" autoComplete="address-level2" />
+      <label className="finder-label" htmlFor="rb-place">City or town</label>
+      <select id="rb-place" name="place" className="finder-input" required={!!county} disabled={!county || places === null} defaultValue="" key={county}>
+        <option value="" disabled={!!county}>{!county ? 'Choose a county first' : places === null ? 'Loading…' : 'Choose one'}</option>
+        {places?.map(p => <option key={p.geo_id} value={p.geo_id}>{p.name}</option>)}
+        {county && places !== null && <option value="unincorporated">Rural / unincorporated area</option>}
+      </select>
 
       <fieldset className="reg-fieldset">
         <legend className="finder-label">Trades and services</legend>
