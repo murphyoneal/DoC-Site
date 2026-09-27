@@ -201,7 +201,7 @@ footer a{color:var(--gold)}
 <body>
 <nav class="nav"><div class="wrap">
 <a class="brand" href="/"><img src="/doc/doc-seal.png" alt=""><b>Department of Construction</b></a>
-<a class="l" href="/">Register</a><a class="l" href="https://departmentofproperty.com/agents.html">Agent register</a><a class="l" href="https://departmentofproperty.com/about.html">Department of Property</a><a class="cta" href="https://departmentofproperty.com/register.html" data-track="nav-cta">Claim your entry</a>
+<a class="l" href="/">Register</a><a class="l" href="https://departmentofproperty.com/agents.html">Agent register</a><a class="l" href="https://departmentofproperty.com/about.html">Department of Property</a><a class="cta" href="/c" data-track="nav-cta">Claim your entry</a>
 </div></nav>
 <header class="hero"><div class="wrap">
 <p class="tag">FLORIDA · 114,104 LICENCE RECORDS</p>
@@ -249,7 +249,8 @@ footer a{color:var(--gold)}
 <p class="sub">No rating, no star score, no ranking. A count is what's in the record; a score would be our opinion of your business.</p>
 <p class="sub">Every licensed business has an entry from the public register. Claiming lets you add your own details &mdash; contact, photos, specialties &mdash; and nothing you add is published until you add it.</p></div>
 </div>
-<p style="margin-top:44px"><a class="btn" href="https://departmentofproperty.com/register.html" data-track="doc-claim">Claim your entry — free</a></p>
+<p style="margin-top:44px"><a class="btn" href="/c" data-track="doc-claim">Claim your entry — free</a></p>
+<p class="sub" style="margin-top:12px">Find your business, open its page and choose <b>Claim This Profile</b>. A person reads every claim.</p>
 </div></section>
 
 <section><div class="wrap">
@@ -269,7 +270,7 @@ footer a{color:var(--gold)}
 <div class="flinks">
 <a href="/">Contractor register</a>
 <a href="https://departmentofproperty.com/agents.html">Agent register</a>
-<a href="https://departmentofproperty.com/register.html">Register your business</a>
+<a href="/c">Claim your entry</a>
 <a href="https://departmentofproperty.com/about.html">Department of Property</a>
 </div>
 <p>Licence data is reproduced from the Florida Department of Business and Professional Regulation's public download files. State register file retrieved 7 September 2026. A licence missing from that file is shown as last recorded, with the date it was last seen.</p>
@@ -278,8 +279,8 @@ footer a{color:var(--gold)}
 (function(){
   var URL="https://eaifqorwmgayiqmbtzcg.supabase.co/rest/v1/rpc/contractor_register_search";
   var KEY="sb_publishable_mJ-2VR-LJzvVkb_S93gZIA_DvdwpnjU";
-  // Profile pages are served by the Next.js app, which runs on the DoP host. Cross-domain
-  // until a DoC-hosted route exists — see the note in the DoC-Site brand-split PR.
+  // Profiles are served by this same app on this host (departmentofconstruction.com/c/{slug}),
+  // so the link is relative. The domain split went live 2026-09-27 (DoC-Site #51).
   var PROFILE="/c/";
   var q=document.getElementById("q"), go=document.getElementById("go"), res=document.getElementById("res");
   function esc(t){return String(t==null?"":t).replace(/[&<>"']/g,function(c){
