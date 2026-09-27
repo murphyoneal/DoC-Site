@@ -2,9 +2,9 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import JsonLd from '@/app/components/JsonLd'
 import { legalSocket } from '@/lib/sockets/legal'
-import { SITE_URL } from '@/lib/site'
+import { CONTRACTOR_URL } from '@/lib/site'
 
-const BASE = SITE_URL
+const BASE = CONTRACTOR_URL
 
 export const metadata: Metadata = {
   title: 'Construction-defect deadlines by state — what you can still do',

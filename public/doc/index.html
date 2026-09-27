@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Florida contractor register — Department of Construction</title>
+<meta name="description" content="Florida licensed trades held with their history — licences, permits and every state file they appeared in. Free to search, free to claim.">
+<meta name="robots" content="noindex, nofollow">
+<!-- Nothing here is crawled until every form and function is tested and audited.
+     robots.txt asks a crawler not to FETCH; this tag is what prevents INDEXING, and a page
+     linked from elsewhere can be indexed without ever being fetched. Both are needed.
+     This domain is a static deploy and was never covered by SITE_INDEXABLE on the sibling
+     Next.js app, so it sat open. -->
+<link rel="icon" href="/doc/doc-seal.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400;62..125,500;62..125,600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box}
+:root{
+  --navy:#152441; --navy-2:#0E1A31; --ink:#0C1424; --gold:#C9A84C; --gold-dim:#A8873A;
+  --paper:#fff; --wash:#F6F7F9; --line:#E3E7EE; --line-2:#2B3B5E;
+  --grey:#5D6A82; --grey-navy:#93A3C0;
+  --sp:clamp(64px,8vw,116px);
+}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--paper);color:var(--ink);
+  font-family:'Archivo',system-ui,-apple-system,sans-serif;
+  font-size:17px;line-height:1.62;font-variation-settings:'wdth' 100;
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+.wrap{max-width:1120px;margin:0 auto;padding:0 32px}
+@media(max-width:600px){.wrap{padding:0 22px}}
+h1,h2,h3{margin:0;font-weight:600;line-height:1.06;letter-spacing:-.022em}
+h1{font-size:clamp(40px,6vw,74px);font-variation-settings:'wdth' 108}
+h2{font-size:clamp(28px,3.8vw,44px);font-variation-settings:'wdth' 104}
+h3{font-size:19px;line-height:1.3;letter-spacing:-.008em}
+p{margin:0 0 1.15em;max-width:64ch}
+a{color:inherit;text-underline-offset:3px;text-decoration-thickness:1px}
+img{max-width:100%;display:block}
+.num{font-variant-numeric:tabular-nums;font-feature-settings:'tnum'}
+.eyebrow{font-size:12px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--gold-dim);margin:0 0 18px}
+.eyebrow.on-navy{color:var(--gold)}
+.lede{font-size:clamp(18px,2.1vw,22px);line-height:1.5;color:#C9D4E8;max-width:58ch;margin:28px 0 0}
+.sub{color:var(--grey);max-width:60ch}
+
+/* nav */
+.nav{position:sticky;top:0;z-index:50;background:rgba(21,36,65,.94);
+  backdrop-filter:saturate(150%) blur(10px);border-bottom:1px solid var(--line-2)}
+.nav .wrap{display:flex;align-items:center;gap:28px;height:60px}
+.brand{display:flex;align-items:center;gap:11px;text-decoration:none;margin-right:auto;min-width:0}
+.brand img{width:30px;height:30px;border-radius:50%;background:#fff;padding:2px;flex:0 0 auto}
+.brand b{color:#fff;font-size:14.5px;font-weight:600;letter-spacing:.01em;
+  font-variation-settings:'wdth' 106;white-space:nowrap}
+.nav a.l{color:var(--grey-navy);text-decoration:none;font-size:14.5px;white-space:nowrap}
+.nav a.l:hover{color:#fff}
+.nav a.cta{color:var(--navy);background:var(--gold);padding:8px 16px;font-size:14.5px;
+  font-weight:600;text-decoration:none;white-space:nowrap}
+.nav a.cta:hover{background:#DCBB5C}
+@media(max-width:720px){.nav a.l{display:none}.nav .wrap{height:56px}}
+
+/* hero */
+.hero{background:var(--navy);color:#fff;padding:clamp(58px,8vw,104px) 0 clamp(64px,8vw,96px);
+  background-image:linear-gradient(180deg,#16274A 0%,var(--navy) 55%)}
+.hero h1{max-width:17ch}
+.hero .tag{display:inline-block;border:1px solid var(--gold);color:var(--gold);
+  font-size:11.5px;font-weight:600;letter-spacing:.15em;padding:5px 12px;margin-bottom:26px}
+
+/* coverage rows */
+.states{margin-top:clamp(42px,6vw,64px);border-top:1px solid var(--line-2)}
+.row{display:grid;grid-template-columns:18px 1fr;gap:18px;padding:19px 0;
+  border-bottom:1px solid var(--line-2);align-items:start}
+.tok{width:14px;height:14px;margin-top:7px;flex:0 0 auto}
+.tok.present{background:var(--gold)}
+.tok.none{border:2px solid var(--gold)}
+.tok.na{border:2px dashed #6E80A8}
+.row .fact{font-size:16.5px;color:#EAF0FA;margin:0;max-width:74ch;line-height:1.55}
+.row .fact em{font-style:normal;color:var(--grey-navy)}
+.row .who{font-size:14px;color:var(--gold);margin:6px 0 0}
+.key{display:flex;gap:30px;flex-wrap:wrap;margin-top:22px;font-size:13px;
+  color:var(--grey-navy);letter-spacing:.02em}
+.key i{display:inline-block;width:10px;height:10px;margin-right:8px;position:relative;top:1px}
+.key .present{background:var(--gold)}.key .none{border:2px solid var(--gold)}
+.key .na{border:2px dashed #6E80A8}
+
+section{padding:var(--sp) 0}
+section+section{border-top:1px solid var(--line)}
+.wash{background:var(--wash)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:clamp(32px,5vw,68px);margin-top:40px}
+@media(max-width:800px){.two{grid-template-columns:1fr;gap:34px}}
+.col h3{margin-bottom:10px}
+.col.rule{border-top:2px solid var(--gold);padding-top:20px}
+
+/* figures */
+.figs{display:grid;grid-template-columns:repeat(4,1fr);margin-top:48px;
+  border-top:1px solid var(--line)}
+@media(max-width:900px){.figs{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:520px){.figs{grid-template-columns:1fr}}
+.fig{padding:26px 26px 26px 0;border-bottom:1px solid var(--line)}
+.fig b{display:block;font-size:clamp(26px,3vw,34px);font-weight:600;letter-spacing:-.03em;
+  font-variation-settings:'wdth' 92;line-height:1;font-variant-numeric:tabular-nums}
+.fig span{display:block;font-size:14px;color:var(--grey);margin-top:10px;line-height:1.45;max-width:30ch}
+
+.pull{background:var(--navy);color:#fff;padding:clamp(56px,7vw,88px) 0}
+.pull p{font-size:clamp(24px,3.4vw,38px);line-height:1.24;font-weight:600;letter-spacing:-.02em;
+  font-variation-settings:'wdth' 104;max-width:20ch;margin:0}
+.pull small{display:block;font-size:16px;font-weight:400;color:var(--grey-navy);
+  margin-top:26px;max-width:58ch;line-height:1.62;letter-spacing:0}
+
+.btn{display:inline-block;background:var(--gold);color:var(--navy);text-decoration:none;
+  padding:15px 30px;font-weight:600;font-size:16.5px;border:0;cursor:pointer;
+  font-family:inherit;transition:background .15s}
+.btn:hover{background:#DCBB5C}
+.btn.dark{background:var(--navy);color:#fff}
+.btn.dark:hover{background:#1E3157}
+a:focus-visible,button:focus-visible,input:focus-visible,label:focus-within{
+  outline:3px solid var(--gold);outline-offset:3px}
+
+/* record card */
+.card{border:1px solid var(--line);margin-top:40px;position:relative;background:#fff}
+.chead{padding:28px 30px 24px;border-bottom:1px solid var(--line)}
+.chead h3{font-size:24px}
+.chead .m{font-size:14.5px;color:var(--grey);margin:7px 0 0}
+.stamp{position:absolute;top:24px;right:24px;transform:rotate(-4.5deg);
+  border:2.5px solid #B4741A;color:#8F5C13;background:#FDF6E9;padding:9px 14px;max-width:236px}
+.stamp b{display:block;font-size:12.5px;font-weight:600;letter-spacing:.13em;line-height:1.2}
+.stamp span{display:block;font-size:12.5px;line-height:1.42;margin-top:5px;letter-spacing:0}
+@media(max-width:760px){.stamp{position:static;transform:none;margin:18px 30px 0;max-width:none}}
+.cbody{padding:4px 30px 28px}
+.line{display:grid;grid-template-columns:170px 1fr;gap:22px;padding:17px 0;
+  border-bottom:1px solid var(--line);font-size:16px;align-items:start}
+.line:last-child{border-bottom:0}
+.line .lab{color:var(--grey);font-size:13px;font-weight:600;letter-spacing:.09em;
+  text-transform:uppercase;padding-top:3px}
+.line .val em{font-style:normal;color:var(--grey)}
+@media(max-width:640px){.line{grid-template-columns:1fr;gap:6px}}
+.ledger{list-style:none;margin:6px 0 0;padding:0;font-size:15.5px}
+.ledger li{padding:8px 0;border-bottom:1px solid var(--line);display:flex;gap:16px}
+.ledger li:last-child{border-bottom:0}
+.ledger time{color:var(--grey);flex:0 0 104px;font-variant-numeric:tabular-nums}
+
+/* forms */
+form{margin-top:40px;max-width:600px}
+fieldset{border:0;padding:0;margin:0 0 30px}
+legend{font-weight:600;font-size:13px;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--grey);margin-bottom:14px}
+.roles{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:560px){.roles{grid-template-columns:1fr}}
+.role{border:1px solid var(--line);padding:18px;cursor:pointer;display:block;transition:border-color .15s}
+.role:hover{border-color:#B9C3D4}
+.role:has(input:checked){border-color:var(--navy);box-shadow:inset 0 0 0 1px var(--navy)}
+.role input{margin-right:10px}
+.role b{font-weight:600;font-size:16.5px}
+.role span{display:block;font-size:14px;color:var(--grey);margin-top:5px;line-height:1.45}
+.field{margin-bottom:18px}
+label.f{display:block;font-size:13px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--grey);margin-bottom:7px}
+input[type=text],input[type=email],input[type=search]{width:100%;border:1px solid var(--line);
+  padding:14px 16px;font:inherit;font-size:16px;background:#fff;color:var(--ink);border-radius:0}
+input:hover{border-color:#B9C3D4}
+.check{display:flex;gap:12px;align-items:flex-start;font-size:15.5px;margin-bottom:20px;max-width:58ch}
+.check input{margin-top:5px;flex:0 0 auto}
+.smallprint{font-size:14px;color:var(--grey);margin-top:18px;max-width:58ch}
+
+/* search */
+.search{margin-top:40px;display:flex;max-width:600px;background:#fff}
+.search input{flex:1;border:0;padding:17px 20px;font:inherit;font-size:16.5px;min-width:0}
+.search button{border:0;background:var(--gold);color:var(--navy);font:inherit;font-weight:600;
+  font-size:16.5px;padding:17px 30px;cursor:pointer}
+.search button:hover{background:#DCBB5C}
+.hint{font-size:14px;color:var(--grey-navy);margin-top:14px}
+
+
+#res{margin-top:28px;scroll-margin-top:110px}
+.rmeta{font-size:14px;color:var(--grey-navy);margin:0 0 14px;letter-spacing:.01em}
+.rlist{border-top:1px solid var(--line-2)}
+.ritem{padding:15px 0;border-bottom:1px solid var(--line-2);display:grid;
+  grid-template-columns:1fr auto;gap:14px;align-items:start}
+.ritem .nm{color:#fff;font-size:16.5px;font-weight:600;margin:0;line-height:1.3}
+.ritem .nm a.pl{color:#fff;text-decoration:underline;text-decoration-thickness:1px;
+  text-underline-offset:3px;text-decoration-color:rgba(201,168,76,.5)}
+.ritem .nm a.pl:hover{color:var(--gold);text-decoration-color:var(--gold)}
+.ritem .dt{color:var(--grey-navy);font-size:14px;margin:4px 0 0;line-height:1.45}
+.ritem .lic{font-variant-numeric:tabular-nums;color:var(--gold)}
+.flag{font-size:11px;font-weight:600;letter-spacing:.1em;padding:4px 9px;white-space:nowrap;
+  border:1px solid #8F6A1F;color:#E3C26A;background:rgba(201,168,76,.09)}
+.flag.claimed{border-color:var(--gold);color:var(--navy);background:var(--gold)}
+.rnote{font-size:13.5px;color:var(--grey-navy);margin:16px 0 0;max-width:64ch;line-height:1.55}
+footer{background:var(--navy-2);color:var(--grey-navy);font-size:14px;
+  padding:clamp(44px,5vw,60px) 0 44px}
+footer p{max-width:78ch;margin:0 0 .8em;line-height:1.6}
+footer a{color:var(--gold)}
+.fseals{display:flex;gap:20px;align-items:center;margin-bottom:26px;flex-wrap:wrap}
+.fseals img{width:84px;border-radius:50%;background:#fff;padding:5px}
+.parent{font-size:14px;color:var(--gold);margin:0 0 20px}
+.flinks{display:flex;gap:26px;flex-wrap:wrap;margin:0 0 26px;padding-top:22px;
+  border-top:1px solid var(--line-2)}
+.flinks a{color:var(--grey-navy);text-decoration:none;font-size:14.5px}
+.flinks a:hover{color:#fff}
+</style>
+</head><!-- Ported from the retired DoC-Public repo (ruling 2026-09-27): served at / on departmentofconstruction.com by proxy.ts. Profile links are relative so they stay on this host. -->
+<body>
+<nav class="nav"><div class="wrap">
+<a class="brand" href="/"><img src="/doc/doc-seal.png" alt=""><b>Department of Construction</b></a>
+<a class="l" href="/">Register</a><a class="l" href="https://departmentofproperty.com/agents.html">Agent register</a><a class="l" href="https://departmentofproperty.com/about.html">Department of Property</a><a class="cta" href="https://departmentofproperty.com/register.html" data-track="nav-cta">Claim your entry</a>
+</div></nav>
+<header class="hero"><div class="wrap">
+<p class="tag">FLORIDA · 114,104 LICENCE RECORDS</p>
+<h1>Florida's licensed construction contractors, from the state licence file. Free to search.</h1>
+<p class="lede">Type a business name, licence number or trade. Pick a county, or add a town, to narrow it. Electrical contractors are licensed separately and are not in this file.</p>
+<div class="search"><input id="q" type="search" placeholder="e.g. roofing, or Sowell Construction, or CGC1527697" aria-label="Search the contractor register" autocomplete="off"><select id="county" aria-label="County" style="border:1px solid #cfc8bd;border-radius:6px;padding:0 8px;font:inherit;background:#fff"><option value="">All Florida counties</option><option value="alachua">Alachua</option><option value="baker">Baker</option><option value="bay">Bay</option><option value="bradford">Bradford</option><option value="brevard">Brevard</option><option value="broward">Broward</option><option value="calhoun">Calhoun</option><option value="charlotte">Charlotte</option><option value="citrus">Citrus</option><option value="clay">Clay</option><option value="collier">Collier</option><option value="columbia">Columbia</option><option value="desoto">DeSoto</option><option value="dixie">Dixie</option><option value="duval">Duval</option><option value="escambia">Escambia</option><option value="flagler">Flagler</option><option value="franklin">Franklin</option><option value="gadsden">Gadsden</option><option value="gilchrist">Gilchrist</option><option value="glades">Glades</option><option value="gulf">Gulf</option><option value="hamilton">Hamilton</option><option value="hardee">Hardee</option><option value="hendry">Hendry</option><option value="hernando">Hernando</option><option value="highlands">Highlands</option><option value="hillsborough">Hillsborough</option><option value="holmes">Holmes</option><option value="indian_river">Indian River</option><option value="jackson">Jackson</option><option value="jefferson">Jefferson</option><option value="lafayette">Lafayette</option><option value="lake">Lake</option><option value="lee">Lee</option><option value="leon">Leon</option><option value="levy">Levy</option><option value="liberty">Liberty</option><option value="madison">Madison</option><option value="manatee">Manatee</option><option value="marion">Marion</option><option value="martin">Martin</option><option value="dade">Miami-Dade</option><option value="monroe">Monroe</option><option value="nassau">Nassau</option><option value="okaloosa">Okaloosa</option><option value="okeechobee">Okeechobee</option><option value="orange">Orange</option><option value="osceola">Osceola</option><option value="palm_beach">Palm Beach</option><option value="pasco">Pasco</option><option value="pinellas">Pinellas</option><option value="polk">Polk</option><option value="putnam">Putnam</option><option value="santa_rosa">Santa Rosa</option><option value="sarasota">Sarasota</option><option value="seminole">Seminole</option><option value="st_johns">St. Johns</option><option value="st_lucie">St. Lucie</option><option value="sumter">Sumter</option><option value="suwannee">Suwannee</option><option value="taylor">Taylor</option><option value="union">Union</option><option value="volusia">Volusia</option><option value="wakulla">Wakulla</option><option value="walton">Walton</option><option value="washington">Washington</option></select><button id="go" type="button" data-track="doc-search">Search</button></div>
+<p class="hint">114,104 licence records · 29 trades · statewide · state file retrieved 7 Sep 2026</p>
+<div id="res" aria-live="polite"></div>
+</div></header>
+
+<section><div class="wrap">
+<p class="eyebrow">A record, not a directory</p>
+<h2>Registers show who is licensed now.<br>Nobody keeps who was.</h2>
+<div class="two">
+<div class="col"><p class="sub">The state publishes a weekly file of current licensees. Renew late and you drop out of it. Close the business and you vanish from it entirely.</p>
+<p class="sub">That's the moment the record matters most — a defect surfaces, a claim is filed, a buyer asks who did the work. We keep each state file we retrieve, with the date we retrieved it.</p></div>
+<div class="col"><p class="sub">Each entry shows the licences a business holds, the trade each one covers, the year each was first issued, and the status and expiry as the state file recorded them &mdash; with the date of that file.</p>
+<p class="sub">We publish what's in the record and nothing we've worked out about it.</p></div>
+</div>
+
+<div class="card">
+<div class="stamp"><b>RECORD DATED</b><span>Last matched to the state file 7 Sep 2026. It may have changed since.</span></div>
+<div class="chead"><h3>Example Contracting, Inc.</h3><p class="m">Jacksonville, FL · Building contractor, roofing contractor</p></div>
+<div class="cbody">
+<div class="line"><div class="lab">Licences held</div><div class="val">CBC0000000 &mdash; certified building contractor, first issued 2007<br>CCC0000000 &mdash; certified roofing contractor, first issued 2012</div></div>
+<div class="line"><div class="lab">Status</div><div class="val">Active &middot; expiry 31 Aug 2028, as recorded in the state file</div></div>
+<div class="line"><div class="lab">County</div><div class="val">Duval</div></div>
+<p style="font-size:14px;color:var(--grey);margin:14px 0 0;max-width:58ch">An illustration. The business name and licence numbers are placeholders, not a real record.</p>
+</div></div>
+</div></section>
+
+<div class="pull"><div class="wrap">
+<p>Absence from the file is not the same as losing a licence.</p>
+<small>The state's download excludes null-and-void, delinquent and involuntarily inactive records. A contractor missing from this week's file may simply have renewed late. We record that they were absent, and on which date — we don't decide which of the three it was.</small>
+</div></div>
+
+<section class="wash"><div class="wrap">
+<p class="eyebrow">Free to claim</p>
+<h2>If this is your business, correct it.</h2>
+<div class="two">
+<div class="col rule"><h3>Claim your entry</h3>
+<p class="sub">Claim your entry to add your own details &mdash; contact, photos, specialties &mdash; alongside what the state register says. Nothing you add is published until you add it.</p>
+<p class="sub">You get a QR code for your truck and your cards that resolves to your entry. Free, and it stays yours.</p></div>
+<div class="col rule"><h3>What we won't do</h3>
+<p class="sub">No rating, no star score, no ranking. A count is what's in the record; a score would be our opinion of your business.</p>
+<p class="sub">Every licensed business has an entry from the public register. Claiming lets you add your own details &mdash; contact, photos, specialties &mdash; and nothing you add is published until you add it.</p></div>
+</div>
+<p style="margin-top:44px"><a class="btn" href="https://departmentofproperty.com/register.html" data-track="doc-claim">Claim your entry — free</a></p>
+</div></section>
+
+<section><div class="wrap">
+<p class="eyebrow">What's behind it</p>
+<h2>Held today.</h2>
+<div class="figs">
+<div class="fig"><b class="num">114,104</b><span>Licence records from the state file</span></div>
+<div class="fig"><b class="num">29</b><span>Trades, from building and roofing to pool and gas</span></div>
+<div class="fig"><b class="num">98,749</b><span>Businesses, one entry each, however many licences they hold</span></div>
+<div class="fig"><b class="num">8.5M</b><span>Florida parcels with a building record</span></div>
+</div>
+<p class="sub" style="margin-top:30px">We hold permit registers for two counties, but matching a permit to a contractor by name is not yet reliable enough to put on an entry, so entries don't show permits.</p>
+</div></section>
+<footer><div class="wrap">
+<p class="parent">Part of <a href="https://departmentofproperty.com/about.html">Department of Property</a></p>
+<div class="fseals"><img src="/doc/doc-seal.png" alt="Department of Construction seal"><img src="/doc/dop-seal.png" alt="Department of Property seal"></div>
+<div class="flinks">
+<a href="/">Contractor register</a>
+<a href="https://departmentofproperty.com/agents.html">Agent register</a>
+<a href="https://departmentofproperty.com/register.html">Register your business</a>
+<a href="https://departmentofproperty.com/about.html">Department of Property</a>
+</div>
+<p>Licence data is reproduced from the Florida Department of Business and Professional Regulation's public download files. State register file retrieved 7 September 2026. A licence missing from that file is shown as last recorded, with the date it was last seen.</p>
+<p>This site is in development and is provided free, with no warranty. It is not a licensing authority, is not a government agency, and is not affiliated with any government body. Always verify a licence directly with the state register before engaging a contractor.</p>
+</div></footer><script>
+(function(){
+  var URL="https://eaifqorwmgayiqmbtzcg.supabase.co/rest/v1/rpc/contractor_register_search";
+  var KEY="sb_publishable_mJ-2VR-LJzvVkb_S93gZIA_DvdwpnjU";
+  // Profile pages are served by the Next.js app, which runs on the DoP host. Cross-domain
+  // until a DoC-hosted route exists — see the note in the DoC-Site brand-split PR.
+  var PROFILE="/c/";
+  var q=document.getElementById("q"), go=document.getElementById("go"), res=document.getElementById("res");
+  function esc(t){return String(t==null?"":t).replace(/[&<>"']/g,function(c){
+    return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
+  function loc(r){var a=[];if(r.city)a.push(esc(r.city));if(r.county)a.push(esc(r.county));return a.join(", ");}
+  function render(d){
+    if(d.field_status==="not_run"){res.innerHTML='<p class="rmeta">'+esc(d.note)+'</p>';return;}
+    if(d.field_status==="none_found"){
+      res.innerHTML='<p class="rmeta">No licence record matches &ldquo;'+esc((d.terms||[]).join(" "))+'&rdquo;'+(d.county_filter?' in '+esc(document.getElementById("county").selectedOptions[0].text)+' County':'')+' in the state file we hold.</p>'+
+        '<p class="rnote">This is what our copy of the register contains \u2014 not a statement that no such contractor exists. The state file excludes null-and-void, delinquent and involuntarily inactive records.</p>';
+      return;}
+    var h='<p class="rmeta">'+d.count+' match'+(d.count===1?"":"es")+
+      (d.returned<d.count?', showing '+d.returned+' — add a word or pick a county to narrow':'')+'</p>'+(d.match_rule?'<p class="rnote">'+esc(d.match_rule)+'</p>':'')+'<div class="rlist">';
+    d.results.forEach(function(r){
+      var l=loc(r);
+      // Every row in the register has a slug today, but a row without one gets plain text
+      // rather than a link to nowhere.
+      var nm=r.slug?'<a class="pl" href="'+PROFILE+encodeURIComponent(r.slug)+'">'+esc(r.name)+'</a>'
+                   :esc(r.name);
+      h+='<div class="ritem"><div><p class="nm">'+nm+'</p><p class="dt"><span class="lic">'+
+        esc(r.license_number||"\u2014")+'</span> \u00b7 '+esc(r.trade||"Trade not recorded")+
+        (l?' \u00b7 '+l:'')+'</p></div><div>'+
+        (r.claimed?'<span class="flag claimed">CLAIMED</span>'
+                  :'<span class="flag">'+(r.record_dated?'RECORD DATED':'UNCLAIMED')+'</span>')+
+        '</div></div>';});
+    h+='</div><p class="rnote">'+esc(d.coverage_note)+' Source: '+esc(d.source)+
+       ', retrieved '+esc(d.source_retrieved)+'.</p>';
+    res.innerHTML=h;
+    try{res.scrollIntoView({behavior:"smooth",block:"start"});}catch(e){res.scrollIntoView(true);}}
+  function run(){
+    var c=document.getElementById("county").value;
+    var v=((q.value||"").trim()+(c?" county:"+c:"")).trim();
+    res.innerHTML='<p class="rmeta">Searching\u2026</p>';
+    try{res.scrollIntoView({behavior:"smooth",block:"start"});}catch(e){res.scrollIntoView(true);}
+    fetch(URL,{method:"POST",headers:{"apikey":KEY,"Authorization":"Bearer "+KEY,
+      "Content-Type":"application/json"},body:JSON.stringify({q:v,lim:25})})
+      .then(function(r){if(!r.ok)throw new Error(r.status);return r.json();})
+      .then(render)
+      .catch(function(){res.innerHTML='<p class="rmeta">The register could not be reached just now. That is a fault on our side, not a result \u2014 please try again shortly.</p>';});}
+  go.addEventListener("click",run);
+  document.getElementById("county").addEventListener("change",function(){if((q.value||"").trim()||this.value)run();});
+  q.addEventListener("keydown",function(e){if(e.key==="Enter")run();});
+})();
+</script>
+</body></html>

@@ -33,3 +33,31 @@
 // old note still holds. The reason changed, not the rule: it is a different
 // product's host, not a former name of this one.
 export const SITE_URL = 'https://departmentofproperty.com'
+
+// ── ONE APP, TWO HOSTS (ruling 2026-09-27, work order 691) ────────────────────────────────
+// Contractors are Department of Construction; land, PIR and agents are Department of Property.
+// This one deployment serves both domains and DoC-Public retires. The layout, robots and sitemap
+// pick their brand from the request host; next.config.ts carries the permanent cross-domain
+// redirects.
+//
+// DOMAIN_SPLIT is the switch, and it is a CODE constant on purpose: flipping it is a reviewed
+// commit, not a dashboard toggle. It stays false until departmentofconstruction.com is attached
+// to THIS project and verified serving it. While false, nothing changes on departmentofproperty.com
+// (no redirects; contractor links, QR targets and vCards keep the DoP host), so this can ship
+// before the domain moves. When true: DoP contractor paths 308 to DoC (path and query kept, so
+// ?ref=qr survives), and every contractor URL this app emits uses DOC_URL.
+//
+// The redirects are PERMANENT INFRASTRUCTURE: every QR code printed so far encodes
+// departmentofproperty.com. Never remove them.
+export const DOP_URL = 'https://departmentofproperty.com'
+export const DOC_URL = 'https://departmentofconstruction.com'
+export const DOMAIN_SPLIT = false
+
+/** Base URL for contractor surfaces (profiles, claim, QR, vCard, county and rights pages). */
+export const CONTRACTOR_URL = DOMAIN_SPLIT ? DOC_URL : DOP_URL
+export const CONTRACTOR_BRAND = DOMAIN_SPLIT ? 'Department of Construction' : 'Department of Property'
+
+/** True for departmentofconstruction.com and its www. The host header may carry a port locally. */
+export function isDocHost(host: string | null | undefined): boolean {
+  return /(^|\.)departmentofconstruction\.com$/i.test(String(host ?? '').split(':')[0])
+}

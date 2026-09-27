@@ -7,6 +7,7 @@ import { CATEGORY_LABELS } from '@/lib/tradeCategories'
 import { resolveBusinessSlug, getBusinessLicences, getRelatedBusinesses, withQuery } from '@/lib/business'
 import { countyLabel, countyLanding as countyLandingFor } from '@/lib/county'
 import { statusLabel, fileDate, ABSENT, ABSENT_NOTE } from '@/lib/licence-status'
+import { requestBrand } from '@/lib/brand'
 
 const SB_HOST = 'eaifqorwmgayiqmbtzcg.supabase.co'
 // Read from the environment — never hardcode the key. Set SUPABASE_SECRET_KEY in
@@ -107,6 +108,7 @@ export default async function ContractorProfilePage({
   const countyTitle = countyLabel(c.county_name)
   const countyLanding = countyLandingFor(c.county_name)
   const issuedYear = firstIssuedYear(c.original_date)
+  const siteName = (await requestBrand()).name
 
 
   const tradeLabel = CATEGORY_LABELS[c.doc_category] ?? c.trade_label ?? 'Contractor'
@@ -130,7 +132,7 @@ export default async function ContractorProfilePage({
       {/* Header bar */}
       <div style={{ background: 'var(--color-navy)', padding: '12px 24px', display: 'flex', alignItems: 'center', gap: '12px' }}>
         <Link href="/" style={{ color: 'var(--color-bronze)', textDecoration: 'none', fontSize: '0.82rem' }}>
-          ← Department of Property
+          ← {siteName}
         </Link>
       </div>
 

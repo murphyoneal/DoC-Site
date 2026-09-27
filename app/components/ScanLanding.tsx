@@ -17,6 +17,7 @@ interface Props {
   expiryDate: string | null
   recordDate: string | null
   absent?: boolean
+  siteName?: string
 }
 
 export default function ScanLanding({
@@ -34,6 +35,7 @@ export default function ScanLanding({
   expiryDate,
   recordDate,
   absent = false,
+  siteName = 'Department of Property',
 }: Props) {
   const statusText = statusLabel(licenseStatus)
   const statusColor = absent ? '#8B6F47' : licenseStatus === 'active' ? '#2d7d46' : licenseStatus === 'expired' ? '#c0392b' : '#8B6F47'
@@ -102,7 +104,7 @@ export default function ScanLanding({
     >
       <div style={{ marginBottom: '2rem', opacity: 0.5 }}>
         <span style={{ fontSize: '0.75rem', letterSpacing: '0.15em', color: 'var(--color-navy)', fontWeight: 700 }}>
-          DEPARTMENT OF PROPERTY
+          {siteName.toUpperCase()}
         </span>
       </div>
 

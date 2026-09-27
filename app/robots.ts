@@ -1,5 +1,5 @@
 import type { MetadataRoute } from 'next'
-import { SITE_URL } from '@/lib/site'
+import { requestBrand } from '@/lib/brand'
 
 // Site-wide indexing kill-switch. Crawling is blocked entirely until the
 // SITE_INDEXABLE env var is explicitly set to 'true' (evaluated at build time;
@@ -9,7 +9,9 @@ const INDEXABLE = process.env.SITE_INDEXABLE === 'true'
 
 // SITE_URL (the canonical apex) is imported from lib/site. It is only advertised
 // as sitemap host once indexing is switched on.
-export default function robots(): MetadataRoute.Robots {
+// Per host (one app serves both domains, ruling 2026-09-27): each advertises its own sitemap.
+export default async function robots(): Promise<MetadataRoute.Robots> {
+  const base = (await requestBrand()).url
   if (!INDEXABLE) {
     return { rules: { userAgent: '*', disallow: '/' } }
   }
@@ -32,7 +34,7 @@ export default function robots(): MetadataRoute.Robots {
         disallow: '/',
       },
     ],
-    sitemap: `${SITE_URL}/sitemap.xml`,
-    host: SITE_URL,
+    sitemap: `${base}/sitemap.xml`,
+    host: base,
   }
 }

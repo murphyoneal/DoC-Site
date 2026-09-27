@@ -1,6 +1,38 @@
 import type { NextConfig } from 'next'
+import { DOMAIN_SPLIT, DOC_URL, DOP_URL } from './lib/site'
+
+// ── ONE APP, TWO HOSTS: the permanent cross-domain redirects (ruling 2026-09-27) ──────────────
+// Contractor paths on departmentofproperty.com 308 to the same path on departmentofconstruction.com,
+// and property/agent paths requested on the DoC host 308 back. Next passes the query string through
+// on every redirect, so ?ref=qr survives (QR scan attribution). A retired business slug takes two
+// permanent hops: this host move, then the page's own slug redirect on the DoC host.
+//
+// PERMANENT INFRASTRUCTURE. Every QR code printed so far encodes departmentofproperty.com/api/qr and
+// /c/{slug}. Never remove these. Off until DOMAIN_SPLIT (lib/site.ts) flips, after the domain is
+// attached to this project and verified.
+const DOP_HOST = '(www\\.|app\\.)?departmentofproperty\\.com'
+const DOC_HOST = 'departmentofconstruction\\.com'
+
+const TO_DOC = ['/c', '/c/:path*', '/claim/:slug', '/claim/:slug/:rest*', '/api/qr/:path*', '/api/vcard/:path*',
+  '/map', '/florida', '/florida/:path*', '/rights', '/rights/:path*']
+const TO_DOP = ['/report/:path*', '/checkout', '/checkout/:path*', '/agent', '/agent/:path*', '/roz', '/roz/:path*',
+  '/prototype/:path*', '/about.html', '/register.html', '/privacy.html', '/terms.html', '/agents.html']
+
+// /login is deliberately on BOTH hosts: sign-in cookies are per host, so a page on DoC that needs a
+// session (the claim photos page) must sign in on DoC.
+async function domainRedirects() {
+  if (!DOMAIN_SPLIT) return []
+  return [
+    // www.departmentofconstruction.com -> the apex, everything.
+    { source: '/:path*', has: [{ type: 'host' as const, value: 'www\\.departmentofconstruction\\.com' }], destination: `${DOC_URL}/:path*`, permanent: true },
+    ...TO_DOC.map(source => ({ source, has: [{ type: 'host' as const, value: DOP_HOST }], destination: `${DOC_URL}${source}`, permanent: true })),
+    ...TO_DOP.map(source => ({ source, has: [{ type: 'host' as const, value: DOC_HOST }], destination: `${DOP_URL}${source}`, permanent: true })),
+  ]
+}
 
 const nextConfig: NextConfig = {
+  redirects: domainRedirects,
+
   async headers() {
     return [
       {

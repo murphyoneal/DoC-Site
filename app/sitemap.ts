@@ -1,11 +1,21 @@
 import { MetadataRoute } from 'next'
 import { legalSocket } from '@/lib/sockets/legal'
-import { SITE_URL } from '@/lib/site'
+import { DOMAIN_SPLIT } from '@/lib/site'
+import { requestBrand } from '@/lib/brand'
 
 export const revalidate = 86400
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const base = SITE_URL
+  // Per host (ruling 2026-09-27). Before the split everything below is on DoP, as today. After it,
+  // the contractor, county and rights pages list under DoC, and DoP lists only its own pages.
+  const brand = await requestBrand()
+  const base = brand.url
+  if (DOMAIN_SPLIT && brand.key === 'dop') {
+    return [
+      { url: base, lastModified: new Date(), changeFrequency: 'weekly', priority: 1.0 },
+      { url: base + '/disclaimer', lastModified: new Date(), changeFrequency: 'yearly', priority: 0.3 },
+    ]
+  }
 
   const COUNTY_SLUGS = ['volusia', 'miami-dade', 'orange', 'seminole', 'osceola', 'lake']
 
