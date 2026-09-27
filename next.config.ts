@@ -16,7 +16,7 @@ const DOC_HOST = '(www\\.)?departmentofconstruction\\.com'
 const TO_DOC = ['/c', '/c/:path*', '/claim/:slug', '/claim/:slug/:rest*', '/api/qr/:path*', '/api/vcard/:path*',
   '/map', '/florida', '/florida/:path*', '/rights', '/rights/:path*',
   // self-registration (work order 699): the form, its API and the /r/ pages are DoC's
-  '/register-your-business', '/r/:path*', '/api/register', '/api/geo']
+  '/register-your-business', '/r/:path*', '/api/register', '/api/geo', '/api/places']
 const TO_DOP = ['/report/:path*', '/checkout', '/checkout/:path*', '/agent', '/agent/:path*', '/roz', '/roz/:path*',
   '/prototype/:path*', '/about.html', '/register.html', '/privacy.html', '/terms.html', '/agents.html']
 

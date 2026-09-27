@@ -63,6 +63,18 @@ export async function getCounties(state: string): Promise<Geo[]> {
   } catch { return [] }
 }
 
+export type Place = { geo_id: string; name: string; kind: 'municipality' | 'census_designated_place' }
+
+export async function getPlaces(county: string): Promise<Place[]> {
+  if (!/^US-\d{5}$/.test(county)) return []
+  try {
+    const r = await fetch(`${SB_REST}/rpc/places_for_county`, {
+      method: 'POST', headers: SB_HEADERS, body: JSON.stringify({ p_county: county }), next: { revalidate: 86400 },
+    })
+    return r.ok ? await r.json() : []
+  } catch { return [] }
+}
+
 export async function getRegisteredPage(slug: string): Promise<RegisteredPage | null> {
   try {
     const r = await fetch(`${SB_REST}/rpc/registered_business_page`, {
