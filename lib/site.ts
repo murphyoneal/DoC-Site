@@ -51,7 +51,7 @@ export const SITE_URL = 'https://departmentofproperty.com'
 // departmentofproperty.com. Never remove them.
 export const DOP_URL = 'https://departmentofproperty.com'
 export const DOC_URL = 'https://departmentofconstruction.com'
-export const DOMAIN_SPLIT = false
+export const DOMAIN_SPLIT = true
 
 /** Base URL for contractor surfaces (profiles, claim, QR, vCard, county and rights pages). */
 export const CONTRACTOR_URL = DOMAIN_SPLIT ? DOC_URL : DOP_URL
