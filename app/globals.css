@@ -115,3 +115,23 @@ h1, h2, h3, h4 {
 /* Not transform: Mapbox positions a marker with an inline transform, so scaling it here would fight
    the placement. Size and a ring instead. */
 .doc-marker.selected { background: var(--color-navy); width: 18px; height: 18px; box-shadow: 0 0 0 4px rgba(201,168,76,.55); z-index: 2; }
+
+/* Self-registration (work order 699): /register-your-business and /r/{slug}. */
+.reg-card { position: relative; background: #fff; border: 1px solid #e2ddd6; border-radius: 14px; padding: 20px; }
+.reg-h2 { font-family: Georgia, serif; font-size: 1.05rem; color: var(--color-navy); margin: 6px 0 0; }
+.reg-p { font-size: 0.86rem; color: var(--color-ink); line-height: 1.55; margin: 0 0 10px; }
+.reg-opt { text-transform: none; letter-spacing: 0; font-weight: 400; color: var(--color-sage); }
+.reg-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.reg-row > div { display: grid; gap: 4px; align-content: start; }
+@media (max-width: 560px) { .reg-row { grid-template-columns: 1fr; } }
+.reg-fieldset { border: 0; padding: 0; margin: 0; display: grid; gap: 6px; }
+.reg-trades { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 4px 12px; font-size: 13px; }
+.reg-cred { border: 1px solid #e2ddd6; border-radius: 10px; padding: 12px; display: grid; gap: 10px; background: #fcfbf9; }
+.reg-tick { font-size: 13px; color: var(--color-ink); display: flex; gap: 8px; align-items: flex-start; }
+.reg-link { background: none; border: 0; padding: 0; color: var(--color-bronze); font-size: 13px; cursor: pointer; text-decoration: underline; }
+.reg-checks { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; font-size: 0.86rem; }
+.reg-check { display: inline-block; margin-top: 2px; font-size: 0.82rem; }
+.reg-check.register_held_matched { color: #1f5f3a; }
+.reg-check.register_held_no_match { color: #a8332b; }
+.reg-check.register_not_held { color: var(--color-sage); }
+.reg-label { display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; padding: 3px 8px; border-radius: 10px; border: 1px solid #d9c9a8; color: #7a5a1f; background: #fbf5e9; }

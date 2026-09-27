@@ -53,3 +53,25 @@ export async function getFinder(q: string, county: string, trade: string, page =
     return { mode: 'error', message: 'The register could not be searched just now.' }
   }
 }
+
+// Self-registered businesses (work order 699): a separate list with a separate label, never merged
+// into the register rows above. Only approved registrations whose business chose to be listed.
+export type RegisteredRow = {
+  slug: string; business_name: string; trades: string[] | null; state: string; state_abbr: string
+  county: string | null; county_level: string | null; city: string | null
+}
+
+export async function getRegistered(q: string, county: string): Promise<RegisteredRow[]> {
+  try {
+    const res = await fetch(`https://${SB_HOST}/rest/v1/rpc/registered_finder`, {
+      method: 'POST',
+      headers: { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ q: q || null, county: county || null, lim: 30 }),
+      next: { revalidate: 300 },
+    })
+    if (!res.ok) return []
+    return ((await res.json())?.results ?? []) as RegisteredRow[]
+  } catch {
+    return []
+  }
+}

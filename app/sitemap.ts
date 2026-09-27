@@ -44,6 +44,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: base + '/florida',                      lastModified: new Date(), changeFrequency: 'weekly',  priority: 0.9 },
     { url: base + '/florida/volusia/spruce-creek', lastModified: new Date(), changeFrequency: 'monthly', priority: 0.8 },
     { url: base + '/disclaimer',                   lastModified: new Date(), changeFrequency: 'yearly',  priority: 0.3 },
+    { url: base + '/register-your-business',       lastModified: new Date(), changeFrequency: 'monthly', priority: 0.6 },
   ]
 
   // The finder: its default view (the county list) and one page per county, each a server-rendered

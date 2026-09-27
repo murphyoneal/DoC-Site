@@ -2,10 +2,11 @@
 
 import { useMemo, useState } from 'react'
 import dynamic from 'next/dynamic'
-import type { FinderResult, FinderRow } from '@/lib/finder'
+import type { FinderResult, FinderRow, RegisteredRow } from '@/lib/finder'
 import type { Pin } from './FinderMap'
 import { CATEGORY_LABELS } from '@/lib/tradeCategories'
 import { COUNTY_KEYS_BY_LABEL, byCountyLabel, countyLabel } from '@/lib/county'
+import { countyDisplay } from '@/lib/geo-display'
 
 // The contractor finder (work order 697). LEFT: the decisions - search, county, trades as a list,
 // and the RESULTS LIST, which is the page's indexable content (text ranks, pins do not). It is a
@@ -34,7 +35,7 @@ function tradeNames(r: FinderRow): string {
   return labels.length ? labels.join(', ') : (r.trade ?? 'Contractor')
 }
 
-export default function FinderShell({ data, q, county, trade, page = 1 }: { data: FinderResult; q: string; county: string; trade: string; page?: number }) {
+export default function FinderShell({ data, registered = [], q, county, trade, page = 1 }: { data: FinderResult; registered?: RegisteredRow[]; q: string; county: string; trade: string; page?: number }) {
   const [selected, setSelected] = useState<string | null>(null)
   const rows = data.mode === 'results' ? data.results : []
   const pins: Pin[] = useMemo(
@@ -59,6 +60,7 @@ export default function FinderShell({ data, q, county, trade, page = 1 }: { data
         </h1>
         <p style={{ fontSize: 12, color: 'var(--color-sage)', margin: '0 0 12px' }}>
           From the Florida construction licence file. Electrical contractors are licensed separately and are not in it.
+          {' '}Outside Florida, or not in the file? <a href="/register-your-business" style={{ color: 'var(--color-bronze)' }}>Register your business</a>.
         </p>
 
         <form action="/map" method="get" style={{ display: 'grid', gap: 8 }}>
@@ -160,6 +162,30 @@ export default function FinderShell({ data, q, county, trade, page = 1 }: { data
               )}
             </section>
           </>
+        )}
+
+        {registered.length > 0 && (
+          <section style={{ marginTop: 16 }} aria-labelledby="self-registered">
+            <h2 id="self-registered" className="finder-h2">Self-registered businesses</h2>
+            <p style={{ fontSize: 11, color: 'var(--color-sage)', margin: '0 0 8px' }}>
+              These businesses registered themselves. They are not entries from a state licence file: each page shows what the
+              business declared and what we could check.
+            </p>
+            <ol className="finder-results">
+              {registered.map(r => (
+                <li key={r.slug} className="finder-row" style={{ cursor: 'default' }}>
+                  <a href={`/r/${r.slug}`} className="finder-name">{r.business_name}</a>
+                  <div className="finder-meta">
+                    {(r.trades ?? []).map(t => CATEGORY_LABELS[t] ?? t).join(', ') || 'Contractor'}
+                    {r.city ? ` · ${r.city}` : ''}
+                    {r.county ? ` · ${countyDisplay(r.county, r.county_level)}` : ''}
+                    {` · ${r.state}`}
+                  </div>
+                  <div className="finder-badges"><span className="badge">Self-registered</span></div>
+                </li>
+              ))}
+            </ol>
+          </section>
         )}
       </aside>
 
