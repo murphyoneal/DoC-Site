@@ -1,10 +1,21 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
+import { isDocHost } from '@/lib/site'
 
 // Session gate. Next 16 renamed `middleware` -> `proxy` (see node_modules/next/dist/docs
 // .../file-conventions/proxy.md). Refreshes the Supabase session cookie on every matched
 // request and redirects unauthenticated users away from the Roz surface.
 export async function proxy(request: NextRequest) {
+  // ONE APP, TWO HOSTS (ruling 2026-09-27). "/" is the one path both products want: on
+  // departmentofconstruction.com it is the contractor register landing (ported whole from the
+  // retired DoC-Public repo into public/doc/). Everything else is routed by path, and the
+  // cross-domain moves are permanent redirects in next.config.ts.
+  if (request.nextUrl.pathname === '/' && isDocHost(request.headers.get('host'))) {
+    return NextResponse.rewrite(new URL('/doc/index.html', request.url))
+  }
+  // "/" on the DoP host is public: no session work for it.
+  if (request.nextUrl.pathname === '/') return NextResponse.next()
+
   let response = NextResponse.next({ request })
 
   const supabase = createServerClient(
@@ -46,5 +57,5 @@ export async function proxy(request: NextRequest) {
 // The authenticated agent surface (Roz + the agent claim/verify tools) is gated; everything else
 // (public site, B2B assistant) is untouched.
 export const config = {
-  matcher: ['/roz/:path*', '/api/roz/:path*', '/agent/:path*', '/api/agent/:path*'],
+  matcher: ['/', '/roz/:path*', '/api/roz/:path*', '/agent/:path*', '/api/agent/:path*'],
 }

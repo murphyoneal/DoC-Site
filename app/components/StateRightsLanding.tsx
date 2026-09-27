@@ -1,9 +1,9 @@
 import Link from 'next/link'
 import JsonLd from './JsonLd'
 import type { LegalStateRow } from '@/lib/sockets/legal'
-import { SITE_URL } from '@/lib/site'
+import { CONTRACTOR_URL, CONTRACTOR_BRAND } from '@/lib/site'
 
-const BASE = SITE_URL
+const BASE = CONTRACTOR_URL
 
 // State construction-defect rights landing page. Order is fixed by product rule
 // (website_copy.framing_rights_not_fear): RIGHTS first, then the DEADLINE, then
@@ -36,7 +36,7 @@ export default function StateRightsLanding({
     '@type': 'Article',
     headline: `Construction-defect deadline in ${state.state_name}`,
     description: state.homeowner_summary ?? undefined,
-    isPartOf: { '@type': 'WebSite', name: 'Department of Property', url: BASE },
+    isPartOf: { '@type': 'WebSite', name: CONTRACTOR_BRAND, url: BASE },
     url,
     ...(state.primary_source_url ? { citation: state.primary_source_url } : {}),
   }

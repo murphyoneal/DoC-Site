@@ -2,66 +2,46 @@ import type { Metadata } from 'next'
 import './globals.css'
 import Link from 'next/link'
 import JsonLd from './components/JsonLd'
-import { SITE_URL } from '@/lib/site'
+import { requestBrand } from '@/lib/brand'
 
-// The canonical identity a crawler reads for this domain. departmentofproperty.com is
-// Department of Property; Department of Construction is a separate live product on its own
-// domain (lib/site.ts). No legal entity is named anywhere — none exists yet (ruling 2026-09-24).
-const ORG_JSONLD = {
-  '@context': 'https://schema.org',
-  '@type': 'Organization',
-  name: 'Department of Property',
-  url: SITE_URL,
-  logo: `${SITE_URL}/og-image.png`,
-  description:
-    'Licensed contractor search powered by official government registry data.',
+// ONE APP, TWO HOSTS (ruling 2026-09-27). departmentofconstruction.com is Department of
+// Construction (contractors); departmentofproperty.com is Department of Property (land, PIR,
+// agents). The chrome, metadata and JSON-LD come from the request host via lib/brand, so a page
+// always names the site it is on. No legal entity is named anywhere - none exists yet (ruling
+// 2026-09-24).
+
+export async function generateMetadata(): Promise<Metadata> {
+  const b = await requestBrand()
+  return {
+    title: { default: b.titleDefault, template: `%s | ${b.name}` },
+    description: b.description,
+    metadataBase: new URL(b.url),
+    applicationName: b.name,
+    // Site-wide indexing kill-switch: everything is noindex until SITE_INDEXABLE === 'true', on
+    // both hosts. Pairs with app/robots.ts so the meta tag and robots.txt agree. The page-scoped
+    // `robots: { index: false }` entries (assistant, checkout, checkout/success, report) override
+    // this and stay noindex even after the switch is flipped on.
+    robots: process.env.SITE_INDEXABLE === 'true' ? undefined : { index: false, follow: false },
+    openGraph: {
+      type: 'website',
+      siteName: b.name,
+      title: b.titleDefault,
+      description: b.description,
+      url: '/',
+      images: [{ url: '/og-image.png', width: 512, height: 512, alt: b.name }],
+    },
+    twitter: { card: 'summary', title: b.titleDefault, description: b.description, images: ['/og-image.png'] },
+  }
 }
 
-const WEBSITE_JSONLD = {
-  '@context': 'https://schema.org',
-  '@type': 'WebSite',
-  name: 'Department of Property',
-  url: SITE_URL,
-}
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const b = await requestBrand()
+  const orgJsonLd = {
+    '@context': 'https://schema.org', '@type': 'Organization',
+    name: b.name, url: b.url, logo: `${b.url}/og-image.png`, description: b.description,
+  }
+  const siteJsonLd = { '@context': 'https://schema.org', '@type': 'WebSite', name: b.name, url: b.url }
 
-const SITE_NAME = 'Department of Property'
-const SITE_DESC =
-  'Search Florida construction contractors by trade and location, and see each licence’s status as recorded in the state licence file.'
-
-export const metadata: Metadata = {
-  title: {
-    default: 'Find Licensed Contractors Near You | Department of Property',
-    template: '%s | Department of Property',
-  },
-  description: SITE_DESC,
-  metadataBase: new URL(SITE_URL),
-  applicationName: SITE_NAME,
-  // Site-wide indexing kill-switch: everything is noindex until SITE_INDEXABLE
-  // === 'true'. Pairs with app/robots.ts so the meta tag and robots.txt agree.
-  // The four page-scoped `robots: { index: false }` entries (assistant,
-  // checkout, checkout/success, report/[coNo]/[parcelId]) override this object
-  // and therefore stay noindex even after the switch is flipped on.
-  robots:
-    process.env.SITE_INDEXABLE === 'true'
-      ? undefined
-      : { index: false, follow: false },
-  openGraph: {
-    type: 'website',
-    siteName: SITE_NAME,
-    title: 'Find Licensed Contractors Near You | Department of Property',
-    description: SITE_DESC,
-    url: '/',
-    images: [{ url: '/og-image.png', width: 512, height: 512, alt: SITE_NAME }],
-  },
-  twitter: {
-    card: 'summary',
-    title: 'Find Licensed Contractors Near You | Department of Property',
-    description: SITE_DESC,
-    images: ['/og-image.png'],
-  },
-}
-
-export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <head>
@@ -71,28 +51,31 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body className="min-h-screen flex flex-col" style={{ backgroundColor: 'var(--color-cream)' }}>
-        <JsonLd data={ORG_JSONLD} />
-        <JsonLd data={WEBSITE_JSONLD} />
+        <JsonLd data={orgJsonLd} />
+        <JsonLd data={siteJsonLd} />
         <div className="disclaimer-banner">
           This site is a technology platform, not a licensing authority.
           Always verify licence status directly with the relevant government registry.{' '}
           <Link href="/disclaimer">Learn more</Link>
         </div>
         <header style={{ background: 'var(--color-navy)', borderBottom: '1px solid #2a3f6b' }}>
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
-            <Link href="/" className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold"
-                style={{ background: 'var(--color-bronze)', color: 'var(--color-white)' }}>
-                DoP
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
+            <Link href="/" className="flex items-center gap-3" style={{ textDecoration: 'none' }}>
+              {/* The mark was 9 units wide in 12 px type and read as a smudge; it is the one brand
+                  cue on a phone, where the name beside it is hidden. */}
+              <div className="w-11 h-11 rounded-full flex items-center justify-center font-bold"
+                style={{ background: 'var(--color-bronze)', color: 'var(--color-white)', fontSize: '15px', fontFamily: 'Georgia, serif', letterSpacing: '0.02em' }}>
+                {b.mark}
               </div>
               <span className="text-lg font-bold tracking-wide hidden sm:block"
                 style={{ fontFamily: 'Georgia, serif', color: 'var(--color-white)' }}>
-                Department of Property
+                {b.name}
               </span>
             </Link>
             <nav className="flex items-center gap-4 text-sm">
-              <Link href="/florida" style={{ color: '#aab4c8' }}>Florida</Link>
-              <Link href="/disclaimer" style={{ color: '#aab4c8' }}>Disclaimer</Link>
+              {b.nav.map(l => (
+                <Link key={l.href} href={l.href} style={{ color: '#aab4c8', textDecoration: 'none' }}>{l.label}</Link>
+              ))}
             </nav>
           </div>
         </header>
@@ -102,14 +85,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <div className="flex flex-col sm:flex-row justify-between gap-4 text-xs" style={{ color: '#7a8faa' }}>
               <div>
                 <p className="font-semibold mb-1" style={{ color: '#aab4c8', fontFamily: 'Georgia, serif' }}>
-                  Department of Property
+                  {b.name}
                 </p>
-                <p>Licensed contractor search powered by official government registry data.</p>
+                <p>{b.footerLine}</p>
               </div>
               <div className="flex flex-col gap-1 sm:items-end">
-                <Link href="/florida" className="hover:underline">Florida Contractors</Link>
-                <Link href="/florida/volusia" className="hover:underline">Volusia County</Link>
-                <Link href="/disclaimer" className="hover:underline">Disclaimer</Link>
+                {/* These rendered as default browser blue: the links carried no colour of their own. */}
+                {b.footer.map(l => (
+                  <Link key={l.href} href={l.href} className="hover:underline" style={{ color: '#aab4c8', textDecoration: 'none' }}>{l.label}</Link>
+                ))}
               </div>
             </div>
             <p className="mt-4 text-xs text-center" style={{ color: '#4a5f7a' }}>

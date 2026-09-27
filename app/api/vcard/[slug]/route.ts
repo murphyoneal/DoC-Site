@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { contractorSocket } from '@/lib/sockets/contractors'
-import { SITE_URL } from '@/lib/site'
+import { CONTRACTOR_URL } from '@/lib/site'
 import { resolveBusinessSlug } from '@/lib/business'
 
 export async function GET(
@@ -24,7 +24,7 @@ export async function GET(
 
   // Canonical host only — NEXT_PUBLIC_APP_URL resolved to do-c-site.vercel.app in production,
   // and a saved contact card keeps whatever URL it was given.
-  const baseUrl = SITE_URL
+  const baseUrl = CONTRACTOR_URL
 
   const lines = [
     'BEGIN:VCARD',

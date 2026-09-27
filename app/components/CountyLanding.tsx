@@ -1,9 +1,9 @@
 import Link from 'next/link'
 import JsonLd from './JsonLd'
 import type { FloridaCounty } from '@/lib/florida-counties'
-import { SITE_URL } from '@/lib/site'
+import { CONTRACTOR_URL, CONTRACTOR_BRAND } from '@/lib/site'
 
-const BASE = SITE_URL
+const BASE = CONTRACTOR_URL
 
 // Shared county contractor landing page. Mirrors /florida/volusia; data-driven.
 export default function CountyLanding({ county }: { county: FloridaCounty }) {
@@ -25,7 +25,7 @@ export default function CountyLanding({ county }: { county: FloridaCounty }) {
     name: `${county.name} Licensed Contractors`,
     description: `Licensed contractors in ${county.name}, Florida — ${county.cities.map(c => c.name).join(', ')}. DBPR verified licence data.`,
     url,
-    isPartOf: { '@type': 'WebSite', name: 'Department of Property', url: BASE },
+    isPartOf: { '@type': 'WebSite', name: CONTRACTOR_BRAND, url: BASE },
     about: {
       '@type': 'Place',
       name: county.name,

@@ -1,5 +1,6 @@
 ﻿import { NextRequest, NextResponse } from 'next/server'
 import { resolveBusinessSlug } from '@/lib/business'
+import { CONTRACTOR_URL } from '@/lib/site'
 
 const SB_HOST = 'eaifqorwmgayiqmbtzcg.supabase.co'
 const SB_KEY = process.env.SUPABASE_SECRET_KEY!
@@ -112,7 +113,7 @@ export async function POST(req: NextRequest) {
           _subject: `Profile claim: ${contractor.display_name ?? claimSlug}`,
           source: 'claim form on a business profile (/claim)',
           business: contractor.display_name ?? null,
-          profile: `https://departmentofproperty.com/c/${claimSlug}`,
+          profile: `${CONTRACTOR_URL}/c/${claimSlug}`,
           profile_licence: contractor.license_number ?? null,
           licence_given: license_number,
           licence_check: licenceMatch.state ?? 'not evaluated',

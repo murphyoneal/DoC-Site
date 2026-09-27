@@ -18,7 +18,9 @@ const ContractorMap = dynamic(() => import('./ContractorMap'), {
   ),
 })
 
-export default function HomeMapShell() {
+// withPropertyLookup: the address box belongs to Department of Property. On the contractor site
+// (/map on departmentofconstruction.com) it is simply wrong copy, so it is off there.
+export default function HomeMapShell({ withPropertyLookup = true }: { withPropertyLookup?: boolean }) {
   const [category, setCategory] = useState<string | null>(null)
   const [count, setCount] = useState<number | null>(null)
 
@@ -35,11 +37,13 @@ export default function HomeMapShell() {
             Every business here holds a licence in the state&rsquo;s construction licence file, placed near
             the address on that licence, which is not always where it works. Pick a trade below, or{' '}
             <a href="/c" style={{ color: 'var(--color-bronze)', textDecoration: 'underline' }}>search by name, licence number, city or county</a>.
-            To see the public record for a property, look up its address.
+            {withPropertyLookup && ' To see the public record for a property, look up its address.'}
           </p>
         </div>
       </div>
 
+      {withPropertyLookup && (
+        <>
       {/* Property lookup — the entry point: an address resolves to that parcel's full
           report. Searches our own roll, so every suggestion has a report behind it; a
           non-match says so honestly rather than "not found". Relative + high z-index so
@@ -59,6 +63,9 @@ export default function HomeMapShell() {
           <AddressAutocomplete placeholder="Enter a Florida property address…" />
         </div>
       </div>
+
+        </>
+      )}
 
       {/* Filter bar */}
       <div

@@ -6,6 +6,7 @@ import { logScanServer, requestMeta } from '@/lib/scan'
 import { CATEGORY_LABELS } from '@/lib/tradeCategories'
 import { resolveBusinessSlug, withQuery } from '@/lib/business'
 import { fileDate, ABSENT } from '@/lib/licence-status'
+import { requestBrand } from '@/lib/brand'
 
 const SB_HOST = 'eaifqorwmgayiqmbtzcg.supabase.co'
 // Read from the environment — never hardcode the key. Set SUPABASE_SECRET_KEY in
@@ -97,6 +98,7 @@ export default async function ScanPage({
       expiryDate={c.expiry_date ?? null}
       recordDate={recordDate}
       absent={c.register_file_state === ABSENT}
+      siteName={(await requestBrand()).name}
     />
   )
 }

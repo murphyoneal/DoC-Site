@@ -13,7 +13,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import QRCode from 'qrcode'
 import { contractorSocket } from '@/lib/sockets/contractors'
-import { SITE_URL } from '@/lib/site'
+import { CONTRACTOR_URL } from '@/lib/site'
 import { resolveBusinessSlug } from '@/lib/business'
 
 const SCREEN_MAX = 512
@@ -59,7 +59,7 @@ export async function GET(
   // Build target URL. Always the canonical host, never NEXT_PUBLIC_APP_URL: in production that
   // resolved to do-c-site.vercel.app, so every code issued encoded the Vercel host. A printed
   // code is permanent — it must name the domain the redirects live on.
-  const baseUrl = SITE_URL
+  const baseUrl = CONTRACTOR_URL
   const targetUrl = ref
     ? `${baseUrl}/c/${slug}?ref=${encodeURIComponent(ref)}`
     : `${baseUrl}/c/${slug}`
