@@ -18,11 +18,12 @@ const FinderMap = dynamic(() => import('./FinderMap'), {
   loading: () => <div style={{ width: '100%', height: '100%', background: '#e8e4df' }} />,
 })
 
-function href(q: string, county: string, trade: string) {
+function href(q: string, county: string, trade: string, page = 1) {
   const p = new URLSearchParams()
   if (q) p.set('q', q)
   if (county) p.set('county', county)
   if (trade) p.set('trade', trade)
+  if (page > 1) p.set('page', String(page))
   const s = p.toString()
   return '/map' + (s ? '?' + s : '')
 }
@@ -33,7 +34,7 @@ function tradeNames(r: FinderRow): string {
   return labels.length ? labels.join(', ') : (r.trade ?? 'Contractor')
 }
 
-export default function FinderShell({ data, q, county, trade }: { data: FinderResult; q: string; county: string; trade: string }) {
+export default function FinderShell({ data, q, county, trade, page = 1 }: { data: FinderResult; q: string; county: string; trade: string; page?: number }) {
   const [selected, setSelected] = useState<string | null>(null)
   const rows = data.mode === 'results' ? data.results : []
   const pins: Pin[] = useMemo(
@@ -47,7 +48,8 @@ export default function FinderShell({ data, q, county, trade }: { data: FinderRe
   }
 
   const where = county ? `${countyLabel(county)} County` : 'Florida'
-  const what = trade ? (CATEGORY_LABELS[trade] ?? trade) : 'licensed contractors'
+  // Matches the page title: "Roofing contractors in Volusia County", "Licensed contractors in Florida".
+  const what = trade ? `${CATEGORY_LABELS[trade] ?? trade} contractors` : 'Licensed contractors'
 
   return (
     <div className="finder">
@@ -117,7 +119,7 @@ export default function FinderShell({ data, q, county, trade }: { data: FinderRe
               </h2>
               {data.count > data.returned && (
                 <p style={{ fontSize: 12, color: 'var(--color-sage)', margin: '0 0 8px' }}>
-                  Showing the first {data.returned}. Pick a trade or add a word to narrow it.
+                  Showing {(data.offset ?? 0) + 1}–{(data.offset ?? 0) + data.returned}. Pick a trade or add a word to narrow it, or page through below.
                 </p>
               )}
               <p style={{ fontSize: 11, color: 'var(--color-sage)', margin: '0 0 8px' }}>
@@ -143,6 +145,14 @@ export default function FinderShell({ data, q, county, trade }: { data: FinderRe
                   </li>
                 ))}
               </ol>
+              {/* Real links, so every business is reachable by a crawler, not only the first page. */}
+              {data.count > data.returned && (
+                <nav aria-label="Pages" style={{ display: 'flex', justifyContent: 'space-between', gap: 8, margin: '8px 0 0', fontSize: 13 }}>
+                  {page > 1 ? <a href={href(q, county, trade, page - 1)} rel="prev" style={{ color: 'var(--color-bronze)' }}>&larr; Previous</a> : <span />}
+                  <span style={{ color: 'var(--color-sage)' }}>Page {page} of {Math.ceil(data.count / 60)}</span>
+                  {(data.offset ?? 0) + data.returned < data.count ? <a href={href(q, county, trade, page + 1)} rel="next" style={{ color: 'var(--color-bronze)' }}>Next &rarr;</a> : <span />}
+                </nav>
+              )}
               {data.coverage_note && (
                 <p style={{ fontSize: 11, color: 'var(--color-sage)', margin: '12px 0 0' }}>
                   {data.coverage_note} Source: Florida DBPR public licence file, retrieved {data.source_retrieved}.

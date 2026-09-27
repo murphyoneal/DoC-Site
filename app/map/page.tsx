@@ -16,7 +16,9 @@ function one(v: string | string[] | undefined): string {
 function clean(sp: Awaited<SP>) {
   const county = one(sp.county).toLowerCase()
   const trade = one(sp.trade).toLowerCase()
+  const page = Math.min(Math.max(parseInt(one(sp.page), 10) || 1, 1), 2000)
   return {
+    page,
     q: one(sp.q).slice(0, 80),
     county: (COUNTY_KEYS as readonly string[]).includes(county) ? county : '',
     trade: CATEGORY_LABELS[trade] ? trade : '',
@@ -24,17 +26,17 @@ function clean(sp: Awaited<SP>) {
 }
 
 export async function generateMetadata({ searchParams }: { searchParams: SP }): Promise<Metadata> {
-  const { q, county, trade } = clean(await searchParams)
+  const { q, county, trade, page } = clean(await searchParams)
   const what = trade ? `${CATEGORY_LABELS[trade]} contractors` : 'Licensed contractors'
   const where = county ? `${countyLabel(county)} County, Florida` : 'Florida'
   return {
-    title: q ? `“${q}” — ${what} in ${where}` : `${what} in ${where}`,
+    title: (q ? `“${q}” — ${what} in ${where}` : `${what} in ${where}`) + (page > 1 ? ` (page ${page})` : ''),
     description: `${what} in ${where}, from the state construction licence file: name, trade, city and licence status as recorded. Listed alphabetically, never ranked.`,
   }
 }
 
 export default async function MapPage({ searchParams }: { searchParams: SP }) {
-  const { q, county, trade } = clean(await searchParams)
-  const data = await getFinder(q, county, trade)
-  return <FinderShell data={data} q={q} county={county} trade={trade} />
+  const { q, county, trade, page } = clean(await searchParams)
+  const data = await getFinder(q, county, trade, page)
+  return <FinderShell data={data} q={q} county={county} trade={trade} page={page} />
 }

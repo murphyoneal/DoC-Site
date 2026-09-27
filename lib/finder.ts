@@ -28,6 +28,7 @@ export type FinderResult =
       note?: string
       count: number
       returned: number
+      offset?: number
       order?: string
       trades: { trade: string; businesses: number }[]
       source_retrieved?: string | null
@@ -36,12 +37,14 @@ export type FinderResult =
     }
   | { mode: 'error'; message: string }
 
-export async function getFinder(q: string, county: string, trade: string): Promise<FinderResult> {
+export const PAGE_SIZE = 60
+
+export async function getFinder(q: string, county: string, trade: string, page = 1): Promise<FinderResult> {
   try {
     const res = await fetch(`https://${SB_HOST}/rest/v1/rpc/contractor_finder`, {
       method: 'POST',
       headers: { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ q: q || null, county: county || null, trade: trade || null, lim: 60 }),
+      body: JSON.stringify({ q: q || null, county: county || null, trade: trade || null, lim: PAGE_SIZE, off: (Math.max(1, page) - 1) * PAGE_SIZE }),
       next: { revalidate: 300 },
     })
     if (!res.ok) return { mode: 'error', message: `The register could not be searched (${res.status}).` }
