@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { COUNTY_KEYS, countyLabel } from '@/lib/county'
+import { COUNTY_KEYS, COUNTY_KEYS_BY_LABEL, countyLabel } from '@/lib/county'
 
 // "Search another contractor" — where a profile's search box goes (work order 653 (c)).
 // Backed by contractor_register_search, the same function the public register uses, so the two
@@ -59,7 +59,7 @@ export default async function ContractorSearchPage({
         <select id="county" name="county" defaultValue={county}
           style={{ padding: '10px 12px', borderRadius: '8px', border: '1px solid #cfc8bd', fontSize: '0.9rem', background: 'white' }}>
           <option value="">All Florida counties</option>
-          {[...COUNTY_KEYS].sort((a, b) => (countyLabel(a) ?? a).localeCompare(countyLabel(b) ?? b)).map(k => (
+          {COUNTY_KEYS_BY_LABEL.map(k => (
             <option key={k} value={k}>{countyLabel(k)}</option>
           ))}
         </select>
