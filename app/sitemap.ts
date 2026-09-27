@@ -2,6 +2,7 @@ import { MetadataRoute } from 'next'
 import { legalSocket } from '@/lib/sockets/legal'
 import { DOMAIN_SPLIT } from '@/lib/site'
 import { requestBrand } from '@/lib/brand'
+import { COUNTY_KEYS } from '@/lib/county'
 
 export const revalidate = 86400
 
@@ -45,5 +46,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: base + '/disclaimer',                   lastModified: new Date(), changeFrequency: 'yearly',  priority: 0.3 },
   ]
 
-  return [...staticPages, ...countyPages, ...rightsPages]
+  // The finder: its default view (the county list) and one page per county, each a server-rendered
+  // list of named businesses (work order 697). Trade-within-county pages are reachable by links from
+  // these and are not enumerated here.
+  const finderPages: MetadataRoute.Sitemap = [
+    { url: `${base}/map`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.9 },
+    ...COUNTY_KEYS.map(k => ({ url: `${base}/map?county=${k}`, lastModified: new Date(), changeFrequency: 'weekly' as const, priority: 0.8 })),
+  ]
+
+  return [...staticPages, ...countyPages, ...rightsPages, ...finderPages]
 }
