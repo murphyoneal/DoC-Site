@@ -11,7 +11,7 @@ import { DOMAIN_SPLIT, DOC_URL, DOP_URL } from './lib/site'
 // /c/{slug}. Never remove these. Off until DOMAIN_SPLIT (lib/site.ts) flips, after the domain is
 // attached to this project and verified.
 const DOP_HOST = '(www\\.|app\\.)?departmentofproperty\\.com'
-const DOC_HOST = 'departmentofconstruction\\.com'
+const DOC_HOST = '(www\\.)?departmentofconstruction\\.com'
 
 const TO_DOC = ['/c', '/c/:path*', '/claim/:slug', '/claim/:slug/:rest*', '/api/qr/:path*', '/api/vcard/:path*',
   '/map', '/florida', '/florida/:path*', '/rights', '/rights/:path*']
@@ -23,8 +23,8 @@ const TO_DOP = ['/report/:path*', '/checkout', '/checkout/:path*', '/agent', '/a
 async function domainRedirects() {
   if (!DOMAIN_SPLIT) return []
   return [
-    // www.departmentofconstruction.com -> the apex, everything.
-    { source: '/:path*', has: [{ type: 'host' as const, value: 'www\\.departmentofconstruction\\.com' }], destination: `${DOC_URL}/:path*`, permanent: true },
+    // www <-> apex is NOT decided here. It is Vercel's domain setting, one place, so the two can never
+    // loop (the apex 308ed to www when the domain came over from do-c-public). Vercel keeps path and query.
     ...TO_DOC.map(source => ({ source, has: [{ type: 'host' as const, value: DOP_HOST }], destination: `${DOC_URL}${source}`, permanent: true })),
     ...TO_DOP.map(source => ({ source, has: [{ type: 'host' as const, value: DOC_HOST }], destination: `${DOP_URL}${source}`, permanent: true })),
   ]
