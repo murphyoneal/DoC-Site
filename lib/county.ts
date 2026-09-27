@@ -22,6 +22,13 @@ export function countyLabel(key: string | null | undefined): string | null {
   return SPECIAL[k] ?? k.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
 }
 
+// For every list a person reads: sorted by the NAME shown, not the key held. By key, Miami-Dade
+// (held as "dade") sat under D between Columbia and DeSoto.
+export function byCountyLabel(a: string, b: string): number {
+  return (countyLabel(a) ?? a).localeCompare(countyLabel(b) ?? b)
+}
+export const COUNTY_KEYS_BY_LABEL: readonly string[] = [...COUNTY_KEYS].sort(byCountyLabel)
+
 // County landing pages that exist under /florida, keyed by the HELD key (the data says "dade",
 // the route says "miami-dade").
 const LANDINGS: Record<string, string> = {

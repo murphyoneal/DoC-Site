@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic'
 import type { FinderResult, FinderRow } from '@/lib/finder'
 import type { Pin } from './FinderMap'
 import { CATEGORY_LABELS } from '@/lib/tradeCategories'
-import { COUNTY_KEYS, countyLabel } from '@/lib/county'
+import { COUNTY_KEYS_BY_LABEL, byCountyLabel, countyLabel } from '@/lib/county'
 
 // The contractor finder (work order 697). LEFT: the decisions - search, county, trades as a list,
 // and the RESULTS LIST, which is the page's indexable content (text ranks, pins do not). It is a
@@ -68,7 +68,7 @@ export default function FinderShell({ data, q, county, trade, page = 1 }: { data
           <label className="finder-label" htmlFor="finder-county">County</label>
           <select id="finder-county" name="county" defaultValue={county} className="finder-input">
             <option value="">All Florida counties</option>
-            {COUNTY_KEYS.map(k => <option key={k} value={k}>{countyLabel(k)}</option>)}
+            {COUNTY_KEYS_BY_LABEL.map(k => <option key={k} value={k}>{countyLabel(k)}</option>)}
           </select>
           {trade && <input type="hidden" name="trade" value={trade} />}
           <button type="submit" className="finder-btn">Search</button>
@@ -80,7 +80,7 @@ export default function FinderShell({ data, q, county, trade, page = 1 }: { data
           <section style={{ marginTop: 16 }}>
             <h2 className="finder-h2">Pick a county</h2>
             <ul className="finder-list">
-              {data.counties.map(c => (
+              {[...data.counties].sort((a, b) => byCountyLabel(a.county, b.county)).map(c => (
                 <li key={c.county}>
                   <a href={href('', c.county, '')} className="finder-county">
                     <span>{countyLabel(c.county)}</span>
