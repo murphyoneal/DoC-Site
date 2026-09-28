@@ -15,7 +15,7 @@ type Checked = { kind: Kind; number: string | null; issuing_state: string | null
 type Reply =
   | { outcome: 'received'; slug?: string; credentials: Checked[] | null }
   | { outcome: 'existing'; slug: string; note: string }
-  | { outcome: 'invalid'; field: string; index?: number }
+  | { outcome: 'invalid'; field: string; index?: number; reason?: string }
   | { outcome: 'error' }
 
 const FIELD_NAMES: Record<string, string> = {
@@ -286,7 +286,7 @@ export default function SelfRegisterForm({ states, trades }: { states: Geo[]; tr
 
       {reply?.outcome === 'invalid' && (
         <p style={{ color: '#a8332b', fontSize: 13, margin: 0 }}>
-          Please check the {FIELD_NAMES[reply.field] ?? reply.field}{reply.index ? ` (item ${reply.index})` : ''}.
+          {reply.reason === 'language' ? 'That wording cannot be published. Please change the ' : 'Please check the '}{FIELD_NAMES[reply.field] ?? reply.field}{reply.index ? ` (item ${reply.index})` : ''}.
           {reply.field === 'credentials' ? ' A state licence needs its number and issuing state.' : ''}
         </p>
       )}

@@ -45,8 +45,9 @@ export default function AgentProfileForm({ slug, initial, registerBrokerage, voc
     try {
       const r = await fetch('/api/agent-profile', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ slug, ...p }) })
       const j = await r.json()
-      setMsg(j.saved ? { ok: true, text: 'Saved. Switched-on items now show on your page.' }
-        : { ok: false, text: j.field ? `Please check: ${String(j.field).replace(/_/g, ' ')}.` : 'Not saved. Please sign in again with the email on your approved claim.' })
+      setMsg(j.saved ? { ok: true, text: 'Saved. Your page is updated.' }
+        : j.reason === 'language' ? { ok: false, text: `Not saved: that wording can't be published on your page. Please change your ${String(j.field).replace(/_/g, ' ')}.` }
+        : { ok: false, text: j.field ? `Not saved. Please check your ${String(j.field).replace(/_/g, ' ')}.` : 'Not saved. Please sign in again with the email on your approved claim.' })
     } catch { setMsg({ ok: false, text: 'Not saved: network error.' }) } finally { setBusy(false) }
   }
 
@@ -95,8 +96,10 @@ export default function AgentProfileForm({ slug, initial, registerBrokerage, voc
         </p>
         <input id="ap-brk" className="finder-input" maxLength={200} value={p.declared_brokerage} onChange={e => set('declared_brokerage', e.target.value)} />
         <Switch on={p.publish_declared_brokerage} set={v => set('publish_declared_brokerage', v)} /></div>
-      {msg && <p style={{ margin: 0, fontSize: 13, color: msg.ok ? '#1f5f3a' : '#a8332b' }}>{msg.text}</p>}
-      <button type="button" className="finder-btn" onClick={save} disabled={busy}>{busy ? 'Saving…' : 'Save'}</button>
+      <button type="button" className="finder-btn" onClick={save} disabled={busy}
+        style={msg?.ok && !busy ? { background: '#1f5f3a' } : undefined}>{busy ? 'Saving…' : msg?.ok ? 'Saved ✓' : 'Save'}</button>
+      {msg && <p role={msg.ok ? 'status' : 'alert'} style={{ margin: 0, fontSize: 13, color: msg.ok ? '#1f5f3a' : '#a8332b' }}>
+        {msg.text} {msg.ok && <a href={`/a/${slug}`} style={{ color: '#1f5f3a' }}>View your page</a>}</p>}
     </div>
   )
 }

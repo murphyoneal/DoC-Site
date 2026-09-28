@@ -2,6 +2,7 @@ import { notFound, permanentRedirect } from 'next/navigation'
 import { headers } from 'next/headers'
 import { after } from 'next/server'
 import ScanLanding from '@/app/components/ScanLanding'
+import { getPublicBusinessProfile } from '@/lib/business-profile'
 import { logScanServer, requestMeta } from '@/lib/scan'
 import { CATEGORY_LABELS } from '@/lib/tradeCategories'
 import { resolveBusinessSlug, withQuery } from '@/lib/business'
@@ -18,7 +19,7 @@ const SB_HEADERS = { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
 async function getContractor(slug: string) {
   const res = await fetch(
     `https://${SB_HOST}/rest/v1/contractors_public?slug=eq.${encodeURIComponent(slug)}&select=*&limit=1`,
-    { headers: SB_HEADERS, next: { revalidate: 60 } }
+    { headers: SB_HEADERS, cache: 'no-store' }
   )
   if (!res.ok) return null
   const rows = await res.json()
@@ -79,6 +80,9 @@ export default async function ScanPage({
   }))
 
   const tradeLabel = CATEGORY_LABELS[c.doc_category] ?? c.trade_label ?? 'Contractor'
+  // A website only exists once the owner has claimed and published one (work order 730); the state
+  // file's website column is empty and is never offered.
+  const ownWebsite = c.claimed ? ((await getPublicBusinessProfile(slug))?.website ?? null) : null
   // Per-licence file date (138a); the register's single date until that column exists.
   const recordDate = fileDate(c.register_file_date) ?? await getRecordDate()
 
@@ -90,8 +94,8 @@ export default async function ScanPage({
       city={c.city ?? ''}
       state={c.state ?? ''}
       tradeCategory={c.doc_category ?? ''}
-      hasWebsite={!!c.website}
-      websiteUrl={c.website ?? null}
+      hasWebsite={!!ownWebsite}
+      websiteUrl={ownWebsite}
       ref_={ref ?? 'qr'}
       licenseNumber={c.license_number ?? null}
       licenseStatus={c.license_status ?? null}

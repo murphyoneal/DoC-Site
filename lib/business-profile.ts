@@ -43,8 +43,9 @@ async function rpc<T>(fn: string, body: unknown, revalidate?: number): Promise<T
 }
 
 // Published fields of a CLAIMED business only; null when unclaimed or nothing saved.
+// Uncached: an owner who saves must see the change on the next view (work order 730).
 export const getPublicBusinessProfile = (slug: string) =>
-  rpc<PublicBusinessProfile | null>('business_profile_public', { p_slug: slug }, 60)
+  rpc<PublicBusinessProfile | null>('business_profile_public', { p_slug: slug })
 
 export const getEditorProfile = (slug: string, email: string | null) =>
   rpc<Gate>('business_profile_get', { p_slug: slug, p_email: email })

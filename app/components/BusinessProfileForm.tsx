@@ -33,6 +33,8 @@ export default function BusinessProfileForm({ slug, trades, initial, initialInsu
   const [names, setNames] = useState<Record<string, string>>({})
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
   const [busy, setBusy] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const LABEL: Record<string, string> = { description: 'description', other_specialties: 'specialties', insurance: 'insurance details', counties_worked: 'counties' }
   const set = <K extends keyof typeof p>(k: K, v: (typeof p)[K]) => setP(x => ({ ...x, [k]: v }))
 
   useEffect(() => { fetch('/api/geo/states').then(r => r.json()).then(setStates).catch(() => {}) }, [])
@@ -57,8 +59,10 @@ export default function BusinessProfileForm({ slug, trades, initial, initialInsu
         body: JSON.stringify({ slug, ...p, insurance: ins }),
       })
       const j = await r.json()
-      setMsg(j.saved ? { ok: true, text: 'Saved. Switched-on items now show on your profile.' }
-        : { ok: false, text: j.field ? `Please check: ${j.field.replace(/_/g, ' ')}.` : 'Not saved. Please sign in again with the email on your approved claim.' })
+      setSaved(!!j.saved)
+      setMsg(j.saved ? { ok: true, text: 'Saved. Your page is updated.' }
+        : j.reason === 'language' ? { ok: false, text: `Not saved: that wording can't be published on your page. Please change your ${LABEL[j.field] ?? j.field}.` }
+        : { ok: false, text: j.field ? `Not saved. Please check your ${LABEL[j.field] ?? String(j.field).replace(/_/g, ' ')}.` : 'Not saved. Please sign in again with the email on your approved claim.' })
     } catch { setMsg({ ok: false, text: 'Not saved: network error.' }) }
     finally { setBusy(false) }
   }
@@ -147,8 +151,29 @@ export default function BusinessProfileForm({ slug, trades, initial, initialInsu
           onClick={() => setIns(a => [...a, { kind: 'general_liability', carrier: '', cover_note: null, expires_on: null, publish: false }])}>+ Add insurance</button>
       )}
 
-      {msg && <p style={{ margin: 0, fontSize: 13, color: msg.ok ? '#1f5f3a' : '#a8332b' }}>{msg.text}</p>}
-      <button type="button" className="finder-btn" onClick={save} disabled={busy}>{busy ? 'Saving…' : 'Save'}</button>
+      <button type="button" className="finder-btn" onClick={save} disabled={busy}
+        style={saved && !busy ? { background: '#1f5f3a' } : undefined}>
+        {busy ? 'Saving…' : saved ? 'Saved ✓' : 'Save'}
+      </button>
+      {/* The confirmation sits where the click was (work order 730), not above the button. */}
+      {msg && !msg.ok && <p role="alert" style={{ margin: 0, fontSize: 13, color: '#a8332b' }}>{msg.text}</p>}
+      {msg?.ok && (
+        <div role="status" style={{ border: '1px solid #b8d8c4', background: '#eef7f1', borderRadius: 10, padding: 14, display: 'grid', gap: 10 }}>
+          <b style={{ color: '#1f5f3a' }}>{msg.text} <a href={`/c/${slug}`} style={{ color: '#1f5f3a' }}>View your page</a></b>
+          {/* After save is the one moment an owner is certainly engaged (ruling 731): the print-ready
+              QR, earned, and the way into the photo gallery. No price is mentioned. */}
+          <div>
+            <b style={{ color: 'var(--color-navy)' }}>Here is your high-resolution QR code</b>
+            <p style={{ margin: '4px 0 6px', fontSize: 13 }}>Print it on your truck and cards. It opens this page, where people can visit your website or save your contact details.</p>
+            <a href={`/api/qr/${slug}?size=1200&ref=download`} download={`qr-${slug}.png`} className="finder-btn" style={{ display: 'inline-block', textDecoration: 'none' }}>Download QR code</a>
+          </div>
+          <div>
+            <b style={{ color: 'var(--color-navy)' }}>Add work you&rsquo;re proud of</b>
+            <p style={{ margin: '4px 0 6px', fontSize: 13 }}>Photos of finished jobs are what people look at first.</p>
+            <a href={`/claim/${slug}/photos`} className="finder-btn" style={{ display: 'inline-block', textDecoration: 'none', background: 'var(--color-bronze)' }}>Add photos</a>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

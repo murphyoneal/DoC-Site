@@ -35,5 +35,6 @@ export async function rpc<T>(fn: string, body: unknown, revalidate?: number): Pr
   } catch { return null }
 }
 
-export const getAgentPage = (slug: string) => rpc<AgentPage | null>('agent_public_page', { p_slug: slug }, 60)
+// Uncached, for the same reason as the contractor profile (work order 730).
+export const getAgentPage = (slug: string) => rpc<AgentPage | null>('agent_public_page', { p_slug: slug })
 export const getAgentEditor = (slug: string, email: string | null) => rpc<AgentEditor>('agent_profile_get', { p_slug: slug, p_email: email })
