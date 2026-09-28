@@ -19,7 +19,9 @@ const SB_HEADERS = { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
 async function getContractor(slug: string) {
   const res = await fetch(
     `https://${SB_HOST}/rest/v1/contractors_public?slug=eq.${encodeURIComponent(slug)}&limit=1`,
-    { headers: SB_HEADERS, next: { revalidate: 60 } }
+    // Fresh on every view (work order 730): "claimed" and the owner's own details must show the moment
+    // they change. A 60-second cache showed an owner the pre-save page and a claim card on a claimed profile.
+    { headers: SB_HEADERS, cache: 'no-store' }
   )
   if (!res.ok) return null
   const rows = await res.json()
