@@ -1,6 +1,7 @@
 import { notFound, permanentRedirect } from 'next/navigation'
 import Link from 'next/link'
 import ClaimForm from '@/app/components/ClaimForm'
+import { getSessionUser } from '@/lib/supabase/ssr-server'
 import { resolveBusinessSlug } from '@/lib/business'
 
 const SB_HOST = 'eaifqorwmgayiqmbtzcg.supabase.co'
@@ -19,6 +20,28 @@ async function getContractor(slug: string) {
   return rows?.[0] ?? null
 }
 
+type ClaimState = { state: 'none' | 'pending' | 'approved'; mine: boolean; on: string | null }
+
+// Asked fresh on every load (no cache): a page that thinks a claimed business is unclaimed lets a
+// person fill the whole form before rejecting them.
+async function claimState(slug: string, email: string | null): Promise<ClaimState> {
+  try {
+    const r = await fetch(`https://${SB_HOST}/rest/v1/rpc/claim_state_for_business`, {
+      method: 'POST', cache: 'no-store',
+      headers: { ...SB_HEADERS, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ p_slug: slug, p_email: email }),
+    })
+    if (r.ok) return await r.json()
+  } catch {}
+  return { state: 'none', mine: false, on: null }
+}
+
+function fmtDay(d: string) {
+  const m = d.match(/^(\d{4})-(\d{2})-(\d{2})/)
+  const M = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+  return m ? `${Number(m[3])} ${M[Number(m[2]) - 1]} ${m[1]}` : d
+}
+
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
   const c = await getContractor(slug)
@@ -35,6 +58,9 @@ export default async function ClaimPage({ params }: { params: Promise<{ slug: st
 
   const c = await getContractor(slug)
   if (!c) notFound()
+  const user = await getSessionUser()
+  const signedIn = !!user?.email
+  const cs = await claimState(slug, user?.email ?? null)
 
   return (
     <main style={{ minHeight: '100vh', background: 'var(--color-cream)' }}>
@@ -48,27 +74,43 @@ export default async function ClaimPage({ params }: { params: Promise<{ slug: st
 
       <div style={{ maxWidth: '520px', margin: '0 auto', padding: '32px 16px' }}>
 
-        {/* Already claimed */}
-        {c.claimed ? (
-          <div style={{ background: 'var(--color-white)', borderRadius: '14px', border: '1px solid var(--color-light-gray)', padding: '32px', textAlign: 'center' }}>
-            <div style={{ fontSize: '2.5rem', marginBottom: '12px' }}>✓</div>
-            <h1 style={{ fontFamily: 'Georgia, serif', color: 'var(--color-navy)', fontSize: '1.3rem', fontWeight: 700, margin: '0 0 8px' }}>
-              Already Claimed
+        {/* The claim state, known at LOAD (work order 727): none shows the form; pending or approved
+            say so - and a visitor whose own claim it is gets their way in, never a form that rejects them. */}
+        {cs.state !== 'none' ? (
+          <div style={{ background: 'var(--color-white)', borderRadius: '14px', border: '1px solid var(--color-light-gray)', padding: '28px' }}>
+            <h1 style={{ fontFamily: 'Georgia, serif', color: 'var(--color-navy)', fontSize: '1.3rem', fontWeight: 700, margin: '0 0 10px' }}>
+              {cs.state === 'approved' ? (cs.mine ? 'This is your business' : 'This profile has been claimed') : (cs.mine ? 'Your claim is under review' : 'A claim on this profile is under review')}
             </h1>
-            <p style={{ fontSize: '0.84rem', color: 'var(--color-sage)', margin: '0 0 20px' }}>
-              This profile has already been claimed by the business.
-            </p>
-            <p style={{ fontSize: '0.84rem', color: 'var(--color-ink)', margin: '0 0 20px' }}>
-              If the approved claim is yours, sign in with its email to{' '}
-              <Link href={`/claim/${slug}/profile`} style={{ color: 'var(--color-bronze)' }}>edit your details</Link> or{' '}
-              <Link href={`/claim/${slug}/photos`} style={{ color: 'var(--color-bronze)' }}>add photos of your work</Link>.
-            </p>
-            <Link
-              href={`/c/${slug}`}
-              style={{ fontSize: '0.84rem', color: 'var(--color-bronze)', textDecoration: 'underline' }}
-            >
-              Back to profile
-            </Link>
+            {cs.state === 'approved' && cs.mine && (
+              <>
+                <p style={{ fontSize: '0.88rem', color: 'var(--color-ink)', margin: '0 0 16px' }}>You claimed this{cs.on ? ` on ${fmtDay(cs.on)}` : ''}.</p>
+                <p style={{ display: 'flex', gap: 16, flexWrap: 'wrap', margin: 0 }}>
+                  <Link href={`/claim/${slug}/profile`} className="finder-btn" style={{ textDecoration: 'none' }}>Edit your profile</Link>
+                  <Link href={`/claim/${slug}/photos`} style={{ color: 'var(--color-bronze)', alignSelf: 'center' }}>Photos of your work</Link>
+                </p>
+              </>
+            )}
+            {cs.state === 'approved' && !cs.mine && (
+              <>
+                {!signedIn && (
+                  <p style={{ fontSize: '0.88rem', color: 'var(--color-ink)', margin: '0 0 12px' }}>
+                    If the claim is yours, <Link href={`/login?next=/claim/${slug}/profile`} style={{ color: 'var(--color-bronze)' }}>sign in</Link> with the email you claimed with to edit your profile.
+                  </p>
+                )}
+                <p style={{ fontSize: '0.84rem', color: 'var(--color-sage)', margin: 0 }}>
+                  If you run this business and believe the claim is wrong, email{' '}
+                  <a href={`mailto:register@departmentofproperty.com?subject=${encodeURIComponent('Claim query: ' + c.display_name)}`} style={{ color: 'var(--color-bronze)' }}>register@departmentofproperty.com</a> and a person will look into it.
+                </p>
+              </>
+            )}
+            {cs.state === 'pending' && (
+              <p style={{ fontSize: '0.88rem', color: 'var(--color-ink)', margin: 0 }}>
+                {cs.mine
+                  ? 'A person reads every claim. When yours is approved we will send a link to your email to set your password, and you can then edit your profile and add photos.'
+                  : <>A person is reviewing it. If you run this business and believe the claim is not yours, email <a href={`mailto:register@departmentofproperty.com?subject=${encodeURIComponent('Claim query: ' + c.display_name)}`} style={{ color: 'var(--color-bronze)' }}>register@departmentofproperty.com</a>.</>}
+              </p>
+            )}
+            <p style={{ margin: '18px 0 0' }}><Link href={`/c/${slug}`} style={{ fontSize: '0.84rem', color: 'var(--color-bronze)' }}>Back to profile</Link></p>
           </div>
         ) : (
           <>
