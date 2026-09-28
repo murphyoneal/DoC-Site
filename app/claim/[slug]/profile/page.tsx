@@ -22,6 +22,22 @@ const TRADES = Object.entries(CATEGORY_LABELS)
   .filter(([k]) => k !== 'education_provider' && k !== 'qualifier_business')
   .sort((a, b) => a[1].localeCompare(b[1]))
 
+// The logo lives in a private bucket; the owner sees it through a short-lived signed link.
+async function logoPreview(path: string | null | undefined): Promise<string | null> {
+  if (!path) return null
+  const host = 'https://eaifqorwmgayiqmbtzcg.supabase.co'
+  const key = process.env.SUPABASE_SECRET_KEY ?? ''
+  try {
+    const r = await fetch(`${host}/storage/v1/object/sign/logo-private/${path}`, {
+      method: 'POST', cache: 'no-store',
+      headers: { apikey: key, Authorization: 'Bearer ' + key, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ expiresIn: 3600 }),
+    })
+    const j = r.ok ? await r.json() : null
+    return j?.signedURL ? `${host}/storage/v1${j.signedURL}` : null
+  } catch { return null }
+}
+
 export default async function ProfileEditPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
   const business = await resolveBusinessSlug(slug)
@@ -43,7 +59,7 @@ export default async function ProfileEditPage({ params }: { params: Promise<{ sl
         {' '}<Link href={`/claim/${slug}/photos`} style={{ color: 'var(--color-bronze)' }}>Add photos of your work</Link>.
       </p>
       {g?.allowed ? (
-        <BusinessProfileForm slug={slug} trades={TRADES} initial={g.profile ?? null} initialInsurance={g.insurance ?? []} />
+        <BusinessProfileForm slug={slug} trades={TRADES} initial={g.profile ?? null} initialInsurance={g.insurance ?? []} logoPreview={await logoPreview(g.profile?.logo_path)} />
       ) : (
         <div style={{ background: 'var(--color-light-gray)', borderRadius: '12px', padding: '16px', fontSize: '0.86rem' }}>
           <p style={{ margin: 0 }}>{LOCKED[reason] ?? 'Editing is not available right now.'}</p>
