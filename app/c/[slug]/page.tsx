@@ -166,9 +166,17 @@ export default async function ContractorProfilePage({
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '24px', flexWrap: 'wrap' }}>
             <div style={{ flex: 1, minWidth: '200px' }}>
-              <h1 style={{ fontFamily: 'Georgia, serif', color: 'var(--color-navy)', fontSize: '1.5rem', fontWeight: 700, margin: '0 0 4px' }}>
-                {c.display_name}
-              </h1>
+              {/* The owner's logo sits BESIDE the name (733): the name is the register's fact, the logo is theirs. */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px', margin: '0 0 4px' }}>
+                {own?.logo && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={own.logo} alt="" width={56} height={56}
+                    style={{ width: 56, height: 56, objectFit: 'contain', borderRadius: 8, border: '1px solid var(--color-light-gray)', background: '#fff', flexShrink: 0 }} />
+                )}
+                <h1 style={{ fontFamily: 'Georgia, serif', color: 'var(--color-navy)', fontSize: '1.5rem', fontWeight: 700, margin: 0 }}>
+                  {c.display_name}
+                </h1>
+              </div>
               <p style={{ color: 'var(--color-bronze)', fontSize: '0.9rem', margin: '0 0 8px' }}>{tradeLabel}</p>
               {address && (
                 <p style={{ color: 'var(--color-sage)', fontSize: '0.82rem', margin: '0 0 12px' }}>{address}</p>
@@ -298,7 +306,14 @@ export default async function ContractorProfilePage({
             {(own.specialties?.length || own.other_specialties) && (
               <p style={{ fontSize: '0.84rem', margin: '0 0 6px' }}><b>Specialties:</b> {[...(own.specialties ?? []).map(k => CATEGORY_LABELS[k] ?? k), own.other_specialties].filter(Boolean).join(', ')}</p>
             )}
-            {own.counties?.length ? <p style={{ fontSize: '0.84rem', margin: '0 0 6px' }}><b>Works in:</b> {own.counties.join('; ')}</p> : null}
+            {/* The business's own statement of where it works (733) - labelled as theirs, not the licence's. */}
+            {own.coverage ? (
+              <p style={{ fontSize: '0.84rem', margin: '0 0 6px' }}><b>Works:</b>{' '}
+                {own.coverage.scope === 'nationwide' ? 'nationwide'
+                  : own.coverage.scope === 'statewide' ? `statewide - ${own.coverage.state ?? ''}`
+                  : (own.coverage.counties ?? []).join('; ')}
+              </p>
+            ) : own.counties?.length ? <p style={{ fontSize: '0.84rem', margin: '0 0 6px' }}><b>Works:</b> {own.counties.join('; ')}</p> : null}
             {own.years_in_business != null && <p style={{ fontSize: '0.84rem', margin: '0 0 6px' }}><b>Years in business:</b> {own.years_in_business}</p>}
             {own.insurance?.map((i, n) => (
               <p key={n} style={{ fontSize: '0.84rem', margin: '0 0 6px' }}>

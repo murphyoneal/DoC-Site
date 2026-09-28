@@ -18,6 +18,9 @@ export type PublicBusinessProfile = {
   specialties?: string[]
   other_specialties?: string
   counties?: string[]
+  // the business's own statement of where it works (733); never inferred from the licence
+  coverage?: { scope: 'nationwide' | 'statewide' | 'counties'; state?: string; counties?: string[] }
+  logo?: string
   years_in_business?: number
   insurance?: (DeclaredInsurance & { declared_at: string; check_note: string })[]
   updated_on?: string
@@ -28,6 +31,8 @@ export type EditorProfile = {
   specialties: string[] | null; other_specialties: string | null; counties_worked: string[] | null; years_in_business: number | null
   publish_phone: boolean; publish_email: boolean; publish_website: boolean; publish_description: boolean
   publish_specialties: boolean; publish_counties: boolean; publish_years: boolean
+  coverage_scope: 'nationwide' | 'statewide' | 'counties' | null; coverage_state_geo_id: string | null; publish_coverage: boolean
+  logo_path: string | null; publish_logo: boolean
 }
 
 export type Gate = { allowed: boolean; reason: string; profile?: EditorProfile | null; insurance?: (DeclaredInsurance & { publish: boolean })[] }
@@ -51,4 +56,4 @@ export const getEditorProfile = (slug: string, email: string | null) =>
   rpc<Gate>('business_profile_get', { p_slug: slug, p_email: email })
 
 export const saveBusinessProfile = (slug: string, email: string, p: unknown) =>
-  rpc<{ allowed: boolean; saved?: boolean; reason?: string; field?: string }>('business_profile_save', { p_slug: slug, p_email: email, p })
+  rpc<{ allowed: boolean; saved?: boolean; reason?: string; field?: string; business_id?: string }>('business_profile_save', { p_slug: slug, p_email: email, p })
