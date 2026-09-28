@@ -89,7 +89,6 @@ export default function HomeMapShell({ withPropertyLookup = true }: { withProper
       <div className="flex-1 relative">
         <ContractorMap
           category={category}
-          emergency={false}
           onCountChange={setCount}
         />
       </div>

@@ -35,26 +35,23 @@ const FLOOD_LEGEND = [
 
 interface MapProps {
   category: string | null
-  emergency: boolean
   onCountChange?: (count: number) => void
 }
 
 const DEFAULT_CENTER: [number, number] = [-81.0, 29.1]
 const DEFAULT_ZOOM = 10
 
-export default function ContractorMap({ category, emergency, onCountChange }: MapProps) {
+export default function ContractorMap({ category, onCountChange }: MapProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<any>(null)
   const markersRef = useRef<any[]>([])
   const abortRef = useRef<AbortController | null>(null)
   const categoryRef = useRef<string | null>(category)
-  const emergencyRef = useRef<boolean>(emergency)
 
   const [activeBase, setActiveBase] = useState<BaseLayer>('satellite')
   const [activeOverlays, setActiveOverlays] = useState<Set<OverlayLayer>>(new Set())
 
   categoryRef.current = category
-  emergencyRef.current = emergency
 
   const clearMarkers = useCallback(() => {
     markersRef.current.forEach(function(m) { m.remove() })
@@ -75,10 +72,8 @@ export default function ContractorMap({ category, emergency, onCountChange }: Ma
     parts.push('west=' + bounds.getWest())
 
     const cat = categoryRef.current
-    const emerg = emergencyRef.current
 
     if (cat) parts.push('category=' + encodeURIComponent(cat))
-    if (emerg) parts.push('emergency=true')
 
     const url = '/api/contractors?' + parts.join('&')
 
@@ -99,8 +94,7 @@ export default function ContractorMap({ category, emergency, onCountChange }: Ma
 
         const el = document.createElement('div')
         const classes = ['doc-marker']
-        if (c.emergency_available) classes.push('emergency')
-        else if (c.verified) classes.push('verified')
+        if (c.verified) classes.push('verified')
         el.className = classes.join(' ')
 
         const statusColour =
@@ -124,7 +118,6 @@ export default function ContractorMap({ category, emergency, onCountChange }: Ma
           (c.license_status ? c.license_status.charAt(0).toUpperCase() + c.license_status.slice(1) : '') +
           (c.verified ? ' \u00b7 \u2713 Verified' : '') +
           '</p>' +
-          (c.emergency_available ? '<p style="margin:3px 0 0;font-size:0.74rem;color:#c0392b;font-weight:600">\uD83D\uDEA8 Emergency Available</p>' : '') +
           '<a href="/c/' + c.slug + '" style="display:inline-block;margin-top:6px;font-size:0.74rem;color:#8B6F47;text-decoration:underline">View Profile \u2192</a>' +
           '</div>'
 
@@ -193,7 +186,7 @@ export default function ContractorMap({ category, emergency, onCountChange }: Ma
 
   useEffect(function() {
     if (mapRef.current) fetchAndPlot(mapRef.current)
-  }, [category, emergency, fetchAndPlot])
+  }, [category, fetchAndPlot])
 
   const handleBaseChange = useCallback((layer: BaseLayer) => {
     if (!mapRef.current) return

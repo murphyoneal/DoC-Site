@@ -17,7 +17,6 @@ export interface ContractorMapPin {
   lng: number
   tier: Tier | null
   verified: boolean | null
-  emergency_available: boolean | null
   license_status: LicenseStatus | null
 }
 export interface Contractor {
