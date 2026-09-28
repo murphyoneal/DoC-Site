@@ -31,6 +31,7 @@ const DOC: Brand = {
     { label: 'Map', href: '/map' },
     { label: 'Florida', href: '/florida' },
     { label: 'Disclaimer', href: '/disclaimer' },
+    { label: 'Sign in', href: '/login' },
   ],
   footer: [
     { label: 'Florida contractors', href: '/florida' },
@@ -55,6 +56,7 @@ const DOP_SPLIT: Brand = {
     { label: 'Agents', href: '/agents.html' },
     { label: 'Contractors', href: `${CONTRACTOR_URL}/c` },
     { label: 'Disclaimer', href: '/disclaimer' },
+    { label: 'Sign in', href: '/login' },
   ],
   footer: [
     { label: 'About', href: '/about.html' },
