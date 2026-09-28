@@ -17,8 +17,8 @@ const TO_DOC = ['/c', '/c/:path*', '/claim/:slug', '/claim/:slug/:rest*', '/api/
   '/map', '/florida', '/florida/:path*', '/rights', '/rights/:path*',
   // self-registration (work order 699): the form, its API and the /r/ pages are DoC's
   '/register-your-business', '/r/:path*', '/api/register', '/api/geo', '/api/places']
-const TO_DOP = ['/report/:path*', '/checkout', '/checkout/:path*', '/agent', '/agent/:path*', '/roz', '/roz/:path*',
-  '/prototype/:path*', '/about.html', '/register.html', '/privacy.html', '/terms.html', '/agents.html',
+const TO_DOP = ['/report/:path*', '/checkout/:path*', '/agent', '/agent/:path*', '/roz', '/roz/:path*',
+  '/about.html', '/register.html', '/privacy.html', '/terms.html', '/agents.html',
   // the agent claim (work order 712): the form, its API, the agent pages and their editor are DoP's
   '/agents/claim', '/a/:path*', '/api/agent-claim', '/api/agent-profile']
 
