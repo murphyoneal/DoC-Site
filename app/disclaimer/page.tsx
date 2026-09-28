@@ -61,19 +61,15 @@ export default function DisclaimerPage() {
             2. Data Accuracy and Currency
           </h2>
           <p className="mb-3">
-            Licence data displayed on this site is sourced from public government registries
-            including, but not limited to:
+            The contractor licence data on this site is reproduced from one register: the Florida
+            Department of Business &amp; Professional Regulation (DBPR) construction licence file. We do
+            not hold any other state&rsquo;s contractor register. A business from another state that
+            registers itself is shown as its own declaration, and says which of its licences we could
+            not check.
           </p>
-          <ul className="list-disc ml-6 mb-3 space-y-1">
-            <li>Florida Department of Business &amp; Professional Regulation (DBPR)</li>
-            <li>California Contractors State License Board (CSLB)</li>
-            <li>Washington State Department of Labor &amp; Industries (L&amp;I)</li>
-            <li>Oregon Construction Contractors Board (CCB)</li>
-          </ul>
           <p className="mb-3">
-            Data is updated on a monthly basis from source registries. There will always be
-            a lag between a change made at the registry level (licence renewal, revocation,
-            suspension) and the update reflected on this site.
+            Every page shows the date of the licence file it was read from. There will always be a lag
+            between a change made at the registry (licence renewal, revocation, suspension) and this site.
           </p>
           <p className="font-semibold" style={{ color: 'var(--color-navy)' }}>
             Always verify current licence status directly with the relevant government registry
@@ -160,8 +156,9 @@ export default function DisclaimerPage() {
             7. Verify Directly
           </h2>
           <p className="mb-4">
-            Before engaging any contractor, verify their licence status directly with the
-            relevant government registry:
+            We reproduce Florida&rsquo;s construction licence register. For any other state, check
+            directly with the issuing authority below. Before engaging any contractor, verify their
+            licence status directly with the relevant government registry:
           </p>
           <ul className="space-y-2">
             <li>
