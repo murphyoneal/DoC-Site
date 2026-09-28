@@ -2,15 +2,9 @@
 <html lang="en"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Terms of use | Department of Property</title>
-<meta name="description" content="Terms of use for Department of Property: what the records are, what they are not, and the conditions for claiming an entry.">
-<meta name="robots" content="noindex, nofollow">
-<!-- Nothing here is crawled until every form and function is tested and audited.
-     These pages live in public/ and are served directly by Vercel, so the site-wide
-     kill-switch in app/layout.tsx (SITE_INDEXABLE) never applied to them. robots.txt
-     covers the domain, but it asks a crawler not to FETCH and is not an index
-     directive — a page linked from elsewhere can be indexed without being fetched. -->
-<link rel="icon" href="dop-seal.png">
+<title>Florida contractor register — Department of Construction</title>
+<meta name="description" content="Florida licensed trades held with their history — licences, permits and every state file they appeared in. Free to search, free to claim.">
+<link rel="icon" href="doc-seal.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400;62..125,500;62..125,600&display=swap" rel="stylesheet">
@@ -169,6 +163,19 @@ input:hover{border-color:#B9C3D4}
 .search button:hover{background:#DCBB5C}
 .hint{font-size:14px;color:var(--grey-navy);margin-top:14px}
 
+
+#res{margin-top:28px}
+.rmeta{font-size:14px;color:var(--grey-navy);margin:0 0 14px;letter-spacing:.01em}
+.rlist{border-top:1px solid var(--line-2)}
+.ritem{padding:15px 0;border-bottom:1px solid var(--line-2);display:grid;
+  grid-template-columns:1fr auto;gap:14px;align-items:start}
+.ritem .nm{color:#fff;font-size:16.5px;font-weight:600;margin:0;line-height:1.3}
+.ritem .dt{color:var(--grey-navy);font-size:14px;margin:4px 0 0;line-height:1.45}
+.ritem .lic{font-variant-numeric:tabular-nums;color:var(--gold)}
+.flag{font-size:11px;font-weight:600;letter-spacing:.1em;padding:4px 9px;white-space:nowrap;
+  border:1px solid #8F6A1F;color:#E3C26A;background:rgba(201,168,76,.09)}
+.flag.claimed{border-color:var(--gold);color:var(--navy);background:var(--gold)}
+.rnote{font-size:13.5px;color:var(--grey-navy);margin:16px 0 0;max-width:64ch;line-height:1.55}
 footer{background:var(--navy-2);color:var(--grey-navy);font-size:14px;
   padding:clamp(44px,5vw,60px) 0 44px}
 footer p{max-width:78ch;margin:0 0 .8em;line-height:1.6}
@@ -183,67 +190,121 @@ footer a{color:var(--gold)}
 </style>
 </head><body>
 <nav class="nav"><div class="wrap">
-<a class="brand" href="about.html"><img src="dop-seal.png" alt=""><b>Department of Property</b></a>
-<a class="l" href="about.html">What we do</a><a class="l" href="https://departmentofconstruction.com">Contractor register</a><a class="l" href="/login" data-track="nav-signin">Sign in</a><a class="cta" href="register.html">Claim your entry</a>
+<a class="brand" href="index.html"><img src="doc-seal.png" alt=""><b>Department of Construction</b></a>
+<a class="l" href="index.html">Register</a><a class="l" href="https://departmentofproperty.com/about.html">Department of Property</a><a class="cta" href="https://departmentofproperty.com/register.html" data-track="nav-cta">Claim your entry</a>
 </div></nav>
 <header class="hero"><div class="wrap">
-<p class="tag">LAST UPDATED 26 SEPTEMBER 2026</p>
-<h1>Terms of use.</h1>
-<p class="lede">What this service is, what it is not, and the conditions attached to claiming an entry.</p>
+<p class="tag">FLORIDA · 114,104 LICENCE RECORDS</p>
+<h1>Who worked on it, and when they were licensed.</h1>
+<p class="lede">Florida's licensed trades, held with their history — not just who holds a licence today. Free to search, free to claim.</p>
+<div class="search"><input id="q" type="search" placeholder="Business name, licence number, or trade" aria-label="Search the contractor register" autocomplete="off"><button id="go" type="button" data-track="doc-search">Search</button></div>
+<p class="hint">114,104 licence records · 29 trades · statewide · state file retrieved 27 Jun 2026</p>
+<div id="res" aria-live="polite"></div>
 </div></header>
 
 <section><div class="wrap">
-<p class="eyebrow">Who we are</p>
-<h2>Not a government agency.</h2>
-<p class="sub">This site is in development and is provided free, with no warranty. No company operates it yet; when one does, it will be named here. It is not a licensing authority, not a government agency, and not affiliated with any government body. The same is true of Department of Construction. The seals used on these pages are our own marks and are not government insignia.</p>
-<p class="sub">We compile records that federal, state and county bodies publish. We do not issue licences, grant permits, register plats, determine flood zones, or decide any question those bodies decide.</p>
+<p class="eyebrow">A record, not a directory</p>
+<h2>Registers show who is licensed now.<br>Nobody keeps who was.</h2>
+<div class="two">
+<div class="col"><p class="sub">The state publishes a weekly file of current licensees. Renew late and you drop out of it. Close the business and you vanish from it entirely.</p>
+<p class="sub">That's the moment the record matters most — a defect surfaces, a claim is filed, a buyer asks who did the work. We keep every version, so a contractor who is gone is still findable against the jobs they did.</p></div>
+<div class="col"><p class="sub">Each entry carries the licences held and the dates they were held, the permits the contractor is named on, and every state file they appeared in or dropped out of.</p>
+<p class="sub">Counts and dates only. We publish what's in the record and nothing we've worked out about it.</p></div>
+</div>
+
+<div class="card">
+<div class="stamp"><b>RECORD DATED</b><span>Last matched to the state file 27 Jun 2026. This licence may have been renewed since.</span></div>
+<div class="chead"><h3>Example Contracting, Inc.</h3><p class="m">Jacksonville, FL · Building contractor, roofing contractor</p></div>
+<div class="cbody">
+<div class="line"><div class="lab">Licences held</div><div class="val">CBC1255193 — building contractor, first issued 31 Jan 2007<br>CCC1329994 — roofing contractor, first issued 22 Jun 2012</div></div>
+<div class="line"><div class="lab">Qualifying agent</div><div class="val">Named on the state record. <em>The licence holder, who may not be the person you met.</em></div></div>
+<div class="line"><div class="lab">Permits</div><div class="val">38 permits in Volusia County, Mar 2020 – Jul 2026. <em>Permit registers naming the contractor are held for two counties.</em></div></div>
+<div class="line"><div class="lab">Recorded instruments</div><div class="val"><em>Clerk records not yet held for this county.</em></div></div>
+<div class="line"><div class="lab">State file history</div><div class="val">
+<ul class="ledger">
+<li><time>27 Jun 2026</time><span>Present · active · expiry 31 Aug 2026</span></li>
+<li><time>4 Sep 2026</time><span>Present · active · expiry 31 Aug 2028 — renewed</span></li>
+</ul>
+<p style="font-size:14px;color:var(--grey);margin:14px 0 0;max-width:58ch">History begins 27 June 2026, the first file we hold. Nothing before that date is observable to us.</p>
+</div></div>
+</div></div>
 </div></section>
 
+<div class="pull"><div class="wrap">
+<p>Absence from the file is not the same as losing a licence.</p>
+<small>The state's download excludes null-and-void, delinquent and involuntarily inactive records. A contractor missing from this week's file may simply have renewed late. We record that they were absent, and on which date — we don't decide which of the three it was.</small>
+</div></div>
+
 <section class="wash"><div class="wrap">
-<p class="eyebrow">What the records are</p>
-<h2>A starting point, not a determination.</h2>
-<p class="sub">Reports assemble what public registers say about a property at the time we read them. Registers disagree with each other, lag behind reality, and sometimes contain errors. We show the disagreement rather than hiding it, and we say when we hold nothing at all instead of returning a blank that reads like a clearance.</p>
-<p class="sub">Nothing here is a substitute for a title search, a survey, a jurisdictional determination, an elevation certificate, a professional inspection, or legal advice. Parcel outlines are approximate boundaries drawn from county tax records and are not surveys.</p>
-<p class="sub">A finding is a starting point for due diligence. Acting on it without the professional step it points you toward is your decision, not our advice.</p>
+<p class="eyebrow">Free to claim</p>
+<h2>If this is your business, correct it.</h2>
+<div class="two">
+<div class="col rule"><h3>Claim your entry</h3>
+<p class="sub">Verify your licence, fill the gaps, and the dated stamp comes off. Add the trades you work, the counties you cover, and the work that never reached a permit register.</p>
+<p class="sub">You get a QR code for your truck and your cards that resolves to your entry. Free, and it stays yours.</p></div>
+<div class="col rule"><h3>What we won't do</h3>
+<p class="sub">No rating, no star score, no ranking. A count is what's in the record; a score would be our opinion of your business.</p>
+<p class="sub">Unclaimed licences stay searchable but don't get a published page. The claim is what grants publication.</p></div>
+</div>
+<p style="margin-top:44px"><a class="btn" href="https://departmentofproperty.com/register.html" data-track="doc-claim">Claim your entry — free</a></p>
 </div></section>
+
 <section><div class="wrap">
-<p class="eyebrow">Claiming an entry</p>
-<h2>Only if it is yours to claim.</h2>
-<p class="sub">When you claim an entry you confirm that you are authorised to act for that business. A licence number is not proof of authority: the person holding a card and the qualifying agent named on a licence are often different people, and both may be different from whoever runs the company.</p>
-<p class="sub">Every licensed business already has an entry built from the public register. We record your claim and compare the licence number you give with the state register. If it does not match what you told us, we will tell you what we found rather than guessing which of you is right. Nothing you add to an entry is published until you add it.</p>
-<p class="sub">Claiming an entry you are not authorised to claim, or submitting a licence number that is not yours to use, ends the claim and any listing that came from it.</p>
-<p class="sub">What you add to a claimed entry &mdash; counties covered, work that never reached a permit register &mdash; is yours, and you are responsible for it being true. You keep ownership of it and can ask us to remove it.</p>
-</div></section>
-
-<section class="wash"><div class="wrap">
-<p class="eyebrow">Using the site</p>
-<h2>Fair use of the records.</h2>
-<p class="sub">You may read reports, share them, and use them in your own due diligence. You may not scrape the site in bulk, resell the compiled records as a dataset, or present them as your own product.</p>
-<p class="sub">The underlying public records belong to the bodies that publish them, and anyone may obtain them there. What we ask you not to take is the assembly &mdash; the joining, checking and coverage work that turns sixty-seven counties of mismatched formats into one record.</p>
-<p class="sub">Do not use the site to harass anyone, to misrepresent a business, or to imply that we endorse or rate anybody. We publish counts and dates and we do not rate businesses, so any claim that we have is false.</p>
-</div></section>
-
-<section><div class="wrap">
-<p class="eyebrow">The legal part</p>
-<h2>Limits, plainly.</h2>
-<p class="sub">The service is provided as it is. We work hard on accuracy and we describe our coverage honestly, but we do not warrant that every record is complete, current or error-free &mdash; the registers we read are not, and we will not pretend otherwise.</p>
-<p class="sub">To the extent the law allows, we are not liable for losses arising from reliance on a report, from a register being wrong, or from the service being unavailable. Nothing here excludes liability that cannot lawfully be excluded.</p>
-<p class="sub">These terms are governed by the law of the State of Florida.</p>
-<p class="sub">We may change these terms. The date at the top changes when we do, and material changes will be described rather than made quietly.</p>
-</div></section>
-
-<section class="wash"><div class="wrap">
-<p class="eyebrow">Contact</p>
-<h2>Questions about these terms.</h2>
-<p class="sub">Email <a href="mailto:register@departmentofproperty.com">register@departmentofproperty.com</a>. For what we collect and publish about you, see the <a href="privacy.html">privacy notice</a>.</p>
+<p class="eyebrow">What's behind it</p>
+<h2>Held today.</h2>
+<div class="figs">
+<div class="fig"><b class="num">114,104</b><span>Licence records from the state file</span></div>
+<div class="fig"><b class="num">29</b><span>Trades, from building and roofing to pool and gas</span></div>
+<div class="fig"><b class="num">992,313</b><span>Permits in one county, naming 147,113 contractors</span></div>
+<div class="fig"><b class="num">8.5M</b><span>Florida parcels with a building record</span></div>
+</div>
+<p class="sub" style="margin-top:30px">Permit registers that name the contractor are held for two counties today. Where a register doesn't name one, the entry says so rather than showing nothing.</p>
 </div></section>
 <footer><div class="wrap">
-<div class="fseals"><img src="dop-seal.png" alt="Department of Property seal"><img src="doc-seal.png" alt="Department of Construction seal"></div>
+<p class="parent">A <a href="https://departmentofproperty.com/about.html">Department of Property</a> company</p>
+<div class="fseals"><img src="doc-seal.png" alt="Department of Construction seal"><img src="dop-seal.png" alt="Department of Property seal"></div>
 <div class="flinks">
-<a href="about.html">About</a><a href="register.html">Register your business</a>
-<a href="terms.html">Terms of use</a><a href="privacy.html">Privacy notice</a>
-<a href="https://departmentofconstruction.com">Contractor register</a>
+<a href="index.html">Contractor register</a>
+<a href="https://departmentofproperty.com/register.html">Register your business</a>
+<a href="https://departmentofproperty.com/about.html">Department of Property</a>
 </div>
-<p>Department of Property holds land and property records. Department of Construction holds contractor and permit records. Neither is a licensing authority, a government agency, or affiliated with any government body.</p>
-<p>Parcel outlines are approximate boundaries drawn from county tax records. They are not surveys. Findings are a starting point for due diligence, not a substitute for a title search, a survey, a jurisdictional determination or an inspection.</p>
-</div></footer></body></html>
+<p>Licence data is reproduced from the Florida Department of Business and Professional Regulation's public download files, which the department refreshes weekly. State register file retrieved 4 September 2026. Register history begins 27 June 2026.</p>
+<p>Department of Construction is a technology company. It is not a licensing authority, is not a government agency, and is not affiliated with any government body. Always verify a licence directly with the state register before engaging a contractor.</p>
+</div></footer><script>
+(function(){
+  var URL="https://eaifqorwmgayiqmbtzcg.supabase.co/rest/v1/rpc/contractor_register_search";
+  var KEY="sb_publishable_mJ-2VR-LJzvVkb_S93gZIA_DvdwpnjU";
+  var q=document.getElementById("q"), go=document.getElementById("go"), res=document.getElementById("res");
+  function esc(t){return String(t==null?"":t).replace(/[&<>"']/g,function(c){
+    return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
+  function render(d){
+    if(d.field_status==="not_run"){res.innerHTML='<p class="rmeta">'+esc(d.note)+'</p>';return;}
+    if(d.field_status==="none_found"){
+      res.innerHTML='<p class="rmeta">No licence record matches &ldquo;'+esc(d.query)+'&rdquo; in the state file we hold.</p>'+
+        '<p class="rnote">This is what our copy of the register contains \u2014 not a statement that no such contractor exists. The state file excludes null-and-void, delinquent and involuntarily inactive records.</p>';
+      return;}
+    var h='<p class="rmeta">'+d.count+' match'+(d.count===1?"":"es")+
+      (d.returned<d.count?', showing '+d.returned:'')+'</p><div class="rlist">';
+    d.results.forEach(function(r){
+      h+='<div class="ritem"><div><p class="nm">'+esc(r.name)+'</p><p class="dt"><span class="lic">'+
+        esc(r.license_number||"\u2014")+'</span> \u00b7 '+esc(r.trade||"Trade not recorded")+
+        (r.city?' \u00b7 '+esc(r.city):'')+'</p></div><div>'+
+        (r.claimed?'<span class="flag claimed">CLAIMED</span>'
+                  :'<span class="flag">'+(r.record_dated?'RECORD DATED':'UNCLAIMED')+'</span>')+
+        '</div></div>';});
+    h+='</div><p class="rnote">'+esc(d.coverage_note)+' Source: '+esc(d.source)+
+       ', retrieved '+esc(d.source_retrieved)+'.</p>';
+    res.innerHTML=h;}
+  function run(){
+    var v=(q.value||"").trim();
+    res.innerHTML='<p class="rmeta">Searching\u2026</p>';
+    fetch(URL,{method:"POST",headers:{"apikey":KEY,"Authorization":"Bearer "+KEY,
+      "Content-Type":"application/json"},body:JSON.stringify({q:v,lim:25})})
+      .then(function(r){if(!r.ok)throw new Error(r.status);return r.json();})
+      .then(render)
+      .catch(function(){res.innerHTML='<p class="rmeta">The register could not be reached just now. That is a fault on our side, not a result \u2014 please try again shortly.</p>';});}
+  go.addEventListener("click",run);
+  q.addEventListener("keydown",function(e){if(e.key==="Enter")run();});
+})();
+</script>
+</body></html>
