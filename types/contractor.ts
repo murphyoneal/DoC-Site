@@ -28,12 +28,10 @@ export interface Contractor {
   trade_code: string | null
   trade_label: string | null
   doc_category: string | null
-  service_categories: string[] | null
   classifications: string[] | null
   license_number: string | null
   license_status: LicenseStatus | null
   expiry_date: string | null
-  phone: string | null
   address_line_1: string | null
   city: string | null
   state: string | null
@@ -53,23 +51,6 @@ export interface Contractor {
   source: string | null
   source_url: string | null
   subscription_tier: SubscriptionTier | null
-  qr_code_url: string | null
-  ada_compliant_work: boolean | null
-  aging_in_place: boolean | null
-  chemical_sensitivity_aware: boolean | null
-  mobility_accessible_worksite: boolean | null
-  hurricane_hardening: boolean | null
-  impact_window_certified: boolean | null
-  roof_certification: boolean | null
-  storm_restoration: boolean | null
-  emergency_available: boolean | null
-  emergency_plumbing: boolean | null
-  emergency_roofing: boolean | null
-  emergency_electrical: boolean | null
-  emergency_storm_damage: boolean | null
-  emergency_water_damage: boolean | null
-  emergency_board_up: boolean | null
-  emergency_response_hours: string | null
   created_at: string | null
   updated_at: string | null
 }
