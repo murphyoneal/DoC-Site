@@ -11,6 +11,7 @@ export type Cov = {
   state: 'held' | 'not_yet_collected' | 'no_register_exists'
   retrieved: string | null; source: string | null; authority: string | null; access_type: string | null
   source_url: string | null; cadence: string | null; posted_date: string | null; surveyed_at: string | null; notes: string | null
+  scope?: string | null
 }
 export type StateRow = { geo_id: string; abbr: string; name: string; coverage: Record<string, Cov>; registrations: number }
 
@@ -42,6 +43,14 @@ const STATE_NOTE: Record<Cov['state'], string> = {
 }
 const FILL: Record<Cov['state'], string> = { held: '#1B2A4A', not_yet_collected: '#efe9e0', no_register_exists: '#ffffff' }
 const INK: Record<Cov['state'], string> = { held: '#ffffff', not_yet_collected: '#1B2A4A', no_register_exists: '#8a8a8a' }
+const SCOPE: Record<string, string> = {
+  licence: 'The state licenses general or building contractors.',
+  registration: 'The state registers contractors; registration is not an exam-based licence.',
+  home_improvement_only: 'The state registers or licenses home-improvement contractors only; general contractors are licensed locally, if at all.',
+  residential_only: 'The state licenses or registers residential builders only.',
+  trades_only: 'The state does not license general contractors. Only some trades (such as electrical or plumbing) are licensed at state level; general contractors are licensed locally, if at all.',
+  none: 'The state does not license contractors at state level; licensing is local.',
+}
 const ACCESS: Record<string, string> = {
   bulk_download: 'Published as a bulk download', api: 'Published through an API', lookup_form_only: 'A lookup form only (not a register we can copy)',
   records_request: 'Available by public-records request', paid: 'Sold, not free', none: 'Not published', not_established: 'Not yet established',
@@ -112,11 +121,20 @@ export default function CoverageMap({ rows }: { rows: StateRow[] }) {
           <h2 className="reg-h2" style={{ marginTop: 0 }}>{s.name}: {PROFESSIONS.find(p => p.key === prof)?.label.toLowerCase()}</h2>
           <p className="reg-p" style={{ margin: '6px 0' }}><b>{STATE_LABEL[c.state]}.</b> {c.state === 'not_yet_collected' && !c.surveyed_at
             ? 'We have not collected this state’s register, and have not yet established whether the state keeps one.'
-            : STATE_NOTE[c.state]}</p>
+            : c.state === 'no_register_exists' && c.scope && SCOPE[c.scope] ? SCOPE[c.scope] : STATE_NOTE[c.state]}</p>
+          {c.state !== 'no_register_exists' && c.scope && SCOPE[c.scope] && prof === 'construction' && (
+            <p className="reg-p" style={{ margin: '0 0 6px' }}>{SCOPE[c.scope]}</p>
+          )}
           {c.state === 'held' && c.source && <p className="reg-p" style={{ margin: '0 0 6px' }}>Source: {c.source}{c.retrieved ? `, retrieved ${fmt(c.retrieved)}` : ''}.</p>}
           {c.authority && <p className="reg-p" style={{ margin: '0 0 6px' }}>Issued by: {c.authority}.</p>}
           {c.access_type && <p className="reg-p" style={{ margin: '0 0 6px' }}>{ACCESS[c.access_type] ?? c.access_type}{c.cadence && c.cadence !== 'unknown' ? `, updated ${c.cadence}` : ''}.</p>}
-          {c.source_url && <p className="reg-p" style={{ margin: '0 0 6px' }}><a href={c.source_url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-bronze)' }}>Check a licence with the issuing authority &rarr;</a></p>}
+          {c.source_url && c.access_type !== 'none' && <p className="reg-p" style={{ margin: '0 0 6px' }}><a href={c.source_url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-bronze)' }}>The issuing authority&rsquo;s source &rarr;</a></p>}
+          {c.surveyed_at && c.state !== 'held' && (
+            <details style={{ margin: '0 0 8px' }}>
+              <summary style={{ cursor: 'pointer', fontSize: 12, color: 'var(--color-sage)' }}>Survey notes ({fmt(c.surveyed_at)})</summary>
+              <p className="reg-p" style={{ fontSize: 12, margin: '6px 0 0', color: 'var(--color-ink)' }}>{c.notes}</p>
+            </details>
+          )}
           <p className="reg-p" style={{ margin: 0, color: 'var(--color-sage)' }}>
             Self-registrations received from {s.name}: {s.registrations.toLocaleString()}.
           </p>
