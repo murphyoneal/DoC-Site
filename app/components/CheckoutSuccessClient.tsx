@@ -68,7 +68,7 @@ export default function CheckoutSuccessClient() {
         <div className="rounded-lg p-4 text-sm" style={{ background: 'var(--color-light-gray)', border: '1px solid #ddd8d0', color: 'var(--color-ink)' }}>
           <p className="font-semibold mb-1" style={{ color: 'var(--color-navy)' }}>This link is permanent.</p>
           Bookmark it — it stays live and always shows the current version of the report as our
-          data improves. We've also emailed it to you. Share it freely.
+          data improves. Share it freely.
         </div>
       </div>
     )
@@ -86,8 +86,8 @@ export default function CheckoutSuccessClient() {
       </p>
       {waited && (
         <p className="text-sm mt-4" style={{ color: 'var(--color-sage)' }}>
-          Still working. Your payment is safe and your receipt is in your email — if this doesn't
-          resolve in a minute, reply to that receipt and we'll send your link directly.
+          Still working. Your payment is safe. If this doesn't resolve in a minute, reload this page, or
+          email register@departmentofproperty.com with the email address you paid with and we'll send your link.
         </p>
       )}
     </div>

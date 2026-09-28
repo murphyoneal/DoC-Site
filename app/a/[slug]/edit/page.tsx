@@ -28,6 +28,9 @@ export default async function AgentEditPage({ params }: { params: Promise<{ slug
       ) : (
         <div style={{ background: 'var(--color-light-gray)', borderRadius: 12, padding: 16, fontSize: '0.86rem' }}>
           <p style={{ margin: 0 }}>{LOCKED[g?.reason ?? ''] ?? 'Editing is not available right now.'}</p>
+          {user && g?.reason === 'not_the_claimant' && (
+            <p style={{ margin: '8px 0 0' }}>You are signed in as {user.email}. Use &ldquo;Sign out&rdquo; at the top of the page, then sign in with the email address on the approved claim.</p>
+          )}
           {!user && g?.reason === 'not_the_claimant' && (
             <p style={{ margin: '8px 0 0' }}><Link href={`/login?next=/a/${slug}/edit`}>Sign in</Link> with the email on the approved claim.</p>
           )}

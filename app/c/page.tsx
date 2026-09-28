@@ -75,7 +75,7 @@ export default async function ContractorSearchPage({
       {data && data.field_status !== 'present' && (
         <p style={{ fontSize: '0.86rem', color: 'var(--color-sage)' }}>
           No licence record matched &ldquo;{q}&rdquo;{county ? ` in ${countyLabel(county)} County` : ''}. Every word has to match a name, licence number, trade, city or county. This searches the Florida licence records we hold; a business that is not in them may still be licensed elsewhere.
-        </p>
+         <Link href="/register-your-business">Not listed? Register your business</Link>.</p>
       )}
 
       {data && data.field_status === 'present' && (

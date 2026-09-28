@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import './globals.css'
 import Link from 'next/link'
 import JsonLd from './components/JsonLd'
+import AccountNav from './components/AccountNav'
 import { requestBrand } from '@/lib/brand'
 
 // ONE APP, TWO HOSTS (ruling 2026-09-27). departmentofconstruction.com is Department of
@@ -73,9 +74,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               </span>
             </Link>
             <nav className="flex items-center gap-4 text-sm">
-              {b.nav.map(l => (
+              {b.nav.filter(l => l.href !== '/login').map(l => (
                 <Link key={l.href} href={l.href} style={{ color: '#aab4c8', textDecoration: 'none' }}>{l.label}</Link>
               ))}
+              <AccountNav />
             </nav>
           </div>
         </header>

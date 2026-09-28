@@ -26,8 +26,8 @@ export default function AgentClaimForm({ licence }: { licence: string }) {
   if (reply?.outcome === 'received') return (
     <div className="reg-card">
       <h2 className="reg-h2">Received. A person will review your claim.</h2>
-      <p className="reg-p">Licence {reply.licence_name ? `for ${reply.licence_name}` : ''}{reply.rank ? ` (${reply.rank})` : ''}. We will reply by email.
-        Once it is approved, your page goes live with your licence details from the state file, and we send you a link to set your password; then use &ldquo;Sign in&rdquo; at the top of any page to add your own details.</p>
+      <p className="reg-p">Licence {reply.licence_name ? `for ${reply.licence_name}` : ''}{reply.rank ? ` (${reply.rank})` : ''}. A person reviews every claim and will email you.
+        If it is approved, your page goes live with your licence details from the state file, and that email carries a link to set your password; then use &ldquo;Sign in&rdquo; at the top of any page to add your own details. Questions: register@departmentofproperty.com.</p>
     </div>
   )
   if (reply?.outcome === 'already_claimed') return (
@@ -51,6 +51,7 @@ export default function AgentClaimForm({ licence }: { licence: string }) {
       <textarea id="ac-msg" name="message" rows={3} maxLength={2000} className="finder-input" />
       <label className="reg-tick"><input type="checkbox" required /> This is my licence, and I agree to the <a href="/terms.html">terms of use</a> and <a href="/privacy.html">privacy notice</a>.</label>
       {reply?.outcome === 'invalid' && <p style={{ color: '#a8332b', fontSize: 13, margin: 0 }}>{reply.note ?? `Please check the ${String(reply.field ?? '').replace(/_/g, ' ')}.`}</p>}
+      {reply?.outcome === 'limited' && <p style={{ color: '#a8332b', fontSize: 13, margin: 0 }}>Too many attempts from this connection. Please wait a few minutes and try again.</p>}
       {reply?.outcome === 'error' && <p style={{ color: '#a8332b', fontSize: 13, margin: 0 }}>Something went wrong on our side and nothing was saved. Please try again.</p>}
       <button type="submit" className="finder-btn" disabled={busy}>{busy ? 'Sending…' : 'Claim my licence'}</button>
     </form>

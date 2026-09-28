@@ -63,6 +63,9 @@ export default async function ProfileEditPage({ params }: { params: Promise<{ sl
       ) : (
         <div style={{ background: 'var(--color-light-gray)', borderRadius: '12px', padding: '16px', fontSize: '0.86rem' }}>
           <p style={{ margin: 0 }}>{LOCKED[reason] ?? 'Editing is not available right now.'}</p>
+          {user && reason === 'not_the_claimant' && (
+            <p style={{ margin: '8px 0 0' }}>You are signed in as {user.email}. Use &ldquo;Sign out&rdquo; at the top of the page, then sign in with the email address on the approved claim.</p>
+          )}
           {!user && reason === 'not_the_claimant' && (
             <p style={{ margin: '8px 0 0' }}><Link href={`/login?next=/claim/${slug}/profile`}>Sign in</Link> with the email address on the approved claim.</p>
           )}

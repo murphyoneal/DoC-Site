@@ -34,7 +34,7 @@ export default function ReportError({ address }: { address?: string }) {
         {retrying ? 'Retrying…' : 'Try again'}
       </button>
       <p className="text-xs mt-4" style={{ color: 'var(--color-sage)' }}>
-        If it keeps failing, reply to your emailed receipt and we'll generate it for you directly.
+        If it keeps failing, email register@departmentofproperty.com with this page&rsquo;s address and we&rsquo;ll generate it for you directly.
       </p>
     </div>
   )

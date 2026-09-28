@@ -76,7 +76,7 @@ export default async function VolusiaPage() {
           {VOLUSIA_COMMUNITIES.map(c => (
             <Link
               key={c.slug}
-              href={`/florida/volusia/${c.slug}`}
+              href={c.slug === 'spruce-creek' ? '/florida/volusia/spruce-creek' : `/c?q=${encodeURIComponent(c.name)}&county=volusia`}
               className="block p-3 rounded-lg text-sm transition-shadow hover:shadow-md"
               style={{
                 background: 'var(--color-white)',

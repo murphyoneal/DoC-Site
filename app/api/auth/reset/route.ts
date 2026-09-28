@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase/server'
 import { sendMail, mailConfigured } from '@/lib/mail'
+import { checkRateLimit, clientIp } from '@/lib/rateLimit'
 
 // "Forgot your password?" (work order 725). A reset link for an EXISTING account, emailed to that
 // account's address. The answer is the same whether or not an account exists, so the form cannot be
@@ -10,6 +11,7 @@ import { sendMail, mailConfigured } from '@/lib/mail'
 const FORMSPREE_URL = 'https://formspree.io/f/xrpgyrjp'
 
 export async function POST(req: NextRequest) {
+  if (!checkRateLimit('reset:' + clientIp(req), 5, 10 * 60_000).allowed) return NextResponse.json({ ok: false, limited: true }, { status: 429 })
   let email = ''
   try { email = String((await req.json()).email ?? '').trim().toLowerCase() } catch {}
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return NextResponse.json({ ok: false, field: 'email' }, { status: 400 })
