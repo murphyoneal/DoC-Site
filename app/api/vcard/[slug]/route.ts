@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { contractorSocket } from '@/lib/sockets/contractors'
 import { CONTRACTOR_URL } from '@/lib/site'
 import { resolveBusinessSlug } from '@/lib/business'
+import { getPublicBusinessProfile } from '@/lib/business-profile'
 
 export async function GET(
   req: NextRequest,
@@ -22,6 +23,9 @@ export async function GET(
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
 
+  // Contact lines only from what a CLAIMED business chose to publish (712), never the DBPR copy.
+  const own = c.claimed ? await getPublicBusinessProfile(slug) : null
+
   // Canonical host only — NEXT_PUBLIC_APP_URL resolved to do-c-site.vercel.app in production,
   // and a saved contact card keeps whatever URL it was given.
   const baseUrl = CONTRACTOR_URL
@@ -30,7 +34,9 @@ export async function GET(
     'BEGIN:VCARD',
     'VERSION:3.0',
     `FN:${c.display_name}`,
-    c.phone ? `TEL;TYPE=WORK,VOICE:${c.phone}` : null,
+    own?.phone ? `TEL;TYPE=WORK,VOICE:${own.phone}` : null,
+    own?.email ? `EMAIL;TYPE=WORK:${own.email}` : null,
+    own?.website ? `URL;TYPE=WORK:${own.website}` : null,
     c.city && c.state
       ? `ADR;TYPE=WORK:;;;${c.city};${c.state};${c.zip_code ?? ''};US` // no street — see the profile page
       : null,

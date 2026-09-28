@@ -8,6 +8,7 @@ import { resolveBusinessSlug, getBusinessLicences, getRelatedBusinesses, withQue
 import { countyLabel, countyLanding as countyLandingFor } from '@/lib/county'
 import { statusLabel, fileDate, ABSENT, ABSENT_NOTE } from '@/lib/licence-status'
 import { requestBrand } from '@/lib/brand'
+import { getPublicBusinessProfile } from '@/lib/business-profile'
 
 const SB_HOST = 'eaifqorwmgayiqmbtzcg.supabase.co'
 // Read from the environment — never hardcode the key. Set SUPABASE_SECRET_KEY in
@@ -105,6 +106,10 @@ export default async function ContractorProfilePage({
   const recordDate = fileDate(c.register_file_date) ?? await getRecordDate()
   const absent = c.register_file_state === ABSENT
   const related = business ? await getRelatedBusinesses(business.slug) : null
+  // The business's own details: published fields of an APPROVED claim only (712, R1). Never the
+  // DBPR copy's contact columns, which are empty and which contractors_public would serve unreviewed.
+  const own = c.claimed ? await getPublicBusinessProfile(business?.slug ?? slug) : null
+  const INS: Record<string, string> = { general_liability: 'General liability', workers_comp: "Workers' comp", other: 'Insurance' }
   const countyTitle = countyLabel(c.county_name)
   const countyLanding = countyLandingFor(c.county_name)
   const issuedYear = firstIssuedYear(c.original_date)
@@ -259,27 +264,37 @@ export default async function ContractorProfilePage({
             </div>
           )}
 
-          {/* Contact */}
-          {(c.phone || c.email || c.website) && (
-            <div style={{ marginTop: '16px', display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
-              {c.phone && (
-                <a href={`tel:${c.phone}`} style={{ fontSize: '0.84rem', color: 'var(--color-bronze)', textDecoration: 'none' }}>
-                  📞 {c.phone}
-                </a>
-              )}
-              {c.email && (
-                <a href={`mailto:${c.email}`} style={{ fontSize: '0.84rem', color: 'var(--color-bronze)', textDecoration: 'none' }}>
-                  ✉ {c.email}
-                </a>
-              )}
-              {c.website && (
-                <a href={c.website} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.84rem', color: 'var(--color-bronze)', textDecoration: 'none' }}>
-                  🌐 Website
-                </a>
-              )}
-            </div>
-          )}
         </div>
+
+        {/* From the business: what a claimed business chose to show. Declarations, kept apart from the
+            register block above and labelled as the business's own (work order 712). */}
+        {own && Object.keys(own).some(k => k !== 'updated_on') && (
+          <div style={{ background: 'var(--color-white)', borderRadius: '14px', border: '1px solid var(--color-light-gray)', padding: '20px', marginBottom: '20px' }}>
+            <h2 style={{ fontFamily: 'Georgia, serif', color: 'var(--color-navy)', fontSize: '1rem', fontWeight: 700, margin: '0 0 2px' }}>From the business</h2>
+            <p style={{ fontSize: '0.72rem', color: 'var(--color-sage)', margin: '0 0 12px' }}>
+              Added by the business{own.updated_on ? `, last updated ${fileDate(own.updated_on)}` : ''}. Not from the state licence file.
+            </p>
+            {own.description && <p style={{ fontSize: '0.86rem', color: 'var(--color-ink)', margin: '0 0 10px', whiteSpace: 'pre-line' }}>{own.description}</p>}
+            {(own.phone || own.email || own.website) && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '14px', margin: '0 0 10px' }}>
+                {own.phone && <a href={`tel:${own.phone.replace(/[^\d+]/g, '')}`} style={{ fontSize: '0.84rem', color: 'var(--color-bronze)', textDecoration: 'none' }}>📞 {own.phone}</a>}
+                {own.email && <a href={`mailto:${own.email}`} style={{ fontSize: '0.84rem', color: 'var(--color-bronze)', textDecoration: 'none' }}>✉ {own.email}</a>}
+                {own.website && <a href={own.website} target="_blank" rel="nofollow noopener noreferrer" style={{ fontSize: '0.84rem', color: 'var(--color-bronze)', textDecoration: 'none' }}>🌐 Website</a>}
+              </div>
+            )}
+            {(own.specialties?.length || own.other_specialties) && (
+              <p style={{ fontSize: '0.84rem', margin: '0 0 6px' }}><b>Specialties:</b> {[...(own.specialties ?? []).map(k => CATEGORY_LABELS[k] ?? k), own.other_specialties].filter(Boolean).join(', ')}</p>
+            )}
+            {own.counties?.length ? <p style={{ fontSize: '0.84rem', margin: '0 0 6px' }}><b>Works in:</b> {own.counties.join('; ')}</p> : null}
+            {own.years_in_business != null && <p style={{ fontSize: '0.84rem', margin: '0 0 6px' }}><b>Years in business:</b> {own.years_in_business}</p>}
+            {own.insurance?.map((i, n) => (
+              <p key={n} style={{ fontSize: '0.84rem', margin: '0 0 6px' }}>
+                <b>{INS[i.kind] ?? 'Insurance'}:</b> {i.carrier}{i.cover_note ? `, ${i.cover_note}` : ''}{i.expires_on ? `, expires ${fileDate(i.expires_on)}` : ''}
+                {' '}<span style={{ color: 'var(--color-sage)', fontSize: '0.78rem' }}>Declared by the business. {i.check_note}</span>
+              </p>
+            ))}
+          </div>
+        )}
 
         {/* Claim CTA */}
         {!c.claimed && (
@@ -307,6 +322,10 @@ export default async function ContractorProfilePage({
           <div style={{ background: '#f0fdf4', borderRadius: '14px', border: '1px solid #bbf7d0', padding: '16px', marginBottom: '20px' }}>
             <p style={{ fontSize: '0.84rem', color: '#166534', margin: 0, fontWeight: 600 }}>
               ✓ This entry has been claimed by the business.
+            </p>
+            <p style={{ fontSize: '0.76rem', color: '#166534', margin: '6px 0 0' }}>
+              Is this your claim? <Link href={`/claim/${business?.slug ?? slug}/profile`} style={{ color: '#166534' }}>Edit your details</Link>
+              {' '}or <Link href={`/claim/${business?.slug ?? slug}/photos`} style={{ color: '#166534' }}>add photos of your work</Link>.
             </p>
           </div>
         )}

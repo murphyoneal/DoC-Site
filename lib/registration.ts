@@ -63,6 +63,16 @@ export async function getCounties(state: string): Promise<Geo[]> {
   } catch { return [] }
 }
 
+export async function getCountiesByIds(ids: string[]): Promise<Geo[]> {
+  const ok = ids.filter(i => /^US-\d{5}$/.test(i))
+  if (!ok.length) return []
+  try {
+    const r = await fetch(`${SB_REST}/geo_reference?geo_id=in.(${ok.join(',')})&admin_level=eq.2&select=geo_id,name,admin1_abbr,level_type`,
+      { headers: SB_HEADERS, next: { revalidate: 86400 } })
+    return r.ok ? await r.json() : []
+  } catch { return [] }
+}
+
 export type Place = { geo_id: string; name: string; kind: 'municipality' | 'census_designated_place' }
 
 export async function getPlaces(county: string): Promise<Place[]> {
