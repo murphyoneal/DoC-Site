@@ -7,13 +7,13 @@ import { DOMAIN_SPLIT } from '@/lib/site'
 // register landing instead and this page is never reached.)
 //
 // Before the domain split this is still the contractor map, exactly as today. After it, the map
-// lives at departmentofconstruction.com/map and this is Department of Property's own home: the
-// property lookup (ruling 2026-09-27).
+// lives at departmentofconstruction.com/map and this is Department of Property's own home: the two
+// registers, agents and contractors (work order 712; the property lookup is parked).
 export const metadata: Metadata = DOMAIN_SPLIT
   ? {
-      title: { absolute: 'Department of Property — the public record for a Florida property' },
+      title: { absolute: 'Department of Property — Florida’s licensed agents and contractors' },
       description:
-        'Look up a Florida address to see what government registers hold about it: flood zone, zoning, ownership, permits and more.',
+        'Florida’s licensed real estate agents and contractors, from the state licence files that hold them, with the date each was read.',
     }
   : {
       // absolute: the layout's title.template does not apply to the page in its own segment, so
