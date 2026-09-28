@@ -225,6 +225,9 @@ footer a{color:var(--gold)}
         (r.status_state==="present"
            ? '<span class="flag">'+esc(r.license_status)+'</span>'
            : '<span class="flag na">STATUS NOT HELD</span>')+
+        (r.rank_class==="person" && r.license_number
+           ? '<a class="rclaim" href="/agents/claim?licence='+encodeURIComponent(r.license_number)+'" style="display:block;margin-top:6px;font-size:12px;color:#8B6F47">Claim this licence &rarr;</a>'
+           : '')+
         '</div></div>';});
     h+='</div><p class="rnote">'+esc(d.coverage_note)+' Source: '+esc(d.source)+'.</p>';
     res.innerHTML=h;show();}
