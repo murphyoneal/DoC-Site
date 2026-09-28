@@ -1,0 +1,4 @@
+-- 151a — claim_state_for_business / claim_state_for_licence: the claim pages know at LOAD whether a
+-- business or licence is unclaimed, under review, or claimed, and whether it is the signed-in
+-- visitor's own claim (work order 727). The claimant is never named. Applied 2026-09-28; the full
+-- bodies are in the migration history (supabase_migrations.schema_migrations, 151a_claim_state_at_load).
