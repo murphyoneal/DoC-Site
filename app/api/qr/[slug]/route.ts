@@ -7,7 +7,8 @@
  *   ref   — tracking ref appended to URL (e.g. ?ref=print)
  *
  * Screen-res (≤512) is public.
- * Hi-res (>512) requires claimed=true — placeholder for Phase 2 auth gate.
+ * Print-res (>512) is EARNED (work order 730): only the signed-in owner of an approved claim gets it,
+ * from the editor after completing their profile. The code always encodes /c/{slug}; never their URL.
  */
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -15,6 +16,7 @@ import QRCode from 'qrcode'
 import { contractorSocket } from '@/lib/sockets/contractors'
 import { CONTRACTOR_URL } from '@/lib/site'
 import { resolveBusinessSlug } from '@/lib/business'
+import { getSessionUser } from '@/lib/supabase/ssr-server'
 
 const SCREEN_MAX = 512
 const PRINT_MAX  = 1200
@@ -44,17 +46,28 @@ export async function GET(
     return NextResponse.json({ error: 'Contractor not found' }, { status: 404 })
   }
 
-  // Hi-res gate — placeholder for Phase 2 (claimed + auth)
-  const isClaimed = contractor.claimed === true
-  const maxSize = isClaimed ? PRINT_MAX : SCREEN_MAX
-  const size = Math.min(Math.max(requestedSize, 64), maxSize)
-
-  if (requestedSize > SCREEN_MAX && !isClaimed) {
-    return NextResponse.json(
-      { error: 'Hi-resolution QR requires a claimed profile. Claim your profile to unlock print-ready downloads.' },
-      { status: 403 }
-    )
+  // Print-res gate: the signed-in owner of an approved claim on this business, nobody else.
+  let isOwner = false
+  if (requestedSize > SCREEN_MAX) {
+    const user = await getSessionUser()
+    if (user?.email) {
+      const key = process.env.SUPABASE_SECRET_KEY ?? ''
+      const r = await fetch('https://eaifqorwmgayiqmbtzcg.supabase.co/rest/v1/rpc/claim_state_for_business', {
+        method: 'POST', cache: 'no-store',
+        headers: { apikey: key, Authorization: 'Bearer ' + key, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ p_slug: slug, p_email: user.email }),
+      }).catch(() => null)
+      const j = r?.ok ? await r.json() : null
+      isOwner = j?.state === 'approved' && j?.mine === true
+    }
+    if (!isOwner) {
+      return NextResponse.json(
+        { error: 'The print-ready QR code is available to the business owner once they have claimed and completed their profile.' },
+        { status: 403 }
+      )
+    }
   }
+  const size = Math.min(Math.max(requestedSize, 64), isOwner ? PRINT_MAX : SCREEN_MAX)
 
   // Build target URL. Always the canonical host, never NEXT_PUBLIC_APP_URL: in production that
   // resolved to do-c-site.vercel.app, so every code issued encoded the Vercel host. A printed

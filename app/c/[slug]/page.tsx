@@ -9,6 +9,19 @@ import { countyLabel, countyLanding as countyLandingFor } from '@/lib/county'
 import { statusLabel, fileDate, ABSENT, ABSENT_NOTE } from '@/lib/licence-status'
 import { requestBrand } from '@/lib/brand'
 import { getPublicBusinessProfile } from '@/lib/business-profile'
+import { getSessionUser } from '@/lib/supabase/ssr-server'
+
+async function ownerOf(slug: string, email: string): Promise<boolean> {
+  try {
+    const r = await fetch(`https://eaifqorwmgayiqmbtzcg.supabase.co/rest/v1/rpc/claim_state_for_business`, {
+      method: 'POST', cache: 'no-store',
+      headers: { apikey: process.env.SUPABASE_SECRET_KEY ?? '', Authorization: 'Bearer ' + (process.env.SUPABASE_SECRET_KEY ?? ''), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ p_slug: slug, p_email: email }),
+    })
+    const j = r.ok ? await r.json() : null
+    return j?.state === 'approved' && j?.mine === true
+  } catch { return false }
+}
 
 const SB_HOST = 'eaifqorwmgayiqmbtzcg.supabase.co'
 // Read from the environment — never hardcode the key. Set SUPABASE_SECRET_KEY in
@@ -111,6 +124,9 @@ export default async function ContractorProfilePage({
   // The business's own details: published fields of an APPROVED claim only (712, R1). Never the
   // DBPR copy's contact columns, which are empty and which contractors_public would serve unreviewed.
   const own = c.claimed ? await getPublicBusinessProfile(business?.slug ?? slug) : null
+  // The signed-in owner sees their way into the editor; nobody else is told whose claim it is (730).
+  const viewer = await getSessionUser()
+  const ownerView = !!(c.claimed && viewer?.email && (await ownerOf(business?.slug ?? slug, viewer.email)))
   const INS: Record<string, string> = { general_liability: 'General liability', workers_comp: "Workers' comp", other: 'Insurance' }
   const countyTitle = countyLabel(c.county_name)
   const countyLanding = countyLandingFor(c.county_name)
@@ -196,13 +212,8 @@ export default async function ContractorProfilePage({
                 />
               </a>
               <span style={{ fontSize: '0.68rem', color: 'var(--color-sage)', textAlign: 'center' }}>Scan or share</span>
-              <a
-                href={`/api/qr/${slug}?ref=download&size=512`}
-                download={`doc-qr-${slug}.png`}
-                style={{ fontSize: '0.72rem', color: 'var(--color-bronze)', textDecoration: 'underline' }}
-              >
-                Download hi-res
-              </a>
+              {/* No hi-res download here (work order 730): the print-ready code is earned - it is given
+                  to the owner in the editor after they complete their profile. */}
             </div>
           </div>
 
@@ -298,6 +309,22 @@ export default async function ContractorProfilePage({
           </div>
         )}
 
+        {/* Reached from a QR code (work order 730): what a scan should offer. Claimed: visit their website
+            (once they have published one) or save their contact details. Unclaimed: this record, and
+            save the contact details we hold. The code itself always encodes this page. */}
+        {ref && ['qr', 'download', 'print', 'profile'].includes(ref) && (
+          <div style={{ background: 'var(--color-navy)', borderRadius: '14px', padding: '16px', marginBottom: '20px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+            {own?.website && (
+              <a href={own.website} rel="nofollow noopener noreferrer" style={{ flex: '1 1 160px', textAlign: 'center', padding: '12px', borderRadius: '10px', background: 'var(--color-bronze)', color: '#fff', fontWeight: 700, textDecoration: 'none' }}>
+                Visit their website
+              </a>
+            )}
+            <a href={`/api/vcard/${business?.slug ?? slug}`} style={{ flex: '1 1 160px', textAlign: 'center', padding: '12px', borderRadius: '10px', background: '#fff', color: 'var(--color-navy)', fontWeight: 700, textDecoration: 'none' }}>
+              Save contact to your phone
+            </a>
+          </div>
+        )}
+
         {/* Claim CTA */}
         {!c.claimed && (
           <div style={{ background: 'var(--color-white)', borderRadius: '14px', border: '1px solid var(--color-light-gray)', padding: '20px', marginBottom: '20px' }}>
@@ -305,7 +332,7 @@ export default async function ContractorProfilePage({
               Is this your business?
             </h2>
             <p style={{ fontSize: '0.84rem', color: 'var(--color-sage)', margin: '0 0 14px' }}>
-              Claim it to correct the record. A person reads every claim. The QR code above is free for your truck, whether or not you claim.
+              Claim it to correct the record and add your own details and photos. Once your profile is complete you can download a print-ready QR code for your truck. A person reads every claim.
             </p>
             <Link
               href={`/claim/${slug}`}
@@ -323,12 +350,18 @@ export default async function ContractorProfilePage({
         {c.claimed && (
           <div style={{ background: '#f0fdf4', borderRadius: '14px', border: '1px solid #bbf7d0', padding: '16px', marginBottom: '20px' }}>
             <p style={{ fontSize: '0.84rem', color: '#166534', margin: 0, fontWeight: 600 }}>
-              ✓ This entry has been claimed by the business.
+              {ownerView ? '✓ This is your page.' : '✓ This entry has been claimed by the business.'}
             </p>
-            <p style={{ fontSize: '0.76rem', color: '#166534', margin: '6px 0 0' }}>
-              Is this your claim? <Link href={`/claim/${business?.slug ?? slug}/profile`} style={{ color: '#166534' }}>Edit your details</Link>
-              {' '}or <Link href={`/claim/${business?.slug ?? slug}/photos`} style={{ color: '#166534' }}>add photos of your work</Link>.
-            </p>
+            {ownerView ? (
+              <p style={{ fontSize: '0.8rem', color: '#166534', margin: '6px 0 0', display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+                <Link href={`/claim/${business?.slug ?? slug}/profile`} style={{ color: '#166534', fontWeight: 600 }}>Edit your profile</Link>
+                <Link href={`/claim/${business?.slug ?? slug}/photos`} style={{ color: '#166534' }}>Photos of your work</Link>
+              </p>
+            ) : !viewer ? (
+              <p style={{ fontSize: '0.76rem', color: '#166534', margin: '6px 0 0' }}>
+                Is it yours? <Link href={`/login?next=/claim/${business?.slug ?? slug}/profile`} style={{ color: '#166534' }}>Sign in</Link> to edit it.
+              </p>
+            ) : null}
           </div>
         )}
 
