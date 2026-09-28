@@ -48,10 +48,9 @@ const DOP_SPLIT: Brand = {
   mark: 'DoP',
   url: DOP_URL,
   description:
-    'The public record for a Florida property, and Florida’s licensed real estate agents, from the government registers that hold them.',
+    'Florida’s licensed real estate agents and contractors, from the government registers that hold them.',
   titleDefault: 'Department of Property',
   nav: [
-    { label: 'Property lookup', href: '/' },
     { label: 'Agents', href: '/agents.html' },
     { label: 'Contractors', href: `${CONTRACTOR_URL}/c` },
     { label: 'Disclaimer', href: '/disclaimer' },

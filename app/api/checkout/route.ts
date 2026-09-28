@@ -23,6 +23,12 @@ function getIp(req: NextRequest): string {
 }
 
 export async function POST(req: NextRequest) {
+  // PARKED (work order 712, 2026-09-28): PIR is not on sale. The route and the Stripe wiring stay;
+  // it refuses until PIR_SALES_OPEN=true is set in the environment. 503 is what the report page
+  // already reads as "payments are not enabled yet".
+  if (process.env.PIR_SALES_OPEN !== 'true') {
+    return NextResponse.json({ error: 'The report is not on sale yet.' }, { status: 503 })
+  }
   const key = process.env.STRIPE_SECRET_KEY
   if (!key) {
     return NextResponse.json({ error: 'Payments are not configured.' }, { status: 503 })
