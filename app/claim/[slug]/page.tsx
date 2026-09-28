@@ -56,7 +56,12 @@ export default async function ClaimPage({ params }: { params: Promise<{ slug: st
               Already Claimed
             </h1>
             <p style={{ fontSize: '0.84rem', color: 'var(--color-sage)', margin: '0 0 20px' }}>
-              This profile has already been claimed by the licence holder.
+              This profile has already been claimed by the business.
+            </p>
+            <p style={{ fontSize: '0.84rem', color: 'var(--color-ink)', margin: '0 0 20px' }}>
+              If the approved claim is yours, sign in with its email to{' '}
+              <Link href={`/claim/${slug}/profile`} style={{ color: 'var(--color-bronze)' }}>edit your details</Link> or{' '}
+              <Link href={`/claim/${slug}/photos`} style={{ color: 'var(--color-bronze)' }}>add photos of your work</Link>.
             </p>
             <Link
               href={`/c/${slug}`}
