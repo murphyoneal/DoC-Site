@@ -71,7 +71,8 @@ export default function ClaimForm({ slug, displayName }: Props) {
           Claim Request Submitted
         </h2>
         <p className="text-sm mb-4" style={{ color: 'var(--color-sage)' }}>
-          Thank you. We&rsquo;ll be in touch at {email}.
+          A person reads every claim. When yours is approved we&rsquo;ll send a link to {email} to set your password;
+          then you can sign in (&ldquo;Sign in&rdquo; at the top of every page) to edit your business details and add photos of your work.
         </p>
         <a href={`/c/${slug}`} className="text-sm underline" style={{ color: 'var(--color-bronze)' }}>Back to profile</a>
       </div>

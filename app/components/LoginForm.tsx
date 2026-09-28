@@ -4,10 +4,10 @@ import { useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { getSupabaseBrowser } from '@/lib/supabase/ssr-browser'
 
-export default function LoginForm() {
+export default function LoginForm({ heading, sub }: { heading: string; sub: string }) {
   const router = useRouter()
   const params = useSearchParams()
-  const next = params.get('next') || '/roz'
+  const next = params.get('next') || '/account'
   const expired = params.get('expired') === '1'
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -19,7 +19,7 @@ export default function LoginForm() {
     setError(null); setBusy(true)
     const supabase = getSupabaseBrowser()
     const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password })
-    if (error) { setError(error.message); setBusy(false); return }
+    if (error) { setError(error.message === 'Invalid login credentials' ? 'That email and password do not match an account.' : error.message); setBusy(false); return }
     // Full navigation so the proxy re-reads the refreshed session cookie.
     router.push(next)
     router.refresh()
@@ -28,7 +28,8 @@ export default function LoginForm() {
   return (
     <form onSubmit={submit} style={{ width: 320, display: 'flex', flexDirection: 'column', gap: 12,
       padding: 24, border: '1px solid var(--color-light-gray)', borderRadius: 14, background: 'var(--color-white)' }}>
-      <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--color-navy)' }}>Roz — sign in</div>
+      <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--color-navy)' }}>{heading}</div>
+      <div style={{ fontSize: 13, color: 'var(--color-sage)', marginTop: -6 }}>{sub}</div>
       {expired && <div style={{ fontSize: 13, color: '#8a5a1f', background: '#fdf3e0', padding: '6px 10px', borderRadius: 8 }}>Your session expired. Please sign in again.</div>}
       <input type="email" required placeholder="Email" value={email} onChange={e => setEmail(e.target.value)}
         autoComplete="email" style={inp} />
@@ -39,6 +40,10 @@ export default function LoginForm() {
         background: 'var(--color-navy)', color: '#fff', fontSize: 14, fontWeight: 600, cursor: busy ? 'wait' : 'pointer', opacity: busy ? 0.6 : 1 }}>
         {busy ? 'Signing in…' : 'Sign in'}
       </button>
+      <a href="/auth/forgot" style={{ fontSize: 13, color: 'var(--color-bronze)' }}>Forgot your password, or never set one?</a>
+      <div style={{ fontSize: 12, color: 'var(--color-sage)' }}>
+        No account yet? Accounts come with an approved claim: find your entry and choose Claim. Once a person approves it we send you a link to set your password.
+      </div>
     </form>
   )
 }
