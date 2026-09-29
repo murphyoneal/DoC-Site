@@ -93,7 +93,13 @@ export async function POST(req: NextRequest) {
 
   // Gate: only the requester of an APPROVED claim on this business.
   const gate = await rpc('work_upload_gate', { p_slug: slug, p_email: user.email })
-  if (!gate?.allowed) return fail(403, 'Photo uploads open once your claim on this business is approved.')
+  if (!gate?.allowed) return fail(403, gate?.reason === 'suspended' ? 'Uploads are paused for this business.' : 'Photo uploads open once your claim on this business is approved.')
+
+  // The free listing holds a recorded number of live photos (ruling 762 part 4). Removing one frees a slot.
+  const cap = await fetch(`${HOST}/rest/v1/operating_threshold?name=eq.free_photos_per_business&select=limit_value`, { headers: AUTH, cache: 'no-store' }).then(r => r.json()).catch(() => [])
+  const limit = Number(cap?.[0]?.limit_value ?? 10)
+  const have = Number(await rpc('work_photo_count', { p_contractor_id: gate.contractor_id }).catch(() => limit))
+  if (have >= limit) return fail(409, `Your free listing holds ${limit} photos. Remove one to add another. More room will come with a paid option later.`)
 
   let readOriginal: any, stripForPublic: any, metadataFree: any
   try { ({ readOriginal, stripForPublic, metadataFree } = await pipeline()) }

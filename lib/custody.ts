@@ -8,7 +8,7 @@ const HOST = 'https://eaifqorwmgayiqmbtzcg.supabase.co'
 
 export type SubmissionKind =
   | 'work_upload' | 'logo_upload' | 'logo_remove' | 'contractor_claim'
-  | 'agent_claim' | 'profile_save' | 'agent_profile_save' | 'self_registration'
+  | 'agent_claim' | 'profile_save' | 'agent_profile_save' | 'self_registration' | 'work_withdraw' | 'appeal'
 
 const IP_RE = /^(\d{1,3}(\.\d{1,3}){3}|[0-9a-f:]+)$/i
 

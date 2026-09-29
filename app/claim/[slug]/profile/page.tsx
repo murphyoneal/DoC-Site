@@ -13,6 +13,7 @@ import BusinessProfileForm from '@/app/components/BusinessProfileForm'
 export const metadata = { title: 'Your business details', robots: { index: false } }
 
 const LOCKED: Record<string, string> = {
+  suspended: 'This business’s page is not being shown, and editing is paused.',
   no_approved_claim: 'Your details can be added once a claim on this business has been approved. A person reads every claim.',
   not_the_claimant: 'Only the person whose claim on this business was approved can edit its details.',
   not_in_register: 'This business is not in the register.',
@@ -63,6 +64,9 @@ export default async function ProfileEditPage({ params }: { params: Promise<{ sl
       ) : (
         <div style={{ background: 'var(--color-light-gray)', borderRadius: '12px', padding: '16px', fontSize: '0.86rem' }}>
           <p style={{ margin: 0 }}>{LOCKED[reason] ?? 'Editing is not available right now.'}</p>
+          {reason === 'suspended' && (
+            <p style={{ margin: '8px 0 0' }}><Link href={`/claim/${slug}/appeal`} style={{ color: 'var(--color-bronze)' }}>If you think that is wrong, appeal &rarr;</Link></p>
+          )}
           {user && reason === 'not_the_claimant' && (
             <p style={{ margin: '8px 0 0' }}>You are signed in as {user.email}. Use &ldquo;Sign out&rdquo; at the top of the page, then sign in with the email address on the approved claim.</p>
           )}
