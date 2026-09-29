@@ -3,6 +3,7 @@ import { getSessionUser } from '@/lib/supabase/ssr-server'
 import { addressSocket } from '@/lib/sockets/address'
 import { checkRateLimit, pruneRateLimitStore } from '@/lib/rateLimit'
 import { logSubmission } from '@/lib/custody'
+import { scanImage, decide } from '@/lib/moderation'
 
 // The image pipeline (sharp, a native module) is imported only once a request has passed the
 // sign-in and claim gates. If the native library ever fails to load, the gates still answer
@@ -125,34 +126,78 @@ export async function POST(req: NextRequest) {
     location_checked_at: new Date().toISOString(),
   })
 
-  // Strip, store both copies, then prove the SERVED public copy carries no metadata.
+  // Strip, prove the stripped bytes carry no metadata, and keep BOTH copies PRIVATE. Nothing is public
+  // until every required scan passes (ruling 762 part 3: upload -> private -> scan -> publish on pass).
   const pub = await stripForPublic(original)
+  const clean = await metadataFree(pub.data)
+  if (!clean.free) {
+    console.error('[work/upload] stripped copy carried metadata; not stored', clean.found)
+    return fail(500, 'The photo could not be cleaned of its hidden data, so it was not saved.')
+  }
   const imageId = crypto.randomUUID()
   const ext = orig.format === 'png' ? 'png' : orig.format === 'webp' ? 'webp' : 'jpg'
   const privatePath = `${contribution.id}/${imageId}-original.${ext}`
-  const publicPath = `${contribution.id}/${imageId}.jpg`
+  const heldPath = `${contribution.id}/${imageId}.jpg`
   await putObject('work-private', privatePath, original, file.type)
-  await putObject('work-public', publicPath, pub.data, 'image/jpeg')
-
-  const served = Buffer.from(await (await fetch(`${HOST}/storage/v1/object/public/work-public/${publicPath}`, { cache: 'no-store' })).arrayBuffer())
-  const check = await metadataFree(served)
-  if (!check.free) {
-    await deleteObject('work-public', publicPath)
-    console.error('[work/upload] served copy carried metadata; withdrawn', check.found)
-    return fail(500, 'The photo could not be published safely and was not published. Nothing is shown on your profile.')
-  }
+  await putObject('work-private', heldPath, pub.data, 'image/jpeg')
   const now = new Date().toISOString()
-  await insert('work_contribution_image', {
-    contribution_id: contribution.id, public_path: publicPath, private_path: privatePath,
+  const image = await insert('work_contribution_image', {
+    contribution_id: contribution.id, public_path: null, held_path: heldPath, private_path: privatePath,
     exif_stripped_at: now, exif_verified_at: now,
     width: pub.width, height: pub.height, byte_size: pub.data.length,
   })
 
-  await logSubmission(req, { kind: 'work_upload', ref: String(contribution.id), email: user.email, outcome: 'saved:' + loc.location_state })
+  // Scan the bytes we will serve. Every slot's result is recorded; not_available is never a pass.
+  const results = await scanImage(pub.data)
+  for (const r of results) await insert('scan_result', { image_id: image.id, slot: r.slot, provider: r.provider, state: r.state, detail: r.detail ?? null })
+  const verdict = decide(results)
+
+  let shown = false
+  if (verdict === 'publish') {
+    await putObject('work-public', heldPath, pub.data, 'image/jpeg')
+    const served = Buffer.from(await (await fetch(`${HOST}/storage/v1/object/public/work-public/${heldPath}`, { cache: 'no-store' })).arrayBuffer())
+    if ((await metadataFree(served)).free) {
+      await patch('work_contribution_image', image.id, { public_path: heldPath })
+      await patch('work_contribution', contribution.id, { visibility: 'public' })
+      shown = true
+    } else {
+      await deleteObject('work-public', heldPath)
+      console.error('[work/upload] served copy carried metadata; withdrawn')
+    }
+  } else if (verdict === 'hold') {
+    await patch('work_contribution', contribution.id, { visibility: 'held' })
+    await notifyHeld(slug, String(contribution.id), results)
+  }
+
+  await logSubmission(req, { kind: 'work_upload', ref: String(contribution.id), email: user.email, outcome: `saved:${verdict}:${loc.location_state}` })
   return NextResponse.json({
     ok: true,
+    shown,
     location_state: loc.location_state,
     location_note: loc.note,
     matched_address: parcel?.label ?? null,
   })
+}
+
+// PATCH one row by id (service key). Used only for our own publication state.
+async function patch(table: string, id: string, body: Record<string, unknown>) {
+  const r = await fetch(`${HOST}/rest/v1/${table}?id=eq.${id}`, { method: 'PATCH', headers: { ...AUTH, 'Content-Type': 'application/json', Prefer: 'return=minimal' }, body: JSON.stringify(body), cache: 'no-store' })
+  if (!r.ok) throw new Error(`${table} patch ${r.status}: ${await r.text()}`)
+}
+
+// A held image is Murphy's to review (the notice model). The image itself is never attached or
+// linked publicly; the review page (part 5) is where he looks at it.
+async function notifyHeld(slug: string, contributionId: string, results: { slot: string; state: string; provider: string }[]) {
+  const match = results.some(r => r.slot === 'hash_match' && r.state === 'match')
+  try {
+    await fetch('https://formspree.io/f/xrpgyrjp', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({
+        _subject: match ? `URGENT - hash match on an uploaded photo (${slug})` : `Photo held for review (${slug})`,
+        source: 'work upload scan (/api/work/upload)', business: slug, contribution: contributionId,
+        results: results.map(r => `${r.slot}: ${r.state} (${r.provider})`).join('; '),
+        note: match ? 'Never published. Preserved. The legal obligations on a match are for counsel.' : 'Never published. Review it and decide.',
+      }),
+    })
+  } catch (e) { console.error('[work/upload] held notice failed', e) }
 }

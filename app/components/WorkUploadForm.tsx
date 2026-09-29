@@ -22,7 +22,7 @@ export default function WorkUploadForm({ slug }: { slug: string }) {
       const res = await fetch('/api/work/upload', { method: 'POST', body: fd })
       const j = await res.json()
       if (!j.ok) setResult({ ok: false, text: j.error ?? 'Upload failed.' })
-      else setResult({ ok: true, text: `Saved. It is not shown on your public page yet. ${STATE_TEXT[j.location_state] ?? ''}${j.matched_address ? ` (Matched: ${j.matched_address}.)` : ''}` })
+      else setResult({ ok: true, text: `${j.shown ? 'Saved and cleared by our checks. Photo galleries are not shown on public pages yet.' : 'Saved. It is not shown on your public page yet: every photo is checked before it can be shown.'} ${STATE_TEXT[j.location_state] ?? ''}${j.matched_address ? ` (Matched: ${j.matched_address}.)` : ''}` })
     } catch {
       setResult({ ok: false, text: 'Upload failed. Nothing was saved.' })
     }
