@@ -3,6 +3,7 @@ import { SB_HEADERS, SB_REST } from '@/lib/registration'
 import { CONTRACTOR_URL } from '@/lib/site'
 import { checkRateLimit, clientIp } from '@/lib/rateLimit'
 import { logSubmission } from '@/lib/custody'
+import { notifyLanguageFlags, type LanguageFlag } from '@/lib/language-notice'
 
 // The self-registration form's one write (work order 699). self_register() validates, checks each
 // declared credential against the registers we hold, applies the Florida duplicate rule, and either
@@ -108,6 +109,7 @@ export async function POST(req: NextRequest) {
   }
 
   // The id and the private review detail stay server-side.
-  const { id: _id, florida_duplicate_slugs: _s, florida_duplicate_state: _d, ...safe } = result
+  await notifyLanguageFlags(result.flags as LanguageFlag[] | undefined, { what: 'registration', subject: String(result.slug ?? ''), page: null })
+  const { id: _id, florida_duplicate_slugs: _s, florida_duplicate_state: _d, flags: _f, ...safe } = result
   return NextResponse.json(safe)
 }

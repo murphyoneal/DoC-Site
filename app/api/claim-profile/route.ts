@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { logSubmission } from '@/lib/custody'
+import { notifyLanguageFlags, type LanguageFlag } from '@/lib/language-notice'
 import { getSessionUser } from '@/lib/supabase/ssr-server'
 import { saveBusinessProfile } from '@/lib/business-profile'
 
@@ -38,6 +39,10 @@ export async function POST(req: NextRequest) {
   const r = await saveBusinessProfile(slug, user.email, payload)
   if (!r) return NextResponse.json({ saved: false, reason: 'error' }, { status: 502 })
   if (r.saved && r.business_id) await syncPublicLogo(r.business_id)
-  await logSubmission(req, { kind: 'profile_save', ref: slug, email: user.email, outcome: r.saved ? 'saved' : `refused:${r.field ?? r.reason ?? 'not_allowed'}` })
-  return NextResponse.json(r, { status: r.allowed ? (r.saved ? 200 : 400) : 403 })
+  const flags = (r as { flags?: LanguageFlag[] }).flags
+  await logSubmission(req, { kind: 'profile_save', ref: slug, email: user.email, outcome: r.saved ? (flags?.length ? `saved:flagged:${flags.length}` : 'saved') : `refused:${r.field ?? r.reason ?? 'not_allowed'}` })
+  await notifyLanguageFlags(flags, { what: 'business', subject: slug, page: `https://departmentofconstruction.com/c/${slug}` })
+  // The flag is ours - never returned to the page (ruling 761.6).
+  const { flags: _f, ...out } = r as Record<string, unknown>
+  return NextResponse.json(out, { status: r.allowed ? (r.saved ? 200 : 400) : 403 })
 }
