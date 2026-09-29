@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { SB_HEADERS, SB_REST } from '@/lib/registration'
 import { CONTRACTOR_URL } from '@/lib/site'
+import { checkRateLimit, clientIp } from '@/lib/rateLimit'
 
 // The self-registration form's one write (work order 699). self_register() validates, checks each
 // declared credential against the registers we hold, applies the Florida duplicate rule, and either
@@ -25,6 +26,7 @@ function str(v: unknown, max: number): string | null {
 }
 
 export async function POST(req: NextRequest) {
+  if (!checkRateLimit('register:' + clientIp(req), 5, 10 * 60_000).allowed) return NextResponse.json({ outcome: 'limited' }, { status: 429 })
   let body: Record<string, unknown>
   try { body = await req.json() } catch { return NextResponse.json({ outcome: 'invalid', field: 'body' }, { status: 400 }) }
 

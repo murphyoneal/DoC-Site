@@ -4,7 +4,7 @@ import { useState } from 'react'
 
 const STATE_TEXT: Record<string, string> = {
   location_confirmed: 'The photo was taken at the address you gave.',
-  location_divergent: 'The photo was taken somewhere other than the address you gave. It is still published; the difference is recorded.',
+  location_divergent: 'The photo was taken somewhere other than the address you gave. It is still kept; the difference is recorded.',
   location_not_available: 'The photo carries no location data, so it could not be matched to the address.',
   location_not_checked: 'The address could not be matched to a property, so the photo location was not checked.',
 }
@@ -22,9 +22,9 @@ export default function WorkUploadForm({ slug }: { slug: string }) {
       const res = await fetch('/api/work/upload', { method: 'POST', body: fd })
       const j = await res.json()
       if (!j.ok) setResult({ ok: false, text: j.error ?? 'Upload failed.' })
-      else setResult({ ok: true, text: `Published. ${STATE_TEXT[j.location_state] ?? ''}${j.matched_address ? ` (Matched: ${j.matched_address}.)` : ''}` })
+      else setResult({ ok: true, text: `Saved. It is not shown on your public page yet. ${STATE_TEXT[j.location_state] ?? ''}${j.matched_address ? ` (Matched: ${j.matched_address}.)` : ''}` })
     } catch {
-      setResult({ ok: false, text: 'Upload failed. Nothing was published.' })
+      setResult({ ok: false, text: 'Upload failed. Nothing was saved.' })
     }
     setBusy(false)
   }

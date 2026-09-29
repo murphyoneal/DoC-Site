@@ -11,13 +11,20 @@ function Forgot() {
   const [email, setEmail] = useState('')
   const [done, setDone] = useState<null | { provider: boolean }>(null)
   const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
-    setBusy(true)
-    const r = await fetch('/api/auth/reset', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) })
-    const j = await r.json().catch(() => ({}))
-    setDone({ provider: !!j.provider }); setBusy(false)
+    setBusy(true); setErr(null)
+    try {
+      const r = await fetch('/api/auth/reset', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) })
+      const j = await r.json().catch(() => ({}))
+      if (r.status === 429) setErr('Too many attempts from this connection. Please wait a few minutes and try again.')
+      else if (!r.ok) setErr('Please check the email address.')
+      else setDone({ provider: !!j.provider })
+    } catch {
+      setErr('Could not reach us. Check your connection and try again.')
+    } finally { setBusy(false) }
   }
 
   return (
@@ -27,12 +34,13 @@ function Forgot() {
         {done ? (
           <p className="reg-p" style={{ margin: 0 }}>
             If there is an account for that address, a link to set a new password is on its way to it
-            {done.provider ? '.' : ' (a person sends it, so it may take a little while).'} The link works once.
+            {done.provider ? '.' : ' (a person sends it, so it may take a little while).'} The link works once. If it does not arrive, email register@departmentofproperty.com.
           </p>
         ) : (
           <form onSubmit={submit} style={{ display: 'grid', gap: 10 }}>
             <p className="reg-p" style={{ margin: 0 }}>Enter the email address you claimed with and we will send a new link.</p>
             <input type="email" required className="finder-input" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} autoComplete="email" />
+            {err && <p style={{ color: '#a8332b', fontSize: 13, margin: 0 }}>{err}</p>}
             <button type="submit" className="finder-btn" disabled={busy}>{busy ? 'Sending…' : 'Send me a link'}</button>
           </form>
         )}

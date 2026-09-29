@@ -71,8 +71,9 @@ export default function ClaimForm({ slug, displayName }: Props) {
           Claim Request Submitted
         </h2>
         <p className="text-sm mb-4" style={{ color: 'var(--color-sage)' }}>
-          A person reads every claim. When yours is approved we&rsquo;ll send a link to {email} to set your password;
-          then you can sign in (&ldquo;Sign in&rdquo; at the top of every page) to edit your business details and add photos of your work.
+          A person reviews every claim and will email you at {email}. If yours is approved, that email carries a link to set
+          your password; then you can sign in (&ldquo;Sign in&rdquo; at the top of every page) to edit your business details.
+          Questions: register@departmentofproperty.com.
         </p>
         <a href={`/c/${slug}`} className="text-sm underline" style={{ color: 'var(--color-bronze)' }}>Back to profile</a>
       </div>
@@ -111,7 +112,7 @@ export default function ClaimForm({ slug, displayName }: Props) {
       {step === 'details' && (
         <>
           <div className="flex items-center gap-2 mb-4 px-3 py-2 rounded-lg" style={{ background: '#e8f0fb' }}>
-            <span style={{ color: 'var(--color-navy)', fontSize: '0.85rem' }}>{'✓ Licence verified — ' + enteredLicense.toUpperCase()}</span>
+            <span style={{ color: 'var(--color-navy)', fontSize: '0.85rem' }}>{'Licence entered: ' + enteredLicense.toUpperCase() + '. We check it against the state file when you submit.'}</span>
           </div>
           <h3 className="text-base font-bold mb-1" style={{ fontFamily: 'Georgia, serif', color: 'var(--color-navy)' }}>
             Step 2 — Your Contact Details

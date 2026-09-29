@@ -17,9 +17,11 @@ type Reply =
   | { outcome: 'existing'; slug: string; note: string }
   | { outcome: 'invalid'; field: string; index?: number; reason?: string }
   | { outcome: 'error' }
+  | { outcome: 'limited' }
 
 const FIELD_NAMES: Record<string, string> = {
   business_name: 'business name', state: 'state', county: 'county', place: 'city or town', contact_email: 'email address', credentials: 'credentials',
+  other_services: 'other services',
 }
 
 const blank = (state: string): Cred => ({ kind: 'licence', issuing_state: state, trade: '', number: '', issuer: '', expires_on: '', publish: false })
@@ -112,8 +114,9 @@ export default function SelfRegisterForm({ states, trades }: { states: Geo[]; tr
       <div className="reg-card">
         <h2 className="reg-h2">Received. A person will review it.</h2>
         <p className="reg-p">
-          Nothing is public yet. Once it has been reviewed, and only if you ticked &ldquo;list my business&rdquo;, your page will
-          show the details you chose to show. Here is what you declared and what we could check:
+          Nothing is public yet. A person reviews every registration and will email you at the address you gave. Once it has
+          been reviewed, and only if you ticked &ldquo;list my business&rdquo;, your page will show the details you chose to show.
+          To change anything before then, email register@departmentofproperty.com. Here is what you declared and what we could check:
         </p>
         {reply.credentials && reply.credentials.length > 0 ? (
           <ul className="reg-checks">
@@ -127,7 +130,7 @@ export default function SelfRegisterForm({ states, trades }: { states: Geo[]; tr
             ))}
           </ul>
         ) : (
-          <p className="reg-p">You did not list any credentials. You can send them later by replying to the review email.</p>
+          <p className="reg-p">You did not list any credentials. You can send them later to register@departmentofproperty.com.</p>
         )}
       </div>
     )
@@ -290,6 +293,7 @@ export default function SelfRegisterForm({ states, trades }: { states: Geo[]; tr
           {reply.field === 'credentials' ? ' A state licence needs its number and issuing state.' : ''}
         </p>
       )}
+      {reply?.outcome === 'limited' && <p style={{ color: '#a8332b', fontSize: 13, margin: 0 }}>Too many attempts from this connection. Please wait a few minutes and try again.</p>}
       {reply?.outcome === 'error' && (
         <p style={{ color: '#a8332b', fontSize: 13, margin: 0 }}>Something went wrong on our side and nothing was saved. Please try again.</p>
       )}

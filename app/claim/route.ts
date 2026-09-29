@@ -1,6 +1,7 @@
 ﻿import { NextRequest, NextResponse } from 'next/server'
 import { resolveBusinessSlug } from '@/lib/business'
 import { CONTRACTOR_URL } from '@/lib/site'
+import { checkRateLimit, clientIp } from '@/lib/rateLimit'
 
 const SB_HOST = 'eaifqorwmgayiqmbtzcg.supabase.co'
 const SB_KEY = process.env.SUPABASE_SECRET_KEY!
@@ -15,6 +16,7 @@ const SB_HEADERS = {
 const FORMSPREE_CLAIM_URL = 'https://formspree.io/f/xrpgyrjp'
 
 export async function POST(req: NextRequest) {
+  if (!checkRateLimit('claim:' + clientIp(req), 5, 10 * 60_000).allowed) return NextResponse.json({ error: 'Too many attempts from this connection. Please wait a few minutes and try again.' }, { status: 429 })
   try {
     const body = await req.json()
     const {

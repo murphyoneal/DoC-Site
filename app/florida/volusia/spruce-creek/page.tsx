@@ -131,7 +131,7 @@ export default async function SpruceCreeKPage() {
           ].map(c => (
             <Link
               key={c.slug}
-              href={`/florida/volusia/${c.slug}`}
+              href={c.slug === 'spruce-creek' ? '/florida/volusia/spruce-creek' : `/c?q=${encodeURIComponent(c.name)}&county=volusia`}
               className="text-sm px-3 py-1.5 rounded-full transition-colors"
               style={{
                 border: '1px solid var(--color-bronze)',

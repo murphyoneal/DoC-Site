@@ -100,8 +100,8 @@ export default function ReportPaywall({
         {status === 'loading' ? 'Redirecting to secure checkout…' : 'Unlock the full report — $5'}
       </button>
       <p className="text-xs mt-3 text-center" style={{ color: 'var(--color-sage)' }}>
-        Secure one-off payment by Stripe. No account needed — your report link is emailed to you and
-        stays live permanently. Apple Pay & Google Pay accepted.
+        Secure one-off payment by Stripe. No account needed. After payment you get a permanent link to
+        your report; bookmark it. Apple Pay & Google Pay accepted.
       </p>
     </div>
   )

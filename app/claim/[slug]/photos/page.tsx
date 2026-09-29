@@ -46,7 +46,8 @@ export default async function WorkPhotosPage({ params }: { params: Promise<{ slu
         Photos of your work
       </h1>
       <p style={{ fontSize: '0.84rem', color: 'var(--color-sage)', margin: '0 0 18px' }}>
-        Photos appear on your public profile. We do not publish the address of the job, and we remove
+        Photos you add are kept with your business. They are not shown on your public page yet. When they are,
+        we will not publish the address of the job, and we remove
         the location and camera data from the published copy. A photo can still show things that
         identify a property — a house number, a vehicle — so choose shots with that in mind.
       </p>
@@ -56,6 +57,9 @@ export default async function WorkPhotosPage({ params }: { params: Promise<{ slu
       ) : (
         <div style={{ background: 'var(--color-light-gray)', borderRadius: '12px', padding: '16px', fontSize: '0.86rem' }}>
           <p style={{ margin: 0 }}>{LOCKED[reason] ?? 'Photo uploads are not available right now.'}</p>
+          {user && reason === 'not_the_claimant' && (
+            <p style={{ margin: '8px 0 0' }}>You are signed in as {user.email}. Use &ldquo;Sign out&rdquo; at the top of the page, then sign in with the email address on the approved claim.</p>
+          )}
           {!user && reason === 'not_the_claimant' && (
             <p style={{ margin: '8px 0 0' }}><Link href={`/login?next=/claim/${slug}/photos`}>Sign in</Link> with the email address on the approved claim.</p>
           )}
