@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { rpc } from '@/lib/agent-profile'
 import { DOP_URL } from '@/lib/site'
 import { checkRateLimit, clientIp } from '@/lib/rateLimit'
+import { logSubmission } from '@/lib/custody'
 
 // An agent claims their licence (work order 712). agent_claim_submit records the claim and our check
 // (name vs the licence file, and whether the licence is Current/Active) - recorded, never enforced. A
@@ -38,6 +39,7 @@ export async function POST(req: NextRequest) {
       if (!fs.ok) console.error('[agent-claim] formspree returned', fs.status, await fs.text())
     } catch (e) { console.error('[agent-claim] formspree failed', e) }
   }
+  await logSubmission(req, { kind: 'agent_claim', ref: String(payload.license_number ?? ''), email: String(payload.requester_email ?? ''), outcome: String(r.outcome ?? '') })
   const { id: _id, match_verdict: _m, licence_active: _a, ...safe } = r
   return NextResponse.json(safe, { status: r.outcome === 'invalid' ? 400 : 200 })
 }

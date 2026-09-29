@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
-import { checkRateLimit, pruneRateLimitStore } from '@/lib/rateLimit'
+import { checkRateLimit, pruneRateLimitStore, clientIp } from '@/lib/rateLimit'
 
 // Create a Stripe CHECKOUT session for a single Property Intelligence Report.
 // Stripe hosts the page (PCI scope is theirs; Apple/Google Pay + 3DS come free).
@@ -13,14 +13,9 @@ export const runtime = 'nodejs' // Stripe SDK needs Node crypto, not Edge
 
 const PIR_PRICE_CENTS = 500 // $5.00, per the build order
 
-function getIp(req: NextRequest): string {
-  return (
-    req.headers.get('cf-connecting-ip') ??
-    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
-    req.headers.get('x-real-ip') ??
-    'unknown'
-  )
-}
+// Only headers Vercel's edge sets are trusted (lib/rateLimit clientIp): the domains are not proxied
+// through Cloudflare, so a cf-connecting-ip header would be the caller's own choice.
+const getIp = (req: NextRequest): string => clientIp(req)
 
 export async function POST(req: NextRequest) {
   // PARKED (work order 712, 2026-09-28): PIR is not on sale. The route and the Stripe wiring stay;

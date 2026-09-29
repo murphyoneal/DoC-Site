@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { SB_HEADERS, SB_REST } from '@/lib/registration'
 import { CONTRACTOR_URL } from '@/lib/site'
 import { checkRateLimit, clientIp } from '@/lib/rateLimit'
+import { logSubmission } from '@/lib/custody'
 
 // The self-registration form's one write (work order 699). self_register() validates, checks each
 // declared credential against the registers we hold, applies the Florida duplicate rule, and either
@@ -77,6 +78,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ outcome: 'error' }, { status: 502 })
   }
 
+  await logSubmission(req, { kind: 'self_registration', ref: String(result.slug ?? result.id ?? ''), email: String(payload.contact_email ?? ''), outcome: `${result.outcome}${result.field ? ':' + result.field : ''}` })
   if (result.outcome === 'invalid') return NextResponse.json(result, { status: 400 })
 
   // Tell a person. The row is the durable record; a Formspree failure is logged and never fails the request.
