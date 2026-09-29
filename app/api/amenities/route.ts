@@ -1,18 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { amenitySocket } from '@/lib/sockets/amenities'
-import { checkRateLimit, pruneRateLimitStore } from '@/lib/rateLimit'
+import { checkRateLimit, pruneRateLimitStore, clientIp } from '@/lib/rateLimit'
 
 // Nearby amenities for a single parcel (co_no + parcel_id). Coverage-aware:
 // get_nearby_amenities only returns types with data for that county.
 
-function getIp(req: NextRequest): string {
-  return (
-    req.headers.get('cf-connecting-ip') ??
-    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
-    req.headers.get('x-real-ip') ??
-    'unknown'
-  )
-}
+// Only headers Vercel's edge sets are trusted (lib/rateLimit clientIp): the domains are not proxied
+// through Cloudflare, so a cf-connecting-ip header would be the caller's own choice.
+const getIp = (req: NextRequest): string => clientIp(req)
 
 export async function GET(req: NextRequest) {
   const ip = getIp(req)

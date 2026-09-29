@@ -1,18 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { contractorSocket } from '@/lib/sockets/contractors'
-import { checkRateLimit, pruneRateLimitStore } from '@/lib/rateLimit'
+import { checkRateLimit, pruneRateLimitStore, clientIp } from '@/lib/rateLimit'
 import type { BoundingBox } from '@/types/contractor'
 
 const MAX_SPAN = 2.0
 
-function getIp(req: NextRequest): string {
-  return (
-    req.headers.get('cf-connecting-ip') ??
-    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
-    req.headers.get('x-real-ip') ??
-    'unknown'
-  )
-}
+// Only headers Vercel's edge sets are trusted (lib/rateLimit clientIp): the domains are not proxied
+// through Cloudflare, so a cf-connecting-ip header would be the caller's own choice.
+const getIp = (req: NextRequest): string => clientIp(req)
 
 export async function GET(req: NextRequest) {
   const ip = getIp(req)

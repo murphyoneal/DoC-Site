@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { logSubmission } from '@/lib/custody'
 import { getSessionUser } from '@/lib/supabase/ssr-server'
 
 // A claimed business's logo (work order 733). Upload: signed-in owner of an approved claim only ->
@@ -74,6 +75,7 @@ export async function POST(req: NextRequest) {
   if (before?.logo_path && before.logo_path !== path) await remove('logo-private', [before.logo_path])
   // already switched on: the public copy follows immediately
   if (set.publish_logo) await put('logo-public', `${gate.business_id}.png`, out)
+  await logSubmission(req, { kind: 'logo_upload', ref: slug, email: user.email, outcome: set.publish_logo ? 'saved:published' : 'saved:private' })
   return NextResponse.json({ ok: true, preview: `data:image/png;base64,${out.toString('base64')}`, published: !!set.publish_logo })
 }
 
@@ -88,5 +90,6 @@ export async function DELETE(req: NextRequest) {
   await rpc('business_logo_set', { p_slug: slug, p_email: user.email, p_logo_path: null })
   if (before?.logo_path) await remove('logo-private', [before.logo_path])
   await remove('logo-public', [`${gate.business_id}.png`])
+  await logSubmission(req, { kind: 'logo_remove', ref: slug, email: user.email, outcome: 'removed' })
   return NextResponse.json({ ok: true })
 }

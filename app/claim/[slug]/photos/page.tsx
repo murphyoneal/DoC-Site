@@ -46,8 +46,8 @@ export default async function WorkPhotosPage({ params }: { params: Promise<{ slu
         Photos of your work
       </h1>
       <p style={{ fontSize: '0.84rem', color: 'var(--color-sage)', margin: '0 0 18px' }}>
-        Photos you add are kept with your business. They are not shown on your public page yet. When they are,
-        we will not publish the address of the job, and we remove
+        Photos are reviewed by a person before they appear. Photo galleries are not shown on public pages yet.
+        When they are, we will not publish the address of the job, and we remove
         the location and camera data from the published copy. A photo can still show things that
         identify a property — a house number, a vehicle — so choose shots with that in mind.
       </p>

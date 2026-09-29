@@ -2,6 +2,7 @@
 import { resolveBusinessSlug } from '@/lib/business'
 import { CONTRACTOR_URL } from '@/lib/site'
 import { checkRateLimit, clientIp } from '@/lib/rateLimit'
+import { logSubmission } from '@/lib/custody'
 
 const SB_HOST = 'eaifqorwmgayiqmbtzcg.supabase.co'
 const SB_KEY = process.env.SUPABASE_SECRET_KEY!
@@ -132,6 +133,7 @@ export async function POST(req: NextRequest) {
     }
 
     console.log('[claim] submitted', { slug, requester_email })
+    await logSubmission(req, { kind: 'contractor_claim', ref: slug, email: requester_email, outcome: 'received' })
     return NextResponse.json({ ok: true })
 
   } catch (err) {

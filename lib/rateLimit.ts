@@ -45,13 +45,15 @@ export function pruneRateLimitStore(): void {
   }
 }
 
-/** The caller's IP as the edge reports it. Per-instance and in-memory: a speed bump against one
- *  script in a loop, not a control against a distributed one. */
+/** The caller's IP as VERCEL's edge reports it. Only headers Vercel sets are trusted: the domains are
+ *  not proxied through Cloudflare, so a cf-connecting-ip header would come from the client itself and
+ *  could forge the logged IP or dodge a rate limit. The limiter is per-instance and in-memory: a speed
+ *  bump against one script in a loop, not a control against a distributed one. */
 export function clientIp(req: { headers: Headers }): string {
   return (
-    req.headers.get('cf-connecting-ip') ??
-    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
-    req.headers.get('x-real-ip') ??
+    req.headers.get('x-vercel-forwarded-for')?.split(',')[0]?.trim() ||
+    req.headers.get('x-real-ip')?.trim() ||
+    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
     'unknown'
   )
 }

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { clientIp } from '@/lib/rateLimit'
 import Anthropic from '@anthropic-ai/sdk'
 import { createHash } from 'crypto'
 import { getSupabaseAdmin } from '@/lib/supabase/server'
@@ -324,8 +325,10 @@ export async function POST(req: NextRequest) {
   const incoming: { role: string; content: string }[] = Array.isArray(body.messages) ? body.messages : []
   if (!incoming.length) return NextResponse.json({ error: 'No messages.' }, { status: 400 })
   const sessionId = typeof body.sessionId === 'string' ? body.sessionId.slice(0, 200) : null
-  const ipHdr = req.headers.get('cf-connecting-ip') ?? req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? ''
-  const ip = /^[0-9a-fA-F:.]+$/.test(ipHdr) ? ipHdr : null
+  // Trusted edge headers only (lib/rateLimit clientIp); an address we cannot establish is recorded as null,
+  // never as a value the caller chose.
+  const ipHdr = clientIp(req)
+  const ip = ipHdr !== 'unknown' && /^[0-9a-fA-F:.]+$/.test(ipHdr) ? ipHdr : null
   const lastUserQuery = [...incoming].reverse().find(m => m.role === 'user')?.content ?? null
 
   const admin = getSupabaseAdmin()

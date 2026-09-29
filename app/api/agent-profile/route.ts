@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { logSubmission } from '@/lib/custody'
 import { getSessionUser } from '@/lib/supabase/ssr-server'
 import { rpc } from '@/lib/agent-profile'
 
@@ -16,5 +17,6 @@ export async function POST(req: NextRequest) {
   delete (p as Record<string, unknown>).slug
   const r = await rpc<{ allowed: boolean; saved?: boolean; field?: string }>('agent_profile_save', { p_slug: slug, p_email: user.email, p })
   if (!r) return NextResponse.json({ saved: false, reason: 'error' }, { status: 502 })
+  await logSubmission(req, { kind: 'agent_profile_save', ref: slug, email: user.email, outcome: r.saved ? 'saved' : `refused:${r.field ?? 'not_allowed'}` })
   return NextResponse.json(r, { status: r.allowed ? (r.saved ? 200 : 400) : 403 })
 }
