@@ -3,6 +3,7 @@ import { headers } from 'next/headers'
 import { after } from 'next/server'
 import ScanLanding from '@/app/components/ScanLanding'
 import { getPublicBusinessProfile } from '@/lib/business-profile'
+import { isSuspended } from '@/lib/suspension'
 import { logScanServer, requestMeta } from '@/lib/scan'
 import { CATEGORY_LABELS } from '@/lib/tradeCategories'
 import { resolveBusinessSlug, withQuery } from '@/lib/business'
@@ -72,6 +73,16 @@ export default async function ScanPage({
 
   const c = await getContractor(slug)
   if (!c) notFound()
+
+  // Suspended (ruling 762 part 4): the same neutral page as the profile, since printed QR codes land here.
+  if (await isSuspended(slug)) {
+    return (
+      <main style={{ maxWidth: '560px', margin: '0 auto', padding: '48px 16px', textAlign: 'center' }}>
+        <h1 style={{ fontFamily: 'Georgia, serif', color: 'var(--color-navy)', fontSize: '1.3rem', margin: '0 0 10px' }}>This profile is not currently available</h1>
+        <p style={{ fontSize: '0.9rem', margin: '0 0 18px' }}><a href="/c" style={{ color: 'var(--color-bronze)' }}>Search the register</a></p>
+      </main>
+    )
+  }
 
   // The landing is logged by the request; ScanLanding logs only the visitor's clicks.
   after(() => logScanServer({

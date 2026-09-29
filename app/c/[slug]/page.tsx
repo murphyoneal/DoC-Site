@@ -9,6 +9,7 @@ import { countyLabel, countyLanding as countyLandingFor } from '@/lib/county'
 import { statusLabel, fileDate, ABSENT, ABSENT_NOTE } from '@/lib/licence-status'
 import { requestBrand } from '@/lib/brand'
 import { getPublicBusinessProfile } from '@/lib/business-profile'
+import { isSuspended } from '@/lib/suspension'
 import { getSessionUser } from '@/lib/supabase/ssr-server'
 
 async function ownerOf(slug: string, email: string): Promise<boolean> {
@@ -108,6 +109,19 @@ export default async function ContractorProfilePage({
 
   const c = await getContractor(slug)
   if (!c) notFound()
+
+  // Suspended (ruling 762 part 4): the profile page goes, the search row stays. A printed QR code still
+  // lands here, so this is a neutral page, not a 404 - a 404 would say the business does not exist. No
+  // reason is ever shown: suspension is our state, not a finding about the business.
+  if (await isSuspended(business?.slug ?? slug)) {
+    return (
+      <main style={{ maxWidth: '560px', margin: '0 auto', padding: '48px 16px', textAlign: 'center' }}>
+        <h1 style={{ fontFamily: 'Georgia, serif', color: 'var(--color-navy)', fontSize: '1.3rem', margin: '0 0 10px' }}>This profile is not currently available</h1>
+        <p style={{ fontSize: '0.9rem', color: 'var(--color-sage)', margin: '0 0 18px' }}>You can still search the register.</p>
+        <Link href="/c" className="finder-btn" style={{ display: 'inline-block', textDecoration: 'none' }}>Search the register</Link>
+      </main>
+    )
+  }
 
   // Logged by the request, not the browser: counts visitors without JavaScript too.
   after(() => logScanServer({
