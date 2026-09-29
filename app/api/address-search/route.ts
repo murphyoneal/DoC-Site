@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { addressSocket } from '@/lib/sockets/address'
-import { checkRateLimit, pruneRateLimitStore } from '@/lib/rateLimit'
+import { checkRateLimit, pruneRateLimitStore, clientIp } from '@/lib/rateLimit'
 
 // Address autocomplete endpoint. Searches our OWN parcel roll (never a vendor list)
 // so every suggestion has a report behind it. When we don't hold the address we say
@@ -13,14 +13,9 @@ const MISS_MESSAGE =
   'newly built homes may not appear yet, and some addresses are recorded under a different ' +
   'city name than the post office uses. Try the street number and name alone, or a nearby address.'
 
-function getIp(req: NextRequest): string {
-  return (
-    req.headers.get('cf-connecting-ip') ??
-    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
-    req.headers.get('x-real-ip') ??
-    'unknown'
-  )
-}
+// Only headers Vercel's edge sets are trusted (lib/rateLimit clientIp): the domains are not proxied
+// through Cloudflare, so a cf-connecting-ip header would be the caller's own choice.
+const getIp = (req: NextRequest): string => clientIp(req)
 
 export async function GET(req: NextRequest) {
   const ip = getIp(req)
