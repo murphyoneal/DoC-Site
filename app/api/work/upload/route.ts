@@ -150,8 +150,9 @@ export async function POST(req: NextRequest) {
   // Scan the bytes we will serve. Every slot's result is recorded; not_available is never a pass.
   // Evidence, not a step (ruling 765.1): provider, model, raw output, the policy in force, the decision.
   const results = await scanImage(pub.data)
-  const verdict = decide(results)
-  const policy = currentPolicy()
+  const unchecked = await rpc('unchecked_review_open', {}).catch(() => null) // unreadable = closed
+  const verdict = decide(results, { uncheckedReviewOpen: unchecked?.open === true })
+  const policy = { ...currentPolicy(), unchecked_review: unchecked ?? { open: false, note: 'condition could not be read; treated as closed' } }
   for (const r of results) await insert('scan_result', { image_id: image.id, slot: r.slot, provider: r.provider, model_version: r.model_version ?? null, state: r.state, detail: r.detail ?? null, policy, decision: verdict })
 
   let shown = false

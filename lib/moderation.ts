@@ -46,7 +46,7 @@ export function currentPolicy() {
     classifier: (process.env.MODERATION_CLASSIFIER ?? '').trim() || null,
     hash_matcher: (process.env.MODERATION_HASH_MATCHER ?? '').trim() || null,
     classifier_threshold: (process.env.MODERATION_CLASSIFIER_THRESHOLD ?? '').trim() || null,
-    decided_by: 'lib/moderation.ts decide() v2 (ruling 768: a person is the gate)',
+    decided_by: 'lib/moderation.ts decide() v3 (768: a person is the gate; 770: unchecked review only while measured open)',
   }
 }
 
@@ -57,11 +57,14 @@ export function currentPolicy() {
 //   review  - passed the pre-filter; waiting for a person
 //   pending - the pre-filter has not run (no provider, or an error); re-scanned later
 //   publish - only with hash-match pass + classifier pass + auto-publish deliberately on
-export function decide(results: SlotResult[]): 'publish' | 'review' | 'hold' | 'pending' {
+// uncheckedReviewOpen (ruling 770): with no pre-filter result, a photo may still go to review - marked
+// unchecked - but ONLY while every approved claim belongs to the operator. That is MEASURED on each
+// upload by unchecked_review_open() in the database, never remembered; it closes by itself.
+export function decide(results: SlotResult[], opts: { uncheckedReviewOpen?: boolean } = {}): 'publish' | 'review' | 'hold' | 'pending' {
   const c = results.find(r => r.slot === 'classification')
   const h = results.find(r => r.slot === 'hash_match')
   if (h?.state === 'match' || c?.state === 'flag') return 'hold'
-  if (c?.state !== 'pass') return 'pending'
+  if (c?.state !== 'pass') return opts.uncheckedReviewOpen === true && c?.state === 'not_available' ? 'review' : 'pending'
   const autoPublish = (process.env.MODERATION_AUTO_PUBLISH ?? '').trim().toLowerCase() === 'true'
   return h?.state === 'pass' && autoPublish ? 'publish' : 'review'
 }
