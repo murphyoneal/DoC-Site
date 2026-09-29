@@ -11,7 +11,7 @@
 // account; add an adapter below and set the env var - the pipeline does not change.
 
 export type ScanState = 'pass' | 'flag' | 'match' | 'error' | 'not_available'
-export type SlotResult = { slot: 'classification' | 'hash_match'; provider: string; state: ScanState; detail?: unknown }
+export type SlotResult = { slot: 'classification' | 'hash_match'; provider: string; model_version?: string | null; state: ScanState; detail?: unknown }
 
 type Adapter = (bytes: Buffer) => Promise<Omit<SlotResult, 'slot'>>
 
@@ -35,6 +35,18 @@ export async function scanImage(bytes: Buffer): Promise<SlotResult[]> {
     run('classification', adapter(CLASSIFIERS, process.env.MODERATION_CLASSIFIER), bytes),
     run('hash_match', adapter(HASH_MATCHERS, process.env.MODERATION_HASH_MATCHER), bytes),
   ])
+}
+
+// The policy IN FORCE, recorded with every scan so an old decision stays readable after a retune
+// (ruling 765.1). Thresholds are per provider and live in the adapter; they are echoed here when set.
+export function currentPolicy() {
+  return {
+    require_hash_match: (process.env.MODERATION_REQUIRE_HASH_MATCH ?? 'true').trim().toLowerCase() !== 'false',
+    classifier: (process.env.MODERATION_CLASSIFIER ?? '').trim() || null,
+    hash_matcher: (process.env.MODERATION_HASH_MATCHER ?? '').trim() || null,
+    classifier_threshold: (process.env.MODERATION_CLASSIFIER_THRESHOLD ?? '').trim() || null,
+    decided_by: 'lib/moderation.ts decide() v1',
+  }
 }
 
 // The publication decision. Hash matching is REQUIRED unless MODERATION_REQUIRE_HASH_MATCH=false is set

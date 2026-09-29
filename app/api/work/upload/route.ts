@@ -3,7 +3,7 @@ import { getSessionUser } from '@/lib/supabase/ssr-server'
 import { addressSocket } from '@/lib/sockets/address'
 import { checkRateLimit, pruneRateLimitStore } from '@/lib/rateLimit'
 import { logSubmission } from '@/lib/custody'
-import { scanImage, decide } from '@/lib/moderation'
+import { scanImage, decide, currentPolicy } from '@/lib/moderation'
 
 // The image pipeline (sharp, a native module) is imported only once a request has passed the
 // sign-in and claim gates. If the native library ever fails to load, the gates still answer
@@ -148,9 +148,11 @@ export async function POST(req: NextRequest) {
   })
 
   // Scan the bytes we will serve. Every slot's result is recorded; not_available is never a pass.
+  // Evidence, not a step (ruling 765.1): provider, model, raw output, the policy in force, the decision.
   const results = await scanImage(pub.data)
-  for (const r of results) await insert('scan_result', { image_id: image.id, slot: r.slot, provider: r.provider, state: r.state, detail: r.detail ?? null })
   const verdict = decide(results)
+  const policy = currentPolicy()
+  for (const r of results) await insert('scan_result', { image_id: image.id, slot: r.slot, provider: r.provider, model_version: r.model_version ?? null, state: r.state, detail: r.detail ?? null, policy, decision: verdict })
 
   let shown = false
   if (verdict === 'publish') {
