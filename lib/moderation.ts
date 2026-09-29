@@ -41,23 +41,27 @@ export async function scanImage(bytes: Buffer): Promise<SlotResult[]> {
 // (ruling 765.1). Thresholds are per provider and live in the adapter; they are echoed here when set.
 export function currentPolicy() {
   return {
-    require_hash_match: (process.env.MODERATION_REQUIRE_HASH_MATCH ?? 'true').trim().toLowerCase() !== 'false',
+    // whether the switch is on; a person is still required unless hash matching also passed (see decide)
+    auto_publish_switch: (process.env.MODERATION_AUTO_PUBLISH ?? '').trim().toLowerCase() === 'true',
     classifier: (process.env.MODERATION_CLASSIFIER ?? '').trim() || null,
     hash_matcher: (process.env.MODERATION_HASH_MATCHER ?? '').trim() || null,
     classifier_threshold: (process.env.MODERATION_CLASSIFIER_THRESHOLD ?? '').trim() || null,
-    decided_by: 'lib/moderation.ts decide() v1',
+    decided_by: 'lib/moderation.ts decide() v2 (ruling 768: a person is the gate)',
   }
 }
 
-// The publication decision. Hash matching is REQUIRED unless MODERATION_REQUIRE_HASH_MATCH=false is set
-// deliberately (a decision for Murphy, recorded on the bus). An error or not_available in a required
-// slot leaves the image pending - it is re-scanned later, never published by default.
-export function decide(results: SlotResult[]): 'publish' | 'hold' | 'pending' {
+// The publication decision (ruling 768). A PERSON is the gate: the classifier is a pre-filter, and a pass
+// sends the image to the review page, where Murphy approves it. There is NO automatic publish path until
+// hash matching (PhotoDNA) is live AND returns a pass AND MODERATION_AUTO_PUBLISH=true is set on purpose.
+//   hold    - a hash match or a classifier flag; never published automatically
+//   review  - passed the pre-filter; waiting for a person
+//   pending - the pre-filter has not run (no provider, or an error); re-scanned later
+//   publish - only with hash-match pass + classifier pass + auto-publish deliberately on
+export function decide(results: SlotResult[]): 'publish' | 'review' | 'hold' | 'pending' {
   const c = results.find(r => r.slot === 'classification')
   const h = results.find(r => r.slot === 'hash_match')
   if (h?.state === 'match' || c?.state === 'flag') return 'hold'
-  const requireHash = (process.env.MODERATION_REQUIRE_HASH_MATCH ?? 'true').trim().toLowerCase() !== 'false'
-  const classificationOk = c?.state === 'pass'
-  const hashOk = h?.state === 'pass' || (!requireHash && h?.state === 'not_available')
-  return classificationOk && hashOk ? 'publish' : 'pending'
+  if (c?.state !== 'pass') return 'pending'
+  const autoPublish = (process.env.MODERATION_AUTO_PUBLISH ?? '').trim().toLowerCase() === 'true'
+  return h?.state === 'pass' && autoPublish ? 'publish' : 'review'
 }

@@ -166,10 +166,13 @@ export async function POST(req: NextRequest) {
       await deleteObject('work-public', heldPath)
       console.error('[work/upload] served copy carried metadata; withdrawn')
     }
+  } else if (verdict === 'review') {
+    await patch('work_contribution', contribution.id, { visibility: 'pending_review' })
   } else if (verdict === 'hold') {
     await patch('work_contribution', contribution.id, { visibility: 'held' })
     await notifyHeld(slug, String(contribution.id), results)
   }
+  await warnOnVolume()
 
   await logSubmission(req, { kind: 'work_upload', ref: String(contribution.id), email: user.email, outcome: `saved:${verdict}:${loc.location_state}` })
   return NextResponse.json({
@@ -179,6 +182,24 @@ export async function POST(req: NextRequest) {
     location_note: loc.note,
     matched_address: parcel?.label ?? null,
   })
+}
+
+// Ruling 768: one person reviews every photo, which stops working at about 50 a day. Count against the
+// recorded threshold and tell Murphy at the warning level and at the limit - never discover it later.
+async function warnOnVolume() {
+  try {
+    const t = (await (await fetch(`${HOST}/rest/v1/operating_threshold?name=eq.photo_uploads_per_day&select=limit_value,warn_at`, { headers: AUTH, cache: 'no-store' })).json())[0]
+    if (!t) return
+    const since = new Date(Date.now() - 24 * 3600_000).toISOString()
+    const r = await fetch(`${HOST}/rest/v1/work_contribution?select=id&created_at=gte.${since}`, { headers: { ...AUTH, Prefer: 'count=exact', Range: '0-0' }, cache: 'no-store' })
+    const n = Number((r.headers.get('content-range') ?? '').split('/')[1] ?? 0)
+    if (n !== Number(t.warn_at) && n !== Number(t.limit_value) && !(n > Number(t.limit_value) && n % 10 === 0)) return
+    await fetch('https://formspree.io/f/xrpgyrjp', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ _subject: `Photo review volume: ${n} uploads in 24 hours (limit ${t.limit_value})`, source: 'work upload volume (/api/work/upload)',
+        note: 'Every photo is approved by a person before it is public. Past about 50 a day that stops working. Time to reassess the review design (ruling 768).' }),
+    })
+  } catch (e) { console.error('[work/upload] volume check failed', e) }
 }
 
 // PATCH one row by id (service key). Used only for our own publication state.
