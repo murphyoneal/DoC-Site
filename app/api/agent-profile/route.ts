@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { logSubmission } from '@/lib/custody'
+import { notifyLanguageFlags, type LanguageFlag } from '@/lib/language-notice'
 import { getSessionUser } from '@/lib/supabase/ssr-server'
 import { rpc } from '@/lib/agent-profile'
 
@@ -17,6 +18,9 @@ export async function POST(req: NextRequest) {
   delete (p as Record<string, unknown>).slug
   const r = await rpc<{ allowed: boolean; saved?: boolean; field?: string }>('agent_profile_save', { p_slug: slug, p_email: user.email, p })
   if (!r) return NextResponse.json({ saved: false, reason: 'error' }, { status: 502 })
-  await logSubmission(req, { kind: 'agent_profile_save', ref: slug, email: user.email, outcome: r.saved ? 'saved' : `refused:${r.field ?? 'not_allowed'}` })
-  return NextResponse.json(r, { status: r.allowed ? (r.saved ? 200 : 400) : 403 })
+  const flags = (r as { flags?: LanguageFlag[] }).flags
+  await logSubmission(req, { kind: 'agent_profile_save', ref: slug, email: user.email, outcome: r.saved ? (flags?.length ? `saved:flagged:${flags.length}` : 'saved') : `refused:${r.field ?? 'not_allowed'}` })
+  await notifyLanguageFlags(flags, { what: 'agent', subject: slug, page: `https://departmentofproperty.com/a/${slug}` })
+  const { flags: _f, ...out } = r as Record<string, unknown>
+  return NextResponse.json(out, { status: r.allowed ? (r.saved ? 200 : 400) : 403 })
 }
