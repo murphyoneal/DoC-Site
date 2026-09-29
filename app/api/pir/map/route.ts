@@ -1,17 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { pirSocket } from '@/lib/sockets/pir'
-import { checkRateLimit, pruneRateLimitStore } from '@/lib/rateLimit'
+import { checkRateLimit, pruneRateLimitStore, clientIp } from '@/lib/rateLimit'
 
 // Real-geometry map layers for the PIR (parcel boundary + flood + zoning),
 // clipped to a real radius circle. Consumed by PropertyReportMap (client).
-function getIp(req: NextRequest): string {
-  return (
-    req.headers.get('cf-connecting-ip') ??
-    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
-    req.headers.get('x-real-ip') ??
-    'unknown'
-  )
-}
+// Only headers Vercel's edge sets are trusted (lib/rateLimit clientIp): the domains are not proxied
+// through Cloudflare, so a cf-connecting-ip header would be the caller's own choice.
+const getIp = (req: NextRequest): string => clientIp(req)
 
 export async function GET(req: NextRequest) {
   const ip = getIp(req)

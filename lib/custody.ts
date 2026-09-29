@@ -27,6 +27,7 @@ export async function logSubmission(
         subject_ref: e.ref ? String(e.ref).slice(0, 200) : null,
         actor_email: e.email ? String(e.email).trim().toLowerCase().slice(0, 254) : null,
         ip: IP_RE.test(ip) ? ip : null,
+        ip_basis: IP_RE.test(ip) ? 'vercel_edge' : 'not_established',
         user_agent: (req.headers.get('user-agent') ?? '').slice(0, 400) || null,
         outcome: e.outcome ? String(e.outcome).slice(0, 120) : null,
       }),
