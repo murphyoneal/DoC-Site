@@ -17,9 +17,9 @@ function httpGet(path: string): Promise<any[]> {
 
 export const contractorSocket = {
 
-  forMap: async function(bounds: BoundingBox, filters: { category?: string; emergency?: boolean } = {}, limit: number = 50): Promise<ContractorMapPin[]> {
+  forMap: async function(bounds: BoundingBox, filters: { category?: string } = {}, limit: number = 50): Promise<ContractorMapPin[]> {
     const parts = [
-      'select=id,slug,display_name,trade_label,doc_category,city,state,zip_code,lat,lng,tier,verified,emergency_available,license_status',
+      'select=id,slug,display_name,trade_label,doc_category,city,state,zip_code,lat,lng,tier,verified,license_status',
       'active=eq.true',
       'lat=gte.' + bounds.south,
       'lat=lte.' + bounds.north,
@@ -28,7 +28,6 @@ export const contractorSocket = {
       'limit=' + limit,
     ]
     if (filters.category) { parts.push('doc_category=eq.' + filters.category) }
-    if (filters.emergency) { parts.push('emergency_available=eq.true') }
     const data = await httpGet('/rest/v1/contractors_public?' + parts.join('&'))
     return data as ContractorMapPin[]
   },

@@ -200,11 +200,6 @@ export default async function ContractorProfilePage({
                     ✓ Verified
                   </span>
                 )}
-                {c.emergency_available && (
-                  <span style={{ fontSize: '0.75rem', color: '#c0392b', background: '#fde8e8', padding: '3px 10px', borderRadius: '20px', fontWeight: 600 }}>
-                    🚨 Emergency
-                  </span>
-                )}
               </div>
             </div>
 

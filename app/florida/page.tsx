@@ -6,7 +6,7 @@ import ContractorCard from '@/app/components/ContractorCard'
 export const metadata: Metadata = {
   title: 'Licensed Contractors in Florida',
   description:
-    'Search nearly 100,000 Florida contracting businesses. Verify DBPR licence status, find emergency services, and connect with local professionals.',
+    'Search nearly 100,000 Florida contracting businesses. Verify DBPR licence status and connect with local professionals.',
 }
 
 const FLORIDA_COUNTIES = [

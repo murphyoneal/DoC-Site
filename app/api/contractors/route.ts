@@ -59,10 +59,9 @@ export async function GET(req: NextRequest) {
 
   const bounds: BoundingBox = { north: north, south: south, east: east, west: west }
   const category  = sp.get('category') ?? undefined
-  const emergency = sp.get('emergency') === 'true'
 
   try {
-    const contractors = await contractorSocket.forMap(bounds, { category: category, emergency: emergency })
+    const contractors = await contractorSocket.forMap(bounds, { category: category })
     return NextResponse.json(
       { contractors: contractors, count: contractors.length },
       {
