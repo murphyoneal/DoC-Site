@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { logSubmission } from '@/lib/custody'
 import { getSessionUser } from '@/lib/supabase/ssr-server'
 import { saveBusinessProfile } from '@/lib/business-profile'
 
@@ -37,5 +38,6 @@ export async function POST(req: NextRequest) {
   const r = await saveBusinessProfile(slug, user.email, payload)
   if (!r) return NextResponse.json({ saved: false, reason: 'error' }, { status: 502 })
   if (r.saved && r.business_id) await syncPublicLogo(r.business_id)
+  await logSubmission(req, { kind: 'profile_save', ref: slug, email: user.email, outcome: r.saved ? 'saved' : `refused:${r.field ?? r.reason ?? 'not_allowed'}` })
   return NextResponse.json(r, { status: r.allowed ? (r.saved ? 200 : 400) : 403 })
 }

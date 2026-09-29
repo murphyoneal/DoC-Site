@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSessionUser } from '@/lib/supabase/ssr-server'
 import { addressSocket } from '@/lib/sockets/address'
 import { checkRateLimit, pruneRateLimitStore } from '@/lib/rateLimit'
+import { logSubmission } from '@/lib/custody'
 
 // The image pipeline (sharp, a native module) is imported only once a request has passed the
 // sign-in and claim gates. If the native library ever fails to load, the gates still answer
@@ -147,6 +148,7 @@ export async function POST(req: NextRequest) {
     width: pub.width, height: pub.height, byte_size: pub.data.length,
   })
 
+  await logSubmission(req, { kind: 'work_upload', ref: String(contribution.id), email: user.email, outcome: 'saved:' + loc.location_state })
   return NextResponse.json({
     ok: true,
     location_state: loc.location_state,
