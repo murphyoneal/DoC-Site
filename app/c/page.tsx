@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { COUNTY_KEYS, COUNTY_KEYS_BY_LABEL, countyLabel } from '@/lib/county'
-import { NOT_HELD_NOTE } from '@/lib/licence-status'
+import { notHeldNote } from '@/lib/licence-status'
+import { getRegisterPostedDate } from '@/lib/register-date'
 
 // "Search another contractor" — where a profile's search box goes (work order 653 (c)).
 // Backed by contractor_register_search, the same function the public register uses, so the two
@@ -44,7 +45,7 @@ export default async function ContractorSearchPage({
   // Every word must match (name, licence, trade, city or county); a picked county is a strict
   // filter, sent as county:<key> so a word like "orange" cannot stand in for Orange County.
   const query = [q, county ? `county:${county}` : ''].filter(Boolean).join(' ')
-  const data = q.length >= 2 || county ? await search(query) : null
+  const [data, postedDate] = await Promise.all([q.length >= 2 || county ? search(query) : Promise.resolve(null), getRegisterPostedDate()])
 
   return (
     <main style={{ maxWidth: '760px', margin: '0 auto', padding: '32px 16px' }}>
@@ -76,7 +77,7 @@ export default async function ContractorSearchPage({
       {data && data.field_status !== 'present' && (
         <p style={{ fontSize: '0.86rem', color: 'var(--color-sage)' }}>
           Nothing in the register we hold matched &ldquo;{q}&rdquo;{county ? ` in ${countyLabel(county)} County` : ''}. Every word has to match a name, licence number, trade, city or county.
-          {' '}{NOT_HELD_NOTE}
+          {' '}{notHeldNote(postedDate)}
           {' '}<Link href="/register-your-business">Not listed? Register your business</Link>.</p>
       )}
 

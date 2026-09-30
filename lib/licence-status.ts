@@ -34,10 +34,17 @@ export const ABSENT_NOTE =
   'missing for a while, so absence is not by itself evidence that the licence has lapsed. The details shown ' +
   'are as last recorded. Confirm current standing at myfloridalicense.com.'
 
-// What a no-match means (789 / ruling 649). Our Florida register is the Construction Industry Licensing
-// Board file only; electrical contractors are licensed by a separate board we do not hold yet. A no-match
-// is a statement about our coverage, never about the business's licence.
-export const NOT_HELD_NOTE =
-  'We reproduce Florida’s construction licence register. Electrical contractors are licensed by a separate ' +
-  'state board whose register we do not hold yet, so an electrician will not appear here — that says nothing ' +
-  'about their licence. Check any Florida licence directly at myfloridalicense.com.'
+// What a no-match means (789 / ruling 649 / 801). Two gaps, both about our copy, never about the business:
+//   - DBPR's download holds licences recorded as current (active or inactive) and LEAVES OUT null and void,
+//     delinquent and involuntarily inactive ones (measured 2026-09-30: every served row is primary status C);
+//   - electrical contractors are a separate board (ECLB) whose register we do not hold yet.
+// So a no-match cannot tell "never licensed" from "licence in trouble", and must say so.
+export function notHeldNote(postedDate?: string | null): string {
+  return 'We reproduce the Florida construction licence file as DBPR publishes it' +
+    (postedDate ? ` (dated ${postedDate})` : '') +
+    ': licences recorded as current, active or inactive. DBPR leaves out licences that are null and void, ' +
+    'delinquent or involuntarily inactive, so a business that is not here may never have been licensed, or may ' +
+    'hold a licence in one of those states — we cannot tell which. Electrical contractors are licensed by a ' +
+    'separate state board whose register we do not hold yet. A no-match says nothing about anyone’s licence; ' +
+    'check directly at myfloridalicense.com.'
+}

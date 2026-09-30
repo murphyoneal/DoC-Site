@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import FinderShell from '../components/FinderShell'
 import { getFinder, getRegistered } from '@/lib/finder'
+import { getRegisterPostedDate } from '@/lib/register-date'
 import { CATEGORY_LABELS } from '@/lib/tradeCategories'
 import { countyLabel, COUNTY_KEYS } from '@/lib/county'
 
@@ -38,9 +39,10 @@ export async function generateMetadata({ searchParams }: { searchParams: SP }): 
 export default async function MapPage({ searchParams }: { searchParams: SP }) {
   const { q, county, trade, page } = clean(await searchParams)
   // Self-registrations are not filtered by trade key or paged: few, and shown only on page 1.
-  const [data, registered] = await Promise.all([
+  const [data, registered, postedDate] = await Promise.all([
     getFinder(q, county, trade, page),
     page === 1 && !trade ? getRegistered(q, county) : Promise.resolve([]),
+    getRegisterPostedDate(),
   ])
-  return <FinderShell data={data} registered={registered} q={q} county={county} trade={trade} page={page} />
+  return <FinderShell data={data} registered={registered} q={q} county={county} trade={trade} page={page} postedDate={postedDate} />
 }
