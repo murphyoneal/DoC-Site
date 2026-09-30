@@ -7,7 +7,7 @@ import type { Pin } from './FinderMap'
 import { CATEGORY_LABELS } from '@/lib/tradeCategories'
 import { COUNTY_KEYS_BY_LABEL, byCountyLabel, countyLabel } from '@/lib/county'
 import { countyDisplay } from '@/lib/geo-display'
-import { NOT_HELD_NOTE } from '@/lib/licence-status'
+import { notHeldNote } from '@/lib/licence-status'
 
 // The contractor finder (work order 697). LEFT: the decisions - search, county, trades as a list,
 // and the RESULTS LIST, which is the page's indexable content (text ranks, pins do not). It is a
@@ -36,7 +36,7 @@ function tradeNames(r: FinderRow): string {
   return labels.length ? labels.join(', ') : (r.trade ?? 'Contractor')
 }
 
-export default function FinderShell({ data, registered = [], q, county, trade, page = 1 }: { data: FinderResult; registered?: RegisteredRow[]; q: string; county: string; trade: string; page?: number }) {
+export default function FinderShell({ data, registered = [], q, county, trade, page = 1, postedDate = null }: { data: FinderResult; registered?: RegisteredRow[]; q: string; county: string; trade: string; page?: number; postedDate?: string | null }) {
   const [selected, setSelected] = useState<string | null>(null)
   const rows = data.mode === 'results' ? data.results : []
   const pins: Pin[] = useMemo(
@@ -121,7 +121,7 @@ export default function FinderShell({ data, registered = [], q, county, trade, p
                   : `${data.count.toLocaleString()} ${data.count === 1 ? 'business' : 'businesses'}`}
               </h2>
               {data.field_status !== 'not_run' && data.count === 0 && (
-                <p style={{ fontSize: 12, color: 'var(--color-sage)', margin: '0 0 8px' }}>{NOT_HELD_NOTE}</p>
+                <p style={{ fontSize: 12, color: 'var(--color-sage)', margin: '0 0 8px' }}>{notHeldNote(postedDate)}</p>
               )}
               {data.count > data.returned && (
                 <p style={{ fontSize: 12, color: 'var(--color-sage)', margin: '0 0 8px' }}>
