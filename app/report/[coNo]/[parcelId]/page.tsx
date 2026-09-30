@@ -741,10 +741,8 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
                           ? riskChip(`Finaled ${fmtDate(pm.closeout.finaledDate)}`, true)
                           : <span style={{ fontSize: 12, color: 'var(--color-terracotta, #b5502f)' }}>{pm.closeout.disclosure}</span>}
                       </div>
-                      {pm.contractorLicence?.matched && pm.contractorLicence.finding
-                        ? <div className="pir-note" style={{ marginTop: 6, color: 'var(--color-terracotta, #b5502f)' }}>Contractor licence: {pm.contractorLicence.finding}</div> : null}
-                      {pm.contractorLicence?.matched && pm.contractorLicence.corroboration
-                        ? <div className="pir-note" style={{ marginTop: 6 }}>Contractor licence: {pm.contractorLicence.corroboration}<TierBadge tier="analysis_inference" /></div> : null}
+                      {pm.contractorLicence?.matched && pm.contractorLicence.registerNote
+                        ? <div className="pir-note" style={{ marginTop: 6 }}>Contractor licence: {pm.contractorLicence.registerNote}<TierBadge tier="analysis_inference" /></div> : null}
                       {pm.contractorLicence && pm.contractorLicence.matched === false
                         ? <div className="pir-note" style={{ marginTop: 6 }}>{pm.contractorLicence.note}</div> : null}
                     </div>
