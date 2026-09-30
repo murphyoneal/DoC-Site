@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { COUNTY_KEYS, COUNTY_KEYS_BY_LABEL, countyLabel } from '@/lib/county'
+import { NOT_HELD_NOTE } from '@/lib/licence-status'
 
 // "Search another contractor" — where a profile's search box goes (work order 653 (c)).
 // Backed by contractor_register_search, the same function the public register uses, so the two
@@ -74,8 +75,9 @@ export default async function ContractorSearchPage({
 
       {data && data.field_status !== 'present' && (
         <p style={{ fontSize: '0.86rem', color: 'var(--color-sage)' }}>
-          No licence record matched &ldquo;{q}&rdquo;{county ? ` in ${countyLabel(county)} County` : ''}. Every word has to match a name, licence number, trade, city or county. This searches the Florida licence records we hold; a business that is not in them may still be licensed elsewhere.
-         <Link href="/register-your-business">Not listed? Register your business</Link>.</p>
+          Nothing in the register we hold matched &ldquo;{q}&rdquo;{county ? ` in ${countyLabel(county)} County` : ''}. Every word has to match a name, licence number, trade, city or county.
+          {' '}{NOT_HELD_NOTE}
+          {' '}<Link href="/register-your-business">Not listed? Register your business</Link>.</p>
       )}
 
       {data && data.field_status === 'present' && (

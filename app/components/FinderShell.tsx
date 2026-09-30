@@ -7,6 +7,7 @@ import type { Pin } from './FinderMap'
 import { CATEGORY_LABELS } from '@/lib/tradeCategories'
 import { COUNTY_KEYS_BY_LABEL, byCountyLabel, countyLabel } from '@/lib/county'
 import { countyDisplay } from '@/lib/geo-display'
+import { NOT_HELD_NOTE } from '@/lib/licence-status'
 
 // The contractor finder (work order 697). LEFT: the decisions - search, county, trades as a list,
 // and the RESULTS LIST, which is the page's indexable content (text ranks, pins do not). It is a
@@ -116,9 +117,12 @@ export default function FinderShell({ data, registered = [], q, county, trade, p
             <section style={{ marginTop: 16 }}>
               <h2 className="finder-h2">
                 {data.field_status === 'not_run' ? data.note
-                  : data.count === 0 ? 'No licence record matches'
+                  : data.count === 0 ? 'Nothing in the register we hold matches'
                   : `${data.count.toLocaleString()} ${data.count === 1 ? 'business' : 'businesses'}`}
               </h2>
+              {data.field_status !== 'not_run' && data.count === 0 && (
+                <p style={{ fontSize: 12, color: 'var(--color-sage)', margin: '0 0 8px' }}>{NOT_HELD_NOTE}</p>
+              )}
               {data.count > data.returned && (
                 <p style={{ fontSize: 12, color: 'var(--color-sage)', margin: '0 0 8px' }}>
                   Showing {(data.offset ?? 0) + 1}–{(data.offset ?? 0) + data.returned}. Pick a trade or add a word to narrow it, or page through below.
