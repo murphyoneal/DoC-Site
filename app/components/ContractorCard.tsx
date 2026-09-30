@@ -35,14 +35,6 @@ export default function ContractorCard({ contractor: c }: ContractorCardProps) {
         </div>
         <div className="flex flex-col items-end gap-1 shrink-0">
           <StatusBadge status={c.license_status} size="sm" />
-          {c.verified && (
-            <span
-              className="text-xs px-1.5 py-0.5 rounded-full font-bold"
-              style={{ background: '#e8f0fb', color: 'var(--color-navy)' }}
-            >
-              ✓
-            </span>
-          )}
         </div>
       </div>
     </Link>
