@@ -46,17 +46,18 @@ export function currentPolicy() {
     classifier: (process.env.MODERATION_CLASSIFIER ?? '').trim() || null,
     hash_matcher: (process.env.MODERATION_HASH_MATCHER ?? '').trim() || null,
     classifier_threshold: (process.env.MODERATION_CLASSIFIER_THRESHOLD ?? '').trim() || null,
-    decided_by: 'lib/moderation.ts decide() v3 (768: a person is the gate; 770: unchecked review only while measured open)',
+    decided_by: 'lib/moderation.ts decide() v4 (795: no automatic publish; publication waits for the homeowner; 770: unchecked review only while measured open)',
   }
 }
 
-// The publication decision (ruling 768). A PERSON is the gate: the classifier is a pre-filter, and a pass
-// sends the image to the review page, where Murphy approves it. There is NO automatic publish path until
-// hash matching (PhotoDNA) is live AND returns a pass AND MODERATION_AUTO_PUBLISH=true is set on purpose.
-//   hold    - a hash match or a classifier flag; never published automatically
-//   review  - passed the pre-filter; waiting for a person
+// The scan decision (rulings 768, 795). The classifier is a pre-filter; it can hold a photo, never publish
+// one. Publication belongs to the homeowner (795): a photo is held against the property until the owner
+// claims it and approves that item, and until that store exists nothing publishes - not a scan, not an
+// operator. Trigger work_contribution_publication_gate (163a) enforces the same in the database.
+//   hold    - a hash match or a classifier flag
+//   review  - passed the pre-filter; a person can still hold it
 //   pending - the pre-filter has not run (no provider, or an error); re-scanned later
-//   publish - only with hash-match pass + classifier pass + auto-publish deliberately on
+//   publish - never returned (795); kept in the type for the owner-approval build
 // uncheckedReviewOpen (ruling 770): with no pre-filter result, a photo may still go to review - marked
 // unchecked - but ONLY while every approved claim belongs to the operator. That is MEASURED on each
 // upload by unchecked_review_open() in the database, never remembered; it closes by itself.
@@ -65,6 +66,8 @@ export function decide(results: SlotResult[], opts: { uncheckedReviewOpen?: bool
   const h = results.find(r => r.slot === 'hash_match')
   if (h?.state === 'match' || c?.state === 'flag') return 'hold'
   if (c?.state !== 'pass') return opts.uncheckedReviewOpen === true && c?.state === 'not_available' ? 'review' : 'pending'
-  const autoPublish = (process.env.MODERATION_AUTO_PUBLISH ?? '').trim().toLowerCase() === 'true'
-  return h?.state === 'pass' && autoPublish ? 'publish' : 'review'
+  // Ruling 795: nothing auto-publishes. A photo is held against the property until the homeowner claims it and
+  // approves it, and no scan result stands in for that. MODERATION_AUTO_PUBLISH is recorded in the policy but no
+  // longer read here; a clean scan goes to review, which can hold but not publish.
+  return 'review'
 }

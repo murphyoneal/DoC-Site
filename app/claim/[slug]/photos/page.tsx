@@ -71,9 +71,11 @@ export default async function WorkPhotosPage({ params }: { params: Promise<{ slu
         Photos of your work
       </h1>
       <p style={{ fontSize: '0.84rem', color: 'var(--color-sage)', margin: '0 0 18px' }}>
-        Photos are reviewed by a person before they appear. Photo galleries are not shown on public pages yet.
-        When they are, we will not publish the address of the job, and we remove
-        the location and camera data from the published copy. A photo can still show things that
+        A photo of a job is a photo of someone&rsquo;s home, so it is held privately against that property. It is
+        published only if the homeowner claims the property and approves that photo — until then nobody else
+        sees it. Your credit for the work does not depend on it: where the job was permitted, the county permit
+        record names you, and your upload is logged with today&rsquo;s date, so nothing is lost by waiting. When a photo is published,
+        we remove the location and camera data from the published copy. A photo can still show things that
         identify a property — a house number, a vehicle — so choose shots with that in mind.
       </p>
 
