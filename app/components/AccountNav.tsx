@@ -22,7 +22,10 @@ export default function AccountNav() {
   }
 
   const style = { color: '#aab4c8', textDecoration: 'none' }
-  if (!email) return <Link href="/login" style={style}>Sign in</Link>
+  // Three states, never two (774/815): undefined = still looking, so say nothing rather than tell a signed-in
+  // reader they are signed out; null = signed out; a value = signed in.
+  if (email === undefined) return <span aria-hidden="true" style={{ display: 'inline-block', minWidth: 48 }} />
+  if (email === null) return <Link href="/login" style={style}>Sign in</Link>
   return (
     <>
       <Link href="/account" style={style} title={email}>Your account</Link>

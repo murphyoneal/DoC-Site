@@ -3,8 +3,10 @@ import { notFound } from 'next/navigation'
 import { getSessionUser } from '@/lib/supabase/ssr-server'
 import ReviewBoard, { type Queue } from '@/app/components/ReviewBoard'
 
-// /review - the operator's page (ruling 762 part 5). It is the PUBLICATION GATE, not a monitor (768):
-// a photo becomes public only when it is approved here. Anything the language check flagged is pinned
+// /review - the operator's page (ruling 762 part 5). The operator CLEARS or REMOVES; it does not publish.
+// A work photo becomes public only when the homeowner has claimed the property and approved that photo
+// (ruling 795) - until that store exists nothing publishes, and trigger work_contribution_publication_gate
+// (163a) refuses it in the database. Here a photo can only be held. Anything the language check flagged is pinned
 // at the top. Every action is a POST that records who, when, what and why (765.7).
 // Signed out: a sign-in link. Signed in but not an operator: 404 - the page does not advertise itself.
 

@@ -41,7 +41,7 @@ export async function scanImage(bytes: Buffer): Promise<SlotResult[]> {
 // (ruling 765.1). Thresholds are per provider and live in the adapter; they are echoed here when set.
 export function currentPolicy() {
   return {
-    // whether the switch is on; a person is still required unless hash matching also passed (see decide)
+    // recorded for the audit trail only: decide() no longer reads it - nothing auto-publishes (ruling 795)
     auto_publish_switch: (process.env.MODERATION_AUTO_PUBLISH ?? '').trim().toLowerCase() === 'true',
     classifier: (process.env.MODERATION_CLASSIFIER ?? '').trim() || null,
     hash_matcher: (process.env.MODERATION_HASH_MATCHER ?? '').trim() || null,

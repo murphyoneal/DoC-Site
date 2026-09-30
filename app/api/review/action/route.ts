@@ -5,7 +5,8 @@ import { clientIp } from '@/lib/rateLimit'
 // Every action on the review page (ruling 762 part 5). POST from the signed-in operator's page - never a
 // link in an email. The database functions are the authority: each refuses a non-operator, requires a
 // basis, makes the change and writes its moderation_action row in one transaction. This route only does
-// what the database cannot: copy files between buckets.
+// what the database cannot: copy or remove files between buckets. The operator holds or removes a photo; it
+// never publishes one (ruling 795) - photo_approve is refused below until the owner-approval store exists.
 
 const HOST = 'https://eaifqorwmgayiqmbtzcg.supabase.co'
 const KEY = process.env.SUPABASE_SECRET_KEY ?? ''

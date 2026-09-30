@@ -17,10 +17,12 @@ async function pipeline() {
 //
 // THE ORDER IS LOAD-BEARING and is exactly this:
 //   gate -> read GPS from the ORIGINAL -> resolve the address to a parcel -> CHECK the location
-//   -> RECORD the state -> strip (re-encode) -> store original PRIVATE, stripped copy PUBLIC
-//   -> READ THE PUBLIC FILE BACK and prove it carries no metadata -> only then mark it servable.
-// A copy that fails the read-back is deleted and never marked servable: work_gallery_public
-// only shows images with exif_stripped_at set.
+//   -> RECORD the state -> strip (re-encode) -> store the original AND the stripped copy PRIVATE
+//   -> scan the stripped copy and record every result.
+// Nothing is made public here (ruling 795): a photo of a job is held against the property until the
+// homeowner claims it and approves it. decide() never returns 'publish', so the public-bucket branch below
+// is unreachable, and 163a's trigger refuses visibility -> public for every writer. When the owner-approval
+// store is built, publication happens there - with the read-back check below - not at upload.
 
 export const runtime = 'nodejs'
 
