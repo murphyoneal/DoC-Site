@@ -721,9 +721,14 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
 
             {pb.established ? (
               <Section title={`Permit history — ${pb.count} on record`}
-                note={pb.closeoutNotRecordedCount > 0
-                  ? `${pb.closeoutNotRecordedCount} of ${pb.count} permits have no recorded closeout — the county record does not confirm they were signed off. Any open permit can transfer to a buyer at closing; verify with the building department.`
-                  : 'Every permit on file is listed; the count matches the list.'}>
+                note={[
+                  'Every permit on file is listed; the count matches the list.',
+                  pb.closeoutNotRecordedCount > 0
+                    ? `${pb.closeoutNotRecordedCount} of ${pb.count} have no completion date on record, from a period when the county recorded it on only about half of permits — that does not show the work was left unfinished.` : null,
+                  pb.closeoutNotAvailableCount > 0
+                    ? `For ${pb.closeoutNotAvailableCount} of ${pb.count}, completion is not available: the county does not record it for permits of that period, so nothing follows from its absence.` : null,
+                  pb.closeoutNotRecordedCount + pb.closeoutNotAvailableCount > 0 ? 'To confirm a permit was signed off, ask the building department that issued it.' : null,
+                ].filter(Boolean).join(' ')}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   {pb.permits.map((pm: any, i: number) => (
                     <div key={i} style={permitCard}>
@@ -739,7 +744,7 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
                       <div style={{ marginTop: 6 }}>
                         {pm.closeout.finaled
                           ? riskChip(`Finaled ${fmtDate(pm.closeout.finaledDate)}`, true)
-                          : <span style={{ fontSize: 12, color: 'var(--color-terracotta, #b5502f)' }}>{pm.closeout.disclosure}</span>}
+                          : <span style={{ fontSize: 12, color: 'var(--color-sage)' }}>{pm.closeout.disclosure}</span>}
                       </div>
                       {pm.contractorLicence?.matched && pm.contractorLicence.registerNote
                         ? <div className="pir-note" style={{ marginTop: 6 }}>{pm.contractorLicence.registerNote}<TierBadge tier="analysis_inference" /></div> : null}
