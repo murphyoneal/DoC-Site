@@ -10,6 +10,8 @@ import { clientIp } from '@/lib/rateLimit'
 const HOST = 'https://eaifqorwmgayiqmbtzcg.supabase.co'
 const KEY = process.env.SUPABASE_SECRET_KEY ?? ''
 const AUTH = { apikey: KEY, Authorization: 'Bearer ' + KEY }
+// Flipped only by the change that builds the owner-approval log (ruling 795) - and 163a's trigger with it.
+const OWNER_APPROVAL_BUILT = false as boolean
 
 async function rpc(fn: string, args: object): Promise<{ ok: boolean; data?: unknown; error?: string }> {
   const r = await fetch(`${HOST}/rest/v1/rpc/${fn}`, { method: 'POST', cache: 'no-store', headers: { ...AUTH, 'Content-Type': 'application/json' }, body: JSON.stringify(args) })
@@ -36,6 +38,10 @@ export async function POST(req: NextRequest) {
 
   switch (b.type) {
     case 'photo_approve': {
+      // Ruling 795: a work photo publishes only when the homeowner has claimed the property and approved
+      // it. That store is not built, so there is no approve. Refused HERE, before any copy reaches the
+      // public bucket; trigger work_contribution_publication_gate (163a) refuses it again in the database.
+      if (OWNER_APPROVAL_BUILT !== true) return NextResponse.json({ ok: false, error: 'Photos are held against the property until the homeowner claims it and approves them (ruling 795). An operator cannot publish one.' }, { status: 409 })
       const id = String(b.contribution_id ?? '')
       const img = (await (await fetch(`${HOST}/rest/v1/work_contribution_image?contribution_id=eq.${id}&select=held_path`, { headers: AUTH, cache: 'no-store' })).json())[0]
       if (!img?.held_path) return NextResponse.json({ ok: false, error: 'No stored copy for that photo.' }, { status: 404 })

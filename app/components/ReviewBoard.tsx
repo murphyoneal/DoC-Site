@@ -110,8 +110,8 @@ export default function ReviewBoard({ queue: q }: { queue: Queue }) {
                 {p.description ? <div style={{ color: 'var(--color-sage)' }}>{p.description}</div> : null}
               </div>
               <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
-                <Act label="Approve - make public" onRun={act({ type: 'photo_approve', contribution_id: p.id })} />
                 {p.visibility !== 'held' && <Act label="Hold" danger onRun={act({ type: 'photo_reject', contribution_id: p.id })} />}
+                <span style={{ fontSize: 12, color: 'var(--color-sage)' }}>Publishing waits for the homeowner to claim the property and approve it.</span>
               </div>
             </div>
           ))}
