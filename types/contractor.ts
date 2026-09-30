@@ -16,7 +16,6 @@ export interface ContractorMapPin {
   lat: number
   lng: number
   tier: Tier | null
-  verified: boolean | null
   license_status: LicenseStatus | null
 }
 export interface Contractor {
@@ -43,7 +42,6 @@ export interface Contractor {
   geocoded: boolean | null
   geocode_quality: string | null
   tier: Tier | null
-  verified: boolean | null
   claimed: boolean | null
   active: boolean | null
   profile_score: number | null

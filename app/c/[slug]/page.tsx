@@ -209,11 +209,6 @@ export default async function ContractorProfilePage({
                 <span style={{ fontSize: '0.72rem', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--color-sage)', border: '1px solid var(--color-light-gray)', padding: '4px 10px', borderRadius: '20px' }}>
                   {recordDate ? (absent ? `Last seen in the state file of ${recordDate}` : `Record dated ${recordDate}`) : 'Record date not available'}
                 </span>
-                {c.verified && (
-                  <span style={{ fontSize: '0.75rem', color: 'var(--color-navy)', background: '#e8f0fb', padding: '3px 10px', borderRadius: '20px' }}>
-                    ✓ Verified
-                  </span>
-                )}
               </div>
             </div>
 

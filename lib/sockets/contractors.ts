@@ -19,7 +19,7 @@ export const contractorSocket = {
 
   forMap: async function(bounds: BoundingBox, filters: { category?: string } = {}, limit: number = 50): Promise<ContractorMapPin[]> {
     const parts = [
-      'select=id,slug,display_name,trade_label,doc_category,city,state,zip_code,lat,lng,tier,verified,license_status',
+      'select=id,slug,display_name,trade_label,doc_category,city,state,zip_code,lat,lng,tier,license_status',
       'active=eq.true',
       'lat=gte.' + bounds.south,
       'lat=lte.' + bounds.north,
@@ -39,10 +39,9 @@ export const contractorSocket = {
 
   forVolusia: async function(limit: number = 20): Promise<Contractor[]> {
     const parts = [
-      'select=id,slug,display_name,trade_label,doc_category,city,state,license_status,verified,tier,profile_tier_label',
+      'select=id,slug,display_name,trade_label,doc_category,city,state,license_status,tier,profile_tier_label',
       'in_volusia=eq.true',
       'active=eq.true',
-      'order=verified.desc',
       'limit=' + limit,
     ]
     const data = await httpGet('/rest/v1/contractors_public?' + parts.join('&'))
@@ -71,11 +70,10 @@ export const contractorSocket = {
 
   forCounty: async function(countyCode: string, state: string, limit: number = 20): Promise<Contractor[]> {
     const parts = [
-      'select=id,slug,display_name,trade_label,doc_category,city,state,license_status,verified,tier,profile_tier_label',
+      'select=id,slug,display_name,trade_label,doc_category,city,state,license_status,tier,profile_tier_label',
       'state=eq.' + state.toUpperCase(),
       'county_code=eq.' + countyCode,
       'active=eq.true',
-      'order=verified.desc',
       'limit=' + limit,
     ]
     const data = await httpGet('/rest/v1/contractors_public?' + parts.join('&'))
@@ -84,10 +82,9 @@ export const contractorSocket = {
 
   forState: async function(state: string, limit: number = 20): Promise<Contractor[]> {
     const parts = [
-      'select=id,slug,display_name,trade_label,doc_category,city,state,license_status,verified,tier,profile_tier_label',
+      'select=id,slug,display_name,trade_label,doc_category,city,state,license_status,tier,profile_tier_label',
       'state=eq.' + state.toUpperCase(),
       'active=eq.true',
-      'order=verified.desc',
       'limit=' + limit,
     ]
     const data = await httpGet('/rest/v1/contractors_public?' + parts.join('&'))
@@ -124,11 +121,10 @@ export const contractorSocket = {
 
   forCity: async function(city: string, state: string, limit: number = 20): Promise<Contractor[]> {
     const parts = [
-      'select=id,slug,display_name,trade_label,doc_category,city,state,license_status,verified,tier,profile_tier_label',
+      'select=id,slug,display_name,trade_label,doc_category,city,state,license_status,tier,profile_tier_label',
       'state=eq.' + state.toUpperCase(),
       'city=ilike.*' + city + '*',
       'active=eq.true',
-      'order=verified.desc',
       'limit=' + limit,
     ]
     const data = await httpGet('/rest/v1/contractors_public?' + parts.join('&'))

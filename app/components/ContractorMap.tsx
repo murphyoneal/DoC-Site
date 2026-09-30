@@ -94,7 +94,6 @@ export default function ContractorMap({ category, onCountChange }: MapProps) {
 
         const el = document.createElement('div')
         const classes = ['doc-marker']
-        if (c.verified) classes.push('verified')
         el.className = classes.join(' ')
 
         const statusColour =
@@ -116,7 +115,6 @@ export default function ContractorMap({ category, onCountChange }: MapProps) {
           (addressLine ? '<p style="margin:2px 0 0;font-size:0.74rem;color:#888">' + addressLine + '</p>' : '') +
           '<p style="margin:4px 0 0;font-size:0.74rem;font-weight:600;color:' + statusColour + '">' +
           (c.license_status ? c.license_status.charAt(0).toUpperCase() + c.license_status.slice(1) : '') +
-          (c.verified ? ' \u00b7 \u2713 Verified' : '') +
           '</p>' +
           '<a href="/c/' + c.slug + '" style="display:inline-block;margin-top:6px;font-size:0.74rem;color:#8B6F47;text-decoration:underline">View Profile \u2192</a>' +
           '</div>'
