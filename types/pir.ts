@@ -422,7 +422,7 @@ export interface PirPermitFact {
   declared_value: number | null
   declared_value_note?: string
   closeout: {
-    predicate: 'permit_closeout'; value: 'finaled' | null; field_status: 'present' | 'not_recorded'
+    predicate: 'permit_closeout'; value: 'finaled' | null; field_status: 'present' | 'not_recorded' | 'not_available'
     finaled_date: string | null; source?: string; source_tier?: string; disclosure: string | null
   }
   contractor_licence?: {
@@ -448,6 +448,7 @@ export interface PirPermitFacts {
   count: number
   permits: PirPermitFact[]
   closeout_not_recorded_count: number
+  closeout_not_available_count?: number
   coverage_note: string | null
   who_can_answer?: string | null
 }
