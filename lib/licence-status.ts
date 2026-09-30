@@ -33,3 +33,11 @@ export const ABSENT_NOTE =
   'licences that are null and void, delinquent or involuntarily inactive, and a licence renewed late can be ' +
   'missing for a while, so absence is not by itself evidence that the licence has lapsed. The details shown ' +
   'are as last recorded. Confirm current standing at myfloridalicense.com.'
+
+// What a no-match means (789 / ruling 649). Our Florida register is the Construction Industry Licensing
+// Board file only; electrical contractors are licensed by a separate board we do not hold yet. A no-match
+// is a statement about our coverage, never about the business's licence.
+export const NOT_HELD_NOTE =
+  'We reproduce Florida’s construction licence register. Electrical contractors are licensed by a separate ' +
+  'state board whose register we do not hold yet, so an electrician will not appear here — that says nothing ' +
+  'about their licence. Check any Florida licence directly at myfloridalicense.com.'
