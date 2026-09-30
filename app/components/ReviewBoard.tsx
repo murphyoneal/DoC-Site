@@ -19,29 +19,45 @@ const SWITCHABLE = ['description', 'other_specialties', 'specialties', 'website'
 const card = { border: '1px solid #e2ddd6', borderRadius: 10, padding: 12, background: '#fff', display: 'grid', gap: 8 } as const
 const h2 = { fontFamily: 'Georgia, serif', color: 'var(--color-navy)', fontSize: '1.05rem', margin: '22px 0 8px' } as const
 
-function Act({ label, danger, onRun }: { label: string; danger?: boolean; onRun: (basis: string) => Promise<string> }) {
+// Same floor as _operator_check and set_business_suspension (162a). The database is the authority; this only
+// says so before the round trip.
+const MIN_BASIS = 10
+type Result = { ok: boolean; message: string }
+
+// Every click says what happened, where the click was (786). The button is never silently disabled: a
+// basis that is too short gets a sentence, a refusal keeps the box open with the reason so it can be fixed.
+function Act({ label, danger, onRun }: { label: string; danger?: boolean; onRun: (basis: string) => Promise<Result> }) {
   const [basis, setBasis] = useState('')
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
-  const [out, setOut] = useState<string | null>(null)
-  if (out) return <span style={{ fontSize: 12 }}>{out}</span>
+  const [done, setDone] = useState<string | null>(null)
+  const [refusal, setRefusal] = useState<string | null>(null)
+  if (done) return <span style={{ fontSize: 12 }}>{done}</span>
   if (!open) return <button type="button" className="reg-link" style={{ fontSize: 12, color: danger ? '#a8332b' : undefined }} onClick={() => setOpen(true)}>{label}</button>
+  const run = async () => {
+    if (busy) return
+    if (basis.trim().length < MIN_BASIS) { setRefusal(`Not done: write the reason in at least ${MIN_BASIS} characters - it is recorded and shown on appeal.`); return }
+    setBusy(true); setRefusal(null)
+    try { const r = await onRun(basis); if (r.ok) setDone(r.message); else setRefusal(r.message) } finally { setBusy(false) }
+  }
   return (
     <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-      <input className="finder-input" style={{ fontSize: 12, padding: '4px 6px', minWidth: 220 }} placeholder="Why (recorded)" value={basis} onChange={e => setBasis(e.target.value)} />
-      <button type="button" className="finder-btn" style={{ fontSize: 12, padding: '4px 10px' }} disabled={busy || basis.trim().length < 3}
-        onClick={async () => { setBusy(true); try { setOut(await onRun(basis)) } finally { setBusy(false) } }}>{busy ? '…' : label}</button>
-      <button type="button" className="reg-link" style={{ fontSize: 12 }} onClick={() => setOpen(false)}>Cancel</button>
+      <input className="finder-input" style={{ fontSize: 12, padding: '4px 6px', minWidth: 220 }} aria-label="Why this is the right call - recorded and shown on appeal"
+        placeholder="Why this is the right call - recorded and shown on appeal" value={basis} autoFocus
+        onChange={e => { setBasis(e.target.value); setRefusal(null) }} onKeyDown={e => { if (e.key === 'Enter') run() }} />
+      <button type="button" className="finder-btn" style={{ fontSize: 12, padding: '4px 10px' }} aria-busy={busy} onClick={run}>{busy ? '…' : label}</button>
+      <button type="button" className="reg-link" style={{ fontSize: 12 }} onClick={() => { setOpen(false); setRefusal(null) }}>Cancel</button>
+      {refusal && <span role="alert" style={{ fontSize: 12, color: '#a8332b', flexBasis: '100%' }}>{refusal}</span>}
     </span>
   )
 }
 
-async function post(url: string, body: object): Promise<string> {
+async function post(url: string, body: object): Promise<Result> {
   try {
     const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
     const j = await r.json().catch(() => ({}))
-    return j.ok ? 'Done - recorded.' : `Not done: ${j.error ?? r.status}`
-  } catch { return 'Not done: could not reach the server.' }
+    return j.ok ? { ok: true, message: 'Done - recorded.' } : { ok: false, message: `Not done: ${j.error ?? `the server answered ${r.status}`}` }
+  } catch { return { ok: false, message: 'Not done: could not reach the server.' } }
 }
 const act = (body: object) => (basis: string) => post('/api/review/action', { ...body, basis })
 const suspend = (slug: string, action: 'suspend' | 'reinstate') => (basis: string) => post('/api/admin/suspension', { slug, action, basis })
