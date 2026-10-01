@@ -133,14 +133,19 @@ function riskChip(text: string, good: boolean) {
 // withOwner=false for the free teaser: the owner's name is part of the paid report, never the
 // unauthenticated preview (ruling 631) — a named private person at their home address, free, on a
 // page that exists for every parcel. The frame label is a noun phrase at source (migration 131a).
+// The identity line, shared by the full report and the unpurchased preview (179a) so both read identically.
+function identityLine(frameLabelRaw: unknown, owner: string | null): string {
+  const frameLabel = frameLabelRaw ? String(frameLabelRaw).toLowerCase() : null
+  return [frameLabel ? `This is ${/^[aeiou]/i.test(frameLabel) ? 'an' : 'a'} ${frameLabel}` : 'This property',
+    owner ? `owned by ${owner}` : null].filter(Boolean).join(', ')
+}
+
 function buildLead(r: PirReport, withOwner = true): { identity: string; regulatory: string; none: boolean } {
   const idf: any = (r as any).identityFrame ?? null
   const p = r.property
   const owner = !withOwner ? null
     : idf?.signals?.owner ? titleCase(String(idf.signals.owner)) : (p.ownerName ? titleCase(p.ownerName) : null)
-  const frameLabel = idf?.frame_label ? String(idf.frame_label).toLowerCase() : null
-  const identity = [frameLabel ? `This is ${/^[aeiou]/i.test(frameLabel) ? 'an' : 'a'} ${frameLabel}` : 'This property',
-    owner ? `owned by ${owner}` : null].filter(Boolean).join(', ')
+  const identity = identityLine(idf?.frame_label, owner)
 
   const fb = renderFloodBlock(r.floodBlock)
   const rb = renderRestrictionsBlock(r.landRestrictionsFacts ?? r.landRestrictions)
@@ -167,30 +172,41 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
   const co = Number(coNo)
   if (isNaN(co) || !parcelId) notFound()
 
-  const [r, unlocked] = await Promise.all([
-    pirSocket.forParcel(co, parcelId),
+  // RULING 875: the visitor who has not paid must not pay the full 6-12 s build (under an 8 s REST limit) just to
+  // see the buy button. The preview fetches only what ReportPaywall renders (179a, output-identical to the full
+  // report's address + frame label); the full report is built only once the purchase check says unlocked.
+  const [preview, unlocked] = await Promise.all([
+    pirSocket.previewForParcel(co, parcelId),
     purchaseSocket.isUnlocked(co, parcelId),
   ])
-
-  // FAILURE CASE: if the buyer paid but the report failed to build, never show a blank
-  // page or a 404 — their purchase is safe in the ledger, and generation is retryable.
-  if (!r) {
-    if (unlocked) return <ReportError />
-    notFound()
-  }
 
   // GATE: not purchased → preview + buy at this same URL. Buying unlocks the full report
   // here (per-parcel), so a shared link works and the recipient buys their own parcel.
   if (!unlocked) {
+    if (!preview) notFound()
     return (
       <ReportPaywall
         coNo={co}
         parcelId={parcelId}
-        address={titleCase(r.property.address ?? '')}
-        identity={buildLead(r, false).identity}
+        address={titleCase(preview.address ?? '')}
+        identity={identityLine(preview.frameLabel, null)}
       />
     )
   }
+
+  // FAILURE CASE: if the buyer paid but the report failed to build, never show a blank
+  // page or a 404 — their purchase is safe in the ledger, and generation is retryable.
+  // The transport THROWS on an error body (ruling 197) - a statement timeout arrives as HTTP 500 / 57014 - so a
+  // null check alone never reached ReportError: a paying buyer whose build timed out got Next's bare error page.
+  // Catch it here and show the retryable "your purchase is safe" page instead. Never renders a partial report.
+  let r: PirReport | null = null
+  try {
+    r = await pirSocket.forParcel(co, parcelId)
+  } catch (e) {
+    console.error('[report] full build failed for a purchased parcel', co, parcelId, e)
+    return <ReportError />
+  }
+  if (!r) return <ReportError />
 
   const p = r.property, v = r.values, tax = r.tax
   const idf: any = (r as any).identityFrame ?? null
