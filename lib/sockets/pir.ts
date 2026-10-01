@@ -1,6 +1,9 @@
 import type { PirReport, PirMapGeoJson, PirParcelCloseup } from '@/types/pir'
 
-export type PirPreview = { meta: Record<string, unknown>; address: string | null; frameLabel: string | null }
+export type PirPreview = {
+  meta: Record<string, unknown>; address: string | null; frameLabel: string | null
+  parcelState?: 'present' | 'none_recorded' | 'not_available'; countyName?: string | null
+}
 
 // RULING 197: transport moved to lib/sockets/postgrest.ts, which throws on an error
 // body instead of resolving it as data. Each RPC below returns a single jsonb

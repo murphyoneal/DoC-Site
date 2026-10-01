@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { checkRateLimit, pruneRateLimitStore, clientIp } from '@/lib/rateLimit'
+import { pirSocket } from '@/lib/sockets/pir'
+import { checkoutRefusal } from '@/lib/report-gate.mjs'
 
 // Create a Stripe CHECKOUT session for a single Property Intelligence Report.
 // Stripe hosts the page (PCI scope is theirs; Apple/Google Pay + 3DS come free).
@@ -42,10 +44,22 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({} as Record<string, unknown>))
   const coNo = Number(body.coNo ?? body.co_no)
   const parcelId = String(body.parcelId ?? body.parcel_id ?? '').trim()
-  const address = String(body.address ?? '').trim().slice(0, 200)
   if (!Number.isFinite(coNo) || !parcelId) {
     return NextResponse.json({ error: 'coNo and parcelId are required.' }, { status: 400 })
   }
+
+  // SECOND GATE (181a): the page is not the only way here - a checkout request can be sent for any string.
+  // Refuse unless the parcel resolves, and take the address from our own record, never from the request body.
+  let preview
+  try {
+    preview = await pirSocket.previewForParcel(coNo, parcelId)
+  } catch (err) {
+    console.error('[/api/checkout] parcel lookup failed', err instanceof Error ? err.message : String(err))
+    return NextResponse.json({ error: 'Could not start checkout.' }, { status: 503 })
+  }
+  const refusal = checkoutRefusal(preview, coNo, parcelId)
+  if (refusal || !preview) return NextResponse.json(refusal?.body ?? { error: 'Could not start checkout.' }, { status: refusal?.status ?? 503 })
+  const address = String(preview.address ?? '').trim().slice(0, 200)
 
   try {
     const stripe = new Stripe(key)

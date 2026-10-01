@@ -4,6 +4,7 @@ import { pirSocket } from '@/lib/sockets/pir'
 import { purchaseSocket } from '@/lib/sockets/purchase'
 import ReportPaywall from '@/app/components/ReportPaywall'
 import ReportError from '@/app/components/ReportError'
+import ReportAbsent from '@/app/components/ReportAbsent'
 import { CompassBadgeGrid, type CompassBadgeData } from '@/app/components/AmenityCompass'
 import PropertyReportMap from '@/app/components/PropertyReportMap'
 import PrintButton from '@/app/components/PrintButton'
@@ -186,6 +187,9 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
     onBuildError: (e: unknown) => console.error('[report] full build failed for a purchased parcel', co, parcelId, e),
   })
   if (view.kind === 'notfound') notFound()
+  if (view.kind === 'absent') {
+    return <ReportAbsent state={view.state} coNo={co} parcelId={parcelId} countyName={view.countyName} />
+  }
   if (view.kind === 'paywall') {
     return (
       <ReportPaywall
