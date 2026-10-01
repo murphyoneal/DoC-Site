@@ -505,12 +505,12 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
 
             {/* Brownfield DESIGNATION on this parcel (ruling 74 C2) — a contamination fact, moved out of the
                 §5 "Economic zones" grid. The nearby FDEP sites + their distances render in §4. */}
-            {bf.established && bf.insideArea ? (
-              <Section title="Brownfield — on this parcel" note="An FDEP-designated brownfield area covers this parcel. A brownfield is a contamination-related designation that carries a cleanup and redevelopment framework — surfaced here as a fact about the ground, not an incentive.">
+            {bf.established && bf.onParcel ? (
+              <Section title="Brownfield — on this parcel" note={`${bf.onParcel.sectionNote} A brownfield is a contamination-related designation that carries a cleanup and redevelopment framework — surfaced here as a fact about the ground, not an incentive.`}>
                 <div style={{ borderLeft: '3px solid var(--color-terracotta, #b5502f)', paddingLeft: 12 }}>
-                  <div style={{ fontWeight: 600 }}>Within the {titleCase(bf.insideArea.name)} brownfield area {riskChip('Designated brownfield', false)}<TierBadge tier="government_derived" /></div>
+                  <div style={{ fontWeight: 600 }}>{bf.onParcel.whole ? <>Within the {titleCase(bf.onParcel.name)} brownfield area</> : <>{bf.onParcel.pctLabel} of this parcel lies within the {titleCase(bf.onParcel.name)} brownfield area</>} {riskChip('Designated brownfield', false)}<TierBadge tier="government_derived" /></div>
                   <div className="pir-note" style={{ fontStyle: 'normal' }}>
-                    {[bf.insideArea.acreageAc ? `${bf.insideArea.acreageAc.toLocaleString()} ac` : null, bf.insideArea.resolutionNumber ? `resolution ${bf.insideArea.resolutionNumber}` : null, bf.insideArea.resolutionDate].filter(Boolean).join(' · ')}.{bf.note ? <> {bf.note}</> : null}
+                    {[bf.onParcel.acreageAc ? `${bf.onParcel.acreageAc.toLocaleString()} ac` : null, bf.onParcel.resolutionNumber ? `resolution ${bf.onParcel.resolutionNumber}` : null, bf.onParcel.resolutionDate].filter(Boolean).join(' · ')}.{bf.note ? <> {bf.note}</> : null}
                   </div>
                 </div>
               </Section>
@@ -641,10 +641,11 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
 
             {/* Brownfield — NEARBY (ruling 74 C2): FDEP sites and their distances belong in §4, never under
                 an incentive heading. The on-parcel designation, if any, is in §3. */}
-            {bf.established && (bf.sites || (!bf.insideArea && bf.nearestArea)) ? (
-              <Section title="Brownfield — nearby" note="FDEP-designated brownfield areas and sites near, but not on, this parcel.">
+            {bf.established && (bf.sites || bf.boundaryDisagreement || (!bf.onParcel && bf.nearestArea)) ? (
+              <Section title="Brownfield — nearby" note={bf.onParcel ? 'FDEP brownfield sites near this parcel. The designated area on this parcel is in section 3.' : bf.boundaryDisagreement ? 'FDEP brownfield areas and sites at or near this parcel.' : 'FDEP-designated brownfield areas and sites near, but not on, this parcel.'}>
                 <div className="pir-note" style={{ fontStyle: 'normal' }}>
-                  {!bf.insideArea && bf.nearestArea ? <>Nearest brownfield area: {titleCase(bf.nearestArea.name)} ({bf.nearestArea.distanceFt?.toLocaleString()} ft). </> : null}
+                  {!bf.onParcel && bf.boundaryDisagreement ? <>{bf.boundaryDisagreement.note} </> : null}
+                  {!bf.onParcel && bf.nearestArea ? <>Nearest brownfield area: {titleCase(bf.nearestArea.name)} ({bf.nearestArea.distanceFt?.toLocaleString()} ft). </> : null}
                   {bf.sites ? <>{bf.sites.countWithin1mi} FDEP brownfield site{bf.sites.countWithin1mi === 1 ? '' : 's'} within 1 mile{bf.sites.nearest ? <> — nearest {titleCase(bf.sites.nearest.name)} at {bf.sites.nearest.distanceFt?.toLocaleString()} ft{bf.sites.nearest.remediationStatus ? ` (${titleCase(bf.sites.nearest.remediationStatus)})` : ''}</> : null}. {bf.sites.nearest?.remediationStatusNote ? <span style={{ color: 'var(--color-clay)' }}>{bf.sites.nearest.remediationStatusNote}</span> : null}</> : null}
                 </div>
               </Section>
