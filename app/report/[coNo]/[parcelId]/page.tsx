@@ -196,7 +196,16 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
 
   // FAILURE CASE: if the buyer paid but the report failed to build, never show a blank
   // page or a 404 — their purchase is safe in the ledger, and generation is retryable.
-  const r = await pirSocket.forParcel(co, parcelId)
+  // The transport THROWS on an error body (ruling 197) - a statement timeout arrives as HTTP 500 / 57014 - so a
+  // null check alone never reached ReportError: a paying buyer whose build timed out got Next's bare error page.
+  // Catch it here and show the retryable "your purchase is safe" page instead. Never renders a partial report.
+  let r: PirReport | null = null
+  try {
+    r = await pirSocket.forParcel(co, parcelId)
+  } catch (e) {
+    console.error('[report] full build failed for a purchased parcel', co, parcelId, e)
+    return <ReportError />
+  }
   if (!r) return <ReportError />
 
   const p = r.property, v = r.values, tax = r.tax
