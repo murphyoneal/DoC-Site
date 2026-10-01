@@ -11,6 +11,7 @@ import { FLOOD_STYLE, ZONING_STYLE } from '@/lib/pir-colors'
 import type { PirReport, PirEconOverlay } from '@/types/pir'
 import { formatDistance } from '@/lib/units'
 import { taxDeedView, disclosuresView, selectLead } from '@/lib/report-coverage.mjs'
+import { resolveReportView } from '@/lib/report-gate.mjs'
 import { renderMarineBlock, renderFloodBlock, renderFact, renderContaminationFacilities, renderValuesBlock, renderCensusBlock, renderOwnersBlock, renderTransactionsBlock, renderPermitsBlock, renderZoningBlock, renderSinkholeBlock, renderRestrictionsBlock, renderBrownfieldBlock } from '@/lib/fact-render.mjs'
 
 // ── formatting helpers ──────────────────────────────────────────────────────────
@@ -175,38 +176,28 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
   // RULING 875: the visitor who has not paid must not pay the full 6-12 s build (under an 8 s REST limit) just to
   // see the buy button. The preview fetches only what ReportPaywall renders (179a, output-identical to the full
   // report's address + frame label); the full report is built only once the purchase check says unlocked.
-  const [preview, unlocked] = await Promise.all([
-    pirSocket.previewForParcel(co, parcelId),
-    purchaseSocket.isUnlocked(co, parcelId),
-  ])
-
-  // GATE: not purchased → preview + buy at this same URL. Buying unlocks the full report
-  // here (per-parcel), so a shared link works and the recipient buys their own parcel.
-  if (!unlocked) {
-    if (!preview) notFound()
+  // The decision lives in lib/report-gate.mjs so it is tested where it is (ruling 880): notfound / paywall /
+  // error / report. An unpaid visitor never pays for the full build; a paying buyer whose build throws (a
+  // timeout arrives as HTTP 500 / 57014) gets ReportError, never a bare 500 and never a partial report.
+  const view = await resolveReportView(co, parcelId, {
+    preview: pirSocket.previewForParcel,
+    unlocked: purchaseSocket.isUnlocked.bind(purchaseSocket),
+    report: pirSocket.forParcel,
+    onBuildError: (e: unknown) => console.error('[report] full build failed for a purchased parcel', co, parcelId, e),
+  })
+  if (view.kind === 'notfound') notFound()
+  if (view.kind === 'paywall') {
     return (
       <ReportPaywall
         coNo={co}
         parcelId={parcelId}
-        address={titleCase(preview.address ?? '')}
-        identity={identityLine(preview.frameLabel, null)}
+        address={titleCase(view.address)}
+        identity={identityLine(view.frameLabel, null)}
       />
     )
   }
-
-  // FAILURE CASE: if the buyer paid but the report failed to build, never show a blank
-  // page or a 404 — their purchase is safe in the ledger, and generation is retryable.
-  // The transport THROWS on an error body (ruling 197) - a statement timeout arrives as HTTP 500 / 57014 - so a
-  // null check alone never reached ReportError: a paying buyer whose build timed out got Next's bare error page.
-  // Catch it here and show the retryable "your purchase is safe" page instead. Never renders a partial report.
-  let r: PirReport | null = null
-  try {
-    r = await pirSocket.forParcel(co, parcelId)
-  } catch (e) {
-    console.error('[report] full build failed for a purchased parcel', co, parcelId, e)
-    return <ReportError />
-  }
-  if (!r) return <ReportError />
+  if (view.kind === 'error') return <ReportError />
+  const r: PirReport = view.report
 
   const p = r.property, v = r.values, tax = r.tax
   const idf: any = (r as any).identityFrame ?? null
