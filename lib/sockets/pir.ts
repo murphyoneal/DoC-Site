@@ -1,5 +1,7 @@
 import type { PirReport, PirMapGeoJson, PirParcelCloseup } from '@/types/pir'
 
+export type PirPreview = { meta: Record<string, unknown>; address: string | null; frameLabel: string | null }
+
 // RULING 197: transport moved to lib/sockets/postgrest.ts, which throws on an error
 // body instead of resolving it as data. Each RPC below returns a single jsonb
 // document, so PostgREST hands back the object directly (no row wrapper).
@@ -17,6 +19,17 @@ export const pirSocket = {
     // PostgREST returns the jsonb object; guard against error payloads.
     if (!res || typeof res !== 'object' || Array.isArray(res) || !res.meta) return null
     return res as PirReport
+  },
+
+  // RULING 875 (179a). The unpurchased preview: only the address and identity frame label the paywall
+  // renders, never the owner. ~0.2-0.6 s against 6.5-11.9 s for the full build under an 8 s REST limit.
+  // Same null rule as forParcel (no meta -> null), so the page's 404 behaviour is unchanged.
+  previewForParcel: async function (coNo: number, parcelId: string): Promise<PirPreview | null> {
+    const res = await httpPost('/rest/v1/rpc/get_pir_preview', {
+      p_co_no: coNo, p_parcel_id: parcelId,
+    })
+    if (!res || typeof res !== 'object' || Array.isArray(res) || !res.meta) return null
+    return res as PirPreview
   },
 
   // RULING 169 + 197. The SCRUBBED document, for render surfaces that are not
