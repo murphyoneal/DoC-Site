@@ -641,9 +641,10 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
 
             {/* Brownfield — NEARBY (ruling 74 C2): FDEP sites and their distances belong in §4, never under
                 an incentive heading. The on-parcel designation, if any, is in §3. */}
-            {bf.established && (bf.sites || (!bf.onParcel && bf.nearestArea)) ? (
-              <Section title="Brownfield — nearby" note={bf.onParcel ? 'FDEP brownfield sites near this parcel. The designated area on this parcel is in section 3.' : 'FDEP-designated brownfield areas and sites near, but not on, this parcel.'}>
+            {bf.established && (bf.sites || bf.boundaryDisagreement || (!bf.onParcel && bf.nearestArea)) ? (
+              <Section title="Brownfield — nearby" note={bf.onParcel ? 'FDEP brownfield sites near this parcel. The designated area on this parcel is in section 3.' : bf.boundaryDisagreement ? 'FDEP brownfield areas and sites at or near this parcel.' : 'FDEP-designated brownfield areas and sites near, but not on, this parcel.'}>
                 <div className="pir-note" style={{ fontStyle: 'normal' }}>
+                  {!bf.onParcel && bf.boundaryDisagreement ? <>{bf.boundaryDisagreement.note} </> : null}
                   {!bf.onParcel && bf.nearestArea ? <>Nearest brownfield area: {titleCase(bf.nearestArea.name)} ({bf.nearestArea.distanceFt?.toLocaleString()} ft). </> : null}
                   {bf.sites ? <>{bf.sites.countWithin1mi} FDEP brownfield site{bf.sites.countWithin1mi === 1 ? '' : 's'} within 1 mile{bf.sites.nearest ? <> — nearest {titleCase(bf.sites.nearest.name)} at {bf.sites.nearest.distanceFt?.toLocaleString()} ft{bf.sites.nearest.remediationStatus ? ` (${titleCase(bf.sites.nearest.remediationStatus)})` : ''}</> : null}. {bf.sites.nearest?.remediationStatusNote ? <span style={{ color: 'var(--color-clay)' }}>{bf.sites.nearest.remediationStatusNote}</span> : null}</> : null}
                 </div>
