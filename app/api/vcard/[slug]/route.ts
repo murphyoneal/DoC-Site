@@ -3,6 +3,7 @@ import { contractorSocket } from '@/lib/sockets/contractors'
 import { CONTRACTOR_URL } from '@/lib/site'
 import { resolveBusinessSlug } from '@/lib/business'
 import { getPublicBusinessProfile } from '@/lib/business-profile'
+import { vcardLicenceNote } from '@/lib/vcard-note.mjs'
 
 export async function GET(
   req: NextRequest,
@@ -42,7 +43,7 @@ export async function GET(
       : null,
     c.trade_label ? `TITLE:${c.trade_label}` : null,
     `URL:${baseUrl}/c/${slug}`,
-    `NOTE:Licensed contractor. Licence ${c.license_number ?? 'N/A'} — ${c.license_status ?? 'unknown'}. Verify at ${baseUrl}/c/${slug}`,
+    `NOTE:${vcardLicenceNote(c as Parameters<typeof vcardLicenceNote>[0], `${baseUrl}/c/${slug}`)}`,
     'END:VCARD',
   ].filter(Boolean).join('\r\n')
 
