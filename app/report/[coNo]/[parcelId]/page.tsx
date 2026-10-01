@@ -727,7 +727,10 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
                           {c.marketSignal === 'non_market' && c.nominalReason ? <div style={{ fontSize: 11, color: 'var(--color-sage)', marginTop: 2 }}>{c.nominalReason}</div> : null}
                           {c.ourNote ? <div style={{ fontSize: 11, color: 'var(--color-terracotta, #b5502f)', marginTop: 2 }}>{c.ourNote}</div> : null}
                         </td>
-                        <td style={tdStyle}>{c.grantor || c.grantee ? `${titleCase(c.grantor) ?? '—'} → ${titleCase(c.grantee) ?? '—'}` : 'Parties not on file'}</td>
+                        <td style={tdStyle}>{c.grantor || c.grantee ? `${titleCase(c.grantor) ?? '—'} → ${titleCase(c.grantee) ?? '—'}`
+                          : (tb.deedPartiesAsOf && c.date && c.date > tb.deedPartiesAsOf
+                            ? `Parties not held — we hold deed parties for sales up to ${fmtDate(tb.deedPartiesAsOf)} only`
+                            : 'Parties not on file')}</td>
                       </tr>
                     ))}
                   </tbody>
