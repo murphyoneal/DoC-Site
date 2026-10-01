@@ -32,8 +32,12 @@ export const pirSocket = {
     return res as PirPreview
   },
 
-  // RULING 169 + 197. The SCRUBBED document, for render surfaces that are not
-  // pir_write_snapshot — currently the Roz/B2B assistant. get_pir_report itself
+  // DORMANT (ruling 903, migration 188a): NO CALLER. Roz is the internal audit tool and reads the
+  // UNSCRUBBED get_pir_report by design (app/api/roz). Rosalind - the future B2B assistant, not yet
+  // defined - is the only surface this could serve; whether she does is decided when she faces a
+  // customer, on her own evidence, never inherited from Roz. Kept, not deleted.
+  // RULING 169 + 197. The SCRUBBED document, for a render surface that is not
+  // pir_write_snapshot. get_pir_report itself
   // still carries grantor/grantee on every conveyance (the scrub lives in the
   // snapshot writer), so a narrator reading the raw report would speak deed party
   // names with no manifest. The scrub is applied SERVER-SIDE and its manifest is
