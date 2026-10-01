@@ -8,7 +8,8 @@
     "start": "next start",
     "categories:generate": "node scripts/trade-categories.mjs",
     "categories:check": "node scripts/trade-categories.mjs --check",
-    "prebuild": "node scripts/trade-categories.mjs --check"
+    "prebuild": "node scripts/trade-categories.mjs --check",
+    "test": "node --test \"lib/**/*.test.mjs\""
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.110.0",
