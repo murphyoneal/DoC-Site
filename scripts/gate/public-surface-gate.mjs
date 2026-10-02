@@ -48,7 +48,20 @@ const page = async (path, redirect = 'follow') => {
 }
 
 // ---- registries -------------------------------------------------------------------------------------------------
-const fixtures = await svcGet('test_fixture?select=register,key,label')
+// The fabricated set is the registry UNION the reserved ZZ licence range (ruling 723), read independently. The first
+// red run of this gate removed the fixture's registry row and the gate went GREEN - it had learned what was fabricated
+// from the same registry the control reads, so removing the row blinded the test and the control together. A
+// reserved-range row that the registry does not list is itself a failure (registry and range must agree).
+const registry = await svcGet('test_fixture?select=register,key,label')
+const reservedContractors = await svcGet('contractors?license_number=like.ZZ*&select=license_number')
+const reservedAgents = await svcGet('agent_license_roster?license_number=like.ZZ*&select=license_number')
+const byKey = new Map()
+for (const f of registry) byKey.set(f.register + ':' + f.key, { ...f, registered: true })
+for (const r of reservedContractors) { const k = 'contractors:' + r.license_number; if (!byKey.has(k)) byKey.set(k, { register: 'contractors', key: r.license_number, label: null, registered: false }) }
+for (const r of reservedAgents) { const k = 'agent_license_roster:' + r.license_number; if (!byKey.has(k)) byKey.set(k, { register: 'agent_license_roster', key: r.license_number, label: null, registered: false }) }
+const fixtures = [...byKey.values()]
+for (const f of fixtures.filter(f => !f.registered)) fail(`reserved-range row ${f.register}:${f.key} is registered as a test fixture`, 'NOT in test_fixture - the control cannot exclude it')
+if (fixtures.length === 0) fail('fabricated set is non-empty', 'no fixtures and no reserved-range rows found - the gate would test nothing')
 const contractorFixtures = fixtures.filter(f => f.register === 'contractors')
 const agentFixtures = fixtures.filter(f => f.register === 'agent_license_roster')
 for (const f of contractorFixtures) {
@@ -71,7 +84,7 @@ const leaks = (payload, f) => (Array.isArray(payload?.results) ? payload.results
 // markers - a second false red on the first run.)
 const pageLeaks = (html, f) => (f.slug && html.includes(`href="/c/${f.slug}"`)) || html.includes(`Licence ${f.key}`) || html.includes(`Licence <!-- -->${f.key}`)
 for (const f of contractorFixtures) {
-  const probes = [f.key, f.business_name, f.display_name, f.slug, f.label, `${f.trade_label ?? ''} ${f.city ?? ''}`.trim(), f.city, 'zz test', 'dop system check'].filter(Boolean)
+  const probes = [f.key, f.business_name, f.display_name, f.slug, f.label ?? null, `${f.trade_label ?? ''} ${f.city ?? ''}`.trim(), f.city, 'zz test', 'dop system check'].filter(Boolean)
   for (const q of [...new Set(probes)]) {
     for (const fn of ['register_search', 'contractor_register_search']) {
       const r = await anonRpc(fn, { q, lim: 50 })
@@ -86,7 +99,7 @@ for (const f of contractorFixtures) {
   }
 }
 for (const f of agentFixtures) {
-  for (const q of [f.key, f.label, 'zz test']) {
+  for (const q of [f.key, f.label, 'zz test'].filter(Boolean)) {
     const r = await anonRpc('agent_register_search', { q })
     if (r.status !== 200) fail(`agent fixture ${f.key} via agent_register_search("${q}")`, `could not run: HTTP ${r.status} ${String(r.body).slice(0, 120)}`)
     else if ((r.body?.results ?? []).some(x => JSON.stringify(x).includes(f.key))) fail(`agent fixture ${f.key} via agent_register_search("${q}")`, 'RETURNED')
