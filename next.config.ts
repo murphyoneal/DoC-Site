@@ -13,7 +13,7 @@ import { DOMAIN_SPLIT, DOC_URL, DOP_URL } from './lib/site'
 const DOP_HOST = '(www\\.|app\\.)?departmentofproperty\\.com'
 const DOC_HOST = '(www\\.)?departmentofconstruction\\.com'
 
-const TO_DOC = ['/c', '/c/:path*', '/claim/:slug', '/claim/:slug/:rest*', '/api/qr/:path*', '/api/vcard/:path*',
+const TO_DOC = ['/c', '/c/:path*', '/e/:path*','/claim/:slug', '/claim/:slug/:rest*', '/api/qr/:path*', '/api/vcard/:path*',
   '/map', '/florida', '/florida/:path*', '/rights', '/rights/:path*',
   // self-registration (work order 699): the form, its API and the /r/ pages are DoC's
   '/register-your-business', '/r/:path*', '/api/register', '/api/geo', '/api/places']
