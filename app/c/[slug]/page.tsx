@@ -351,7 +351,7 @@ export default async function ContractorProfilePage({
               Is this your business?
             </h2>
             <p style={{ fontSize: '0.84rem', color: 'var(--color-sage)', margin: '0 0 14px' }}>
-              Claim it to correct the record and add your own details and photos. Once your profile is complete you can download a print-ready QR code for your truck. A person reads every claim.
+              Claim it to correct the record and add your own details. Once your profile is complete you can download a print-ready QR code for your truck. Claims are approved by hand; we can&rsquo;t yet promise how long that takes.
             </p>
             <Link
               href={`/claim/${slug}`}

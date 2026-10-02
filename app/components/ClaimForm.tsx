@@ -71,9 +71,10 @@ export default function ClaimForm({ slug, displayName }: Props) {
           Claim Request Submitted
         </h2>
         <p className="text-sm mb-4" style={{ color: 'var(--color-sage)' }}>
-          A person reviews every claim and will email you at {email}. If yours is approved, that email carries a link to set
-          your password; then you can sign in (&ldquo;Sign in&rdquo; at the top of every page) to edit your business details.
-          Questions: register@departmentofproperty.com.
+          Your claim is saved and a person has been told about it. Claims are approved by hand. When yours is, we email{' '}
+          {email} a link to set your password; then you can sign in (&ldquo;Sign in&rdquo; at the top of every page) to edit
+          your business details. This is a new service and we can&rsquo;t yet promise how long that takes. Questions:
+          register@departmentofproperty.com.
         </p>
         <a href={`/c/${slug}`} className="text-sm underline" style={{ color: 'var(--color-bronze)' }}>Back to profile</a>
       </div>
