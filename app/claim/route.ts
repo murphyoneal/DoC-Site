@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
     const business = await resolveBusinessSlug(slug)
     const claimSlug = business?.slug ?? slug
     const lookupRes = await fetch(
-      `https://${SB_HOST}/rest/v1/contractors_public?slug=eq.${encodeURIComponent(claimSlug)}&select=id,claimed,display_name,license_number&limit=1`,
+      `https://${SB_HOST}/rest/v1/contractors_public_direct?slug=eq.${encodeURIComponent(claimSlug)}&select=id,claimed,display_name,license_number&limit=1`,
       { headers: SB_HEADERS }
     )
     const contractors = await lookupRes.json()
