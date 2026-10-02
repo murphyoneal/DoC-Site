@@ -19,6 +19,7 @@ export const CATEGORY_LABELS: Record<string, string> = {
   tank_testing: "Precision Tank Testing",
   underground_utility: "Underground Utility",
   // trades
+  alarm_system: "Alarm System",
   drywall: "Drywall",
   electrical: "Electrical",
   fencing: "Fencing",
