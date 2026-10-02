@@ -194,9 +194,11 @@ transaction on 2026-09-08: re-applying an **identical** body took
 > or table migrations I blamed at the time.
 >
 > **So: after any migration containing function DDL, re-assert the grants on every browser-called
-> RPC.** That set is exactly two today — `contractor_register_search` and `agent_register_search` —
-> and it is enumerable, not guessable:
-> `grep -rhoE "rpc/[a-zA-Z_]+" public/*.html ../DoC-Public/*.html`. Everything else the front end
+> RPC.** That set is three today — `contractor_register_search`, `agent_register_search` and
+> `register_search` (201b) — and it is declared, not guessed: the `browser_rpc` table (205b) lists
+> each with its reason, and detection `anon-callable-secdef-functions` alarms when the catalogue and
+> that list disagree in either direction. Adding a browser RPC means adding its row. Cross-check with
+> `grep -rhoE "rpc/[a-zA-Z_]+" public/*.html public/doc/*.html ../DoC-Public/*.html`. Everything else the front end
 > calls goes through server routes on `service_role`, which bypasses grants — which is why those 24
 > other functions having no `anon` grant is the trigger working as intended and **not** an outage.
 > Do not "fix" those.
