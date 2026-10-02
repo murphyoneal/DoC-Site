@@ -1,5 +1,6 @@
 import type { MetadataRoute } from 'next'
 import { requestBrand } from '@/lib/brand'
+import { fixtureContractorPaths } from '@/lib/test-fixture'
 
 // Site-wide indexing kill-switch. Crawling is blocked entirely until the
 // SITE_INDEXABLE env var is explicitly set to 'true' (evaluated at build time;
@@ -26,7 +27,9 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
         // to a page about a named individual at their home address. One page per parcel,
         // 10.7M parcels. The sitemap does not enumerate them; this stops them being
         // crawled if they are found another way.
-        disallow: ['/api/', '/claim/', '/report/', '/_next/', '/prototype/'],
+        // Registered test fixtures (ruling 927): their own pages are reachable by direct URL under the 922 interim
+        // and must never be crawled. Listed from the test_fixture registry, by key.
+        disallow: ['/api/', '/claim/', '/report/', '/_next/', '/prototype/', ...(await fixtureContractorPaths())],
       },
       // Known SEO scrapers we don't want crawling regardless.
       {

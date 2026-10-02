@@ -11,6 +11,7 @@ import { requestBrand } from '@/lib/brand'
 import { getPublicBusinessProfile } from '@/lib/business-profile'
 import { isSuspended } from '@/lib/suspension'
 import { getSessionUser } from '@/lib/supabase/ssr-server'
+import { isTestFixture } from '@/lib/test-fixture'
 
 async function ownerOf(slug: string, email: string): Promise<boolean> {
   try {
@@ -79,9 +80,12 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { slug } = await params
   const c = await getContractor(slug)
   if (!c) return { title: 'Contractor Not Found' }
+  // Ruling 927: a registered test fixture is never indexed (decided by key, see lib/test-fixture).
+  const fixture = await isTestFixture('contractors', c.license_number)
   return {
     title: `${c.display_name}`,
     description: `${CATEGORY_LABELS[c.doc_category] ?? 'Contractor'} in ${c.city ?? 'Florida'}. License ${c.license_number}.`,
+    ...(fixture ? { robots: { index: false, follow: false } } : {}),
   }
 }
 

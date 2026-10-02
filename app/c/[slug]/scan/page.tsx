@@ -1,4 +1,5 @@
 import { notFound, permanentRedirect } from 'next/navigation'
+import { isTestFixture } from '@/lib/test-fixture'
 import { headers } from 'next/headers'
 import { after } from 'next/server'
 import ScanLanding from '@/app/components/ScanLanding'
@@ -47,9 +48,11 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { slug } = await params
   const c = await getContractor(slug)
   if (!c) return { title: 'Contractor' }
+  const fixture = await isTestFixture('contractors', c.license_number)  // ruling 927: fixtures are never indexed
   return {
     title: `${c.display_name}`,
     description: `${CATEGORY_LABELS[c.doc_category] ?? 'Contractor'} in ${c.city ?? 'Florida'}.`,
+    ...(fixture ? { robots: { index: false, follow: false } } : {}),
   }
 }
 
