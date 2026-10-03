@@ -11,6 +11,9 @@ const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string }>
   expired:   { label: 'Expired',   bg: '#fdecea', text: '#c0392b' },
   revoked:   { label: 'Revoked',   bg: '#fdecea', text: '#8e1c0e' },
   suspended: { label: 'Suspended', bg: '#fff3e0', text: '#e67e22' },
+  // Audit 971 M6: these two served values fell through to "Unknown" on 18,162 cards, discarding a fact the profile states.
+  not_stated:         { label: 'Status not stated',           bg: '#f0f0f0', text: '#666' },
+  not_in_latest_file: { label: 'Not in the latest state file', bg: '#f5f0e8', text: '#8B6F47' },
 }
 
 export default function StatusBadge({ status, size = 'md' }: StatusBadgeProps) {
