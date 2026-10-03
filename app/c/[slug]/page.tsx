@@ -82,10 +82,14 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   if (!c) return { title: 'Contractor Not Found' }
   // Ruling 927: a registered test fixture is never indexed (decided by key, see lib/test-fixture).
   const fixture = await isTestFixture('contractors', c.license_number)
+  // ruling 957: never a licence scope the row does not hold, and never a licence sentence without a licence number
+  const description = `${rowTradeLabel(c)} in ${c.city ?? 'Florida'}.${c.license_number ? ` License ${c.license_number}.` : ''}`
   return {
     title: `${c.display_name}`,
-    // ruling 957: never a licence scope the row does not hold, and never a licence sentence without a licence number
-    description: `${rowTradeLabel(c)} in ${c.city ?? 'Florida'}.${c.license_number ? ` License ${c.license_number}.` : ''}`,
+    description,
+    // audit 971 M8: a shared profile previews as the profile, not the homepage
+    alternates: { canonical: `/c/${c.slug}` },
+    openGraph: { type: 'profile', title: `${c.display_name}`, description, url: `/c/${c.slug}`, images: [{ url: '/og-image.png', width: 512, height: 512 }] },
     ...(fixture ? { robots: { index: false, follow: false } } : {}),
   }
 }
@@ -139,6 +143,9 @@ export default async function ContractorProfilePage({
   // single file date until that column exists.
   const recordDate = fileDate(c.register_file_date) ?? await getRecordDate()
   const absent = c.register_file_state === ABSENT
+  // Audit 971 A2/M7: a business registration (trade QB) holds no licence of its own. It never shows a licence number or
+  // "Licence first issued" - the date is when the business registered with the board.
+  const reg = c.record_kind === 'business_registration'
   const related = business ? await getRelatedBusinesses(business.slug) : null
   // The business's own details: published fields of an APPROVED claim only (712, R1). Never the
   // DBPR copy's contact columns, which are empty and which contractors_public would serve unreviewed.
@@ -211,12 +218,12 @@ export default async function ContractorProfilePage({
                   background: statusColor + '18', color: statusColor, border: `1px solid ${statusColor}40`
                 }}>
                   {/* DBPR's status field, reproduced — not our endorsement. */}
-                  {absent ? 'Not in the latest state file' : `Licence status: ${statusLabel(c.license_status)}`}
+                  {absent ? 'Not in the latest state file' : `${reg ? 'Registration' : 'Licence'} status: ${statusLabel(c.license_status)}`}
                 </span>
                 {/* This is the page a QR code lands on: the reader has no other way to know how old
                     the record is. */}
                 <span style={{ fontSize: '0.72rem', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--color-sage)', border: '1px solid var(--color-light-gray)', padding: '4px 10px', borderRadius: '20px' }}>
-                  {recordDate ? (absent ? `Last seen in the state file of ${recordDate}` : `Record dated ${recordDate}`) : 'Record date not available'}
+                  {recordDate ? (absent ? `Last seen in the state file of ${recordDate}` : `From the state file of ${recordDate}`) : 'File date not available'}
                 </span>
               </div>
             </div>
@@ -242,11 +249,11 @@ export default async function ContractorProfilePage({
           <div style={{ marginTop: '20px', padding: '14px', background: 'var(--color-cream)', borderRadius: '8px', display: 'flex', flexWrap: 'wrap', gap: '20px' }}>
             <div>
               <p style={{ fontSize: '0.72rem', color: 'var(--color-sage)', margin: '0 0 2px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Licence Number</p>
-              <p style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--color-ink)', margin: 0 }}>{c.license_number ?? '—'}</p>
+              <p style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--color-ink)', margin: 0 }}>{reg ? 'None: a business registration, not a licence' : (c.license_number ?? '—')}</p>
             </div>
             {issuedYear && (
               <div>
-                <p style={{ fontSize: '0.72rem', color: 'var(--color-sage)', margin: '0 0 2px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Licence first issued</p>
+                <p style={{ fontSize: '0.72rem', color: 'var(--color-sage)', margin: '0 0 2px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{reg ? 'Registered' : 'Licence first issued'}</p>
                 <p style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--color-ink)', margin: 0 }}>{issuedYear}</p>
               </div>
             )}
@@ -263,12 +270,12 @@ export default async function ContractorProfilePage({
               </div>
             )}
             <p style={{ flexBasis: '100%', fontSize: '0.74rem', color: 'var(--color-sage)', margin: 0 }}>
-              Licence status, expiry and first-issue year are reproduced from the Florida DBPR public licence file
+              {reg ? 'Registration status, expiry and registration year' : 'Licence status, expiry and first-issue year'} are reproduced from the Florida DBPR public licence file
               {recordDate ? ` as retrieved on ${recordDate}` : ''}. They may have changed since — a licence
               may have been renewed, or its status changed. Confirm current standing at myfloridalicense.com.
             </p>
             {absent && (
-              <p style={{ flexBasis: '100%', fontSize: '0.78rem', color: 'var(--color-ink)', margin: 0 }}>{ABSENT_NOTE}</p>
+              <p style={{ flexBasis: '100%', fontSize: '0.78rem', color: 'var(--color-ink)', margin: 0 }}>{reg ? ABSENT_NOTE.replace('This licence was not', 'This business registration was not') : ABSENT_NOTE}</p>
             )}
           </div>
 
