@@ -58,20 +58,12 @@ export interface BoundingBox {
   east: number
   west: number
 }
-export const TRADE_CATEGORIES = [
-  { value: 'general_contractor', label: 'General Contractor' },
-  { value: 'roofing', label: 'Roofing' },
-  { value: 'plumbing', label: 'Plumbing' },
-  { value: 'hvac', label: 'HVAC' },
-  { value: 'electrical', label: 'Electrical' },
-  { value: 'painting', label: 'Painting' },
-  { value: 'flooring', label: 'Flooring' },
-  { value: 'masonry', label: 'Masonry' },
-  { value: 'pool', label: 'Pool' },
-  { value: 'landscaping', label: 'Landscaping' },
-  { value: 'solar', label: 'Solar' },
-  { value: 'windows_doors', label: 'Windows & Doors' },
-  { value: 'insulation', label: 'Insulation' },
-  { value: 'drywall', label: 'Drywall' },
-  { value: 'concrete', label: 'Concrete' },
-] as const
+// TRADE_CATEGORIES was here: a hand-written list of fifteen {value,label} pairs. REMOVED (ruling 949).
+// It was the third copy of this vocabulary and the stalest — it keyed "pool" where the data says
+// pool_spa, offered "concrete" which does not exist in trade_display_category at all, and had no
+// entry for building_contractor, residential_contractor, specialty, alarm_system or
+// underground_utility. Nothing imported it, which is what made it dangerous: an exported const with
+// the right name and the wrong contents is one autocomplete away from shipping.
+//
+// The one list is CHIP_CATEGORIES in lib/tradeCategories.ts, generated from the trade_chip_map view.
+// Import TRADE_CATEGORIES from '@/lib/trade-categories' if you need {value,label} pairs.

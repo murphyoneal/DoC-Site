@@ -195,6 +195,24 @@ for (const [lic, path] of [['CGC1531639', '/c/smith-wagner-construction-llc-ponc
   else fail('detector control: the page-leak check sees a real result', 'blind - every "not shown" above is unproven')
 }
 
+// ---- 7. one trade list in the repo (ruling 950): the identifier is declared exactly once --------------------------
+// SQL cannot see a stale hand-kept copy that nothing imports; it was found twice by reading. Run from the repo root.
+{
+  const { readdirSync, readFileSync, statSync } = await import('node:fs')
+  const { join } = await import('node:path')
+  const walk = d => readdirSync(d).flatMap(n => { const p = join(d, n); return statSync(p).isDirectory() ? (n === 'node_modules' ? [] : walk(p)) : [p] })
+  let decl = []
+  try {
+    for (const dir of ['app', 'lib', 'types', 'components']) {
+      try { statSync(dir) } catch { continue }
+      for (const f of walk(dir).filter(f => /\.(ts|tsx|mjs|js)$/.test(f)))
+        if (/export\s+const\s+TRADE_CATEGORIES\b/.test(readFileSync(f, 'utf8'))) decl.push(f)
+    }
+    if (decl.length === 1) pass('TRADE_CATEGORIES declared exactly once in the repo', decl[0])
+    else fail('TRADE_CATEGORIES declared exactly once in the repo', `${decl.length}: ${decl.join(', ') || 'none - run the gate from the repo root'}`)
+  } catch (e) { fail('TRADE_CATEGORIES declared exactly once in the repo', `could not run: ${e.message}`) }
+}
+
 // ---- report ------------------------------------------------------------------------------------------------------
 const failed = results.filter(r => !r.ok)
 for (const r of results) if (!r.ok) console.log(`  FAIL  ${r.name}${r.detail ? ' - ' + r.detail : ''}`)
