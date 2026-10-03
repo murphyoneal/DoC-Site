@@ -16,6 +16,8 @@ export default function StateRightsLanding({
   state: LegalStateRow
   compare: { slug: string; state_name: string; repose_years: number | null }[]
 }) {
+  // 220a: three states. Until the served payload carries presuit_state, derive it - a NULL boolean is not_researched, never 'not required'.
+  const presuit = state.presuit_state ?? (state.presuit_required === true ? 'required' : state.presuit_required === false ? 'not_required' : 'not_researched')
   const url = `${BASE}/rights/${state.slug}`
   const hasRepose = state.repose_years != null
   const fraud = state.fraud_exempts_repose === true
@@ -166,7 +168,7 @@ export default function StateRightsLanding({
             &ldquo;{state.statute_quote}&rdquo;
           </blockquote>
         )}
-        {(state.presuit_required || state.presuit_note) && (
+        {presuit === 'required' || (presuit === 'not_required' && state.presuit_note) ? (
           <p className="text-sm leading-relaxed" style={{ color: 'var(--color-ink)' }}>
             <span className="font-semibold">Before you sue: </span>
             {state.presuit_note
@@ -175,7 +177,14 @@ export default function StateRightsLanding({
                 (state.presuit_days ? ` (about ${state.presuit_days} days)` : '') + '.'}
             {state.presuit_cite ? ` (${state.presuit_cite})` : ''}
           </p>
-        )}
+        ) : presuit === 'not_researched' ? (
+          <p className="text-sm leading-relaxed" style={{ color: 'var(--color-ink)' }}>
+            <span className="font-semibold">Before you sue: </span>
+            We have not yet confirmed whether {state.state_name} requires written notice to the builder before a
+            lawsuit. Some states do, and skipping it can get a case stayed or dismissed. Ask a {state.state_name} attorney
+            before filing.
+          </p>
+        ) : null}
       </section>
 
       {/* 3 · ACTION — identical on every state page, the conversion line */}
