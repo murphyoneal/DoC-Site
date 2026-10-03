@@ -10,7 +10,7 @@ export const ABSENT = 'absent_from_latest_file'
 const STATUS_LABELS: Record<string, string> = {
   active: 'Active',
   inactive: 'Inactive',
-  not_stated: 'Not stated in the state file',
+  not_stated: 'Not stated in the state records',
   unknown: 'Unknown',
 }
 
@@ -29,7 +29,7 @@ export function fileDate(iso: string | null | undefined): string | null {
 }
 
 export const ABSENT_NOTE =
-  'This licence was not in the most recent state licence file we hold. The state’s download leaves out ' +
+  'This licence was not in the most recent state records we retrieved. The state’s published register leaves out ' +
   'licences that are null and void, delinquent or involuntarily inactive, and a licence renewed late can be ' +
   'missing for a while, so absence is not by itself evidence that the licence has lapsed. The details shown ' +
   'are as last recorded. Confirm current standing at myfloridalicense.com.'
@@ -39,12 +39,12 @@ export const ABSENT_NOTE =
 //     delinquent and involuntarily inactive ones (measured 2026-09-30: every served row is primary status C);
 //   - electrical contractors are a separate board (ECLB) whose register we do not hold yet.
 // So a no-match cannot tell "never licensed" from "licence in trouble", and must say so.
-export function notHeldNote(postedDate?: string | null): string {
-  return 'We reproduce the Florida construction licence file as DBPR publishes it' +
-    (postedDate ? ` (dated ${postedDate})` : '') +
-    ': licences recorded as current, active or inactive. DBPR leaves out licences that are null and void, ' +
+export function notHeldNote(retrievedDate?: string | null): string {
+  return 'We show Florida construction licences as the state register recorded them' +
+    (retrievedDate ? ` (retrieved ${retrievedDate})` : '') +
+    ': licences recorded as current, active or inactive. That register leaves out licences that are null and void, ' +
     'delinquent or involuntarily inactive, so a business that is not here may never have been licensed, or may ' +
     'hold a licence in one of those states — we cannot tell which. Electrical contractors are licensed by a ' +
-    'separate state board whose register we do not hold yet. A no-match says nothing about anyone’s licence; ' +
+    'separate board, the Electrical Contractors’ Licensing Board. A no-match says nothing about anyone’s licence; ' +
     'check directly at myfloridalicense.com.'
 }

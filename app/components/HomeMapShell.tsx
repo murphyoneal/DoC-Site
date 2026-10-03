@@ -34,7 +34,7 @@ export default function HomeMapShell({ withPropertyLookup = true }: { withProper
             Florida&rsquo;s licensed construction contractors, on a map.
           </h1>
           <p className="text-sm" style={{ color: 'var(--color-sage)', margin: '4px 0 0' }}>
-            Every business here holds a licence in the state&rsquo;s construction licence file, placed near
+            Every business here holds a Florida construction licence, placed near
             the address on that licence, which is not always where it works. Pick a trade below, or{' '}
             <a href="/c" style={{ color: 'var(--color-bronze)', textDecoration: 'underline' }}>search by name, licence number, city or county</a>.
             {withPropertyLookup && ' To see the public record for a property, look up its address.'}

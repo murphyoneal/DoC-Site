@@ -6,7 +6,7 @@ import ContractorCard from '@/app/components/ContractorCard'
 export const metadata: Metadata = {
   title: 'Volusia County Licensed Contractors',
   description:
-    'Find licensed contractors in Volusia County, Florida — Daytona Beach, Port Orange, New Smyrna Beach, Ormond Beach and surrounding areas. DBPR verified licence data.',
+    'Find licensed contractors in Volusia County, Florida — Daytona Beach, Port Orange, New Smyrna Beach, Ormond Beach and surrounding areas. Licence status as the state register records it.',
 }
 
 const VOLUSIA_COMMUNITIES = [
@@ -53,7 +53,7 @@ export default async function VolusiaPage() {
           Volusia County — from Daytona Beach to New Smyrna Beach and inland to DeLand.
         </p>
         <p className="text-sm mb-4" style={{ color: 'var(--color-sage)' }}>
-          Licence data sourced from the Florida DBPR and updated monthly.
+          Our records come from federal, state and local sources, or user-inputted data.
         </p>
         <Link
           href="/"

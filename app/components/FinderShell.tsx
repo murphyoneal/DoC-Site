@@ -36,7 +36,7 @@ function tradeNames(r: FinderRow): string {
   return labels.length ? labels.join(', ') : (r.trade ?? 'Contractor')
 }
 
-export default function FinderShell({ data, registered = [], q, county, trade, page = 1, postedDate = null }: { data: FinderResult; registered?: RegisteredRow[]; q: string; county: string; trade: string; page?: number; postedDate?: string | null }) {
+export default function FinderShell({ data, registered = [], q, county, trade, page = 1, retrievedDate = null }: { data: FinderResult; registered?: RegisteredRow[]; q: string; county: string; trade: string; page?: number; retrievedDate?: string | null }) {
   const [selected, setSelected] = useState<string | null>(null)
   const rows = data.mode === 'results' ? data.results : []
   const pins: Pin[] = useMemo(
@@ -68,14 +68,14 @@ export default function FinderShell({ data, registered = [], q, county, trade, p
             const out = cov?.not_covered?.[0]
             return (
               <>
-                From the {inFile} licence file only.{' '}
+                {inFile} licences only.{' '}
                 {out
                   ? <>Electrical and alarm-system contractors are licensed by the {out.label} and are not on this map: <a href={out.search_href ?? '/c'} style={{ color: 'var(--color-bronze)' }}>search both boards</a>.</>
                   : <>Electrical contractors are licensed by a separate board and are not on this map: <a href="/c" style={{ color: 'var(--color-bronze)' }}>search both boards</a>.</>}
               </>
             )
           })()}
-          {' '}Outside Florida, or not in the file? <a href="/register-your-business" style={{ color: 'var(--color-bronze)' }}>Register your business</a>.
+          {' '}Outside Florida, or not in the register? <a href="/register-your-business" style={{ color: 'var(--color-bronze)' }}>Register your business</a>.
         </p>
 
         <form action="/map" method="get" style={{ display: 'grid', gap: 8 }}>
@@ -135,7 +135,7 @@ export default function FinderShell({ data, registered = [], q, county, trade, p
                   : `${data.count.toLocaleString()} ${data.count === 1 ? 'business' : 'businesses'}`}
               </h2>
               {data.field_status !== 'not_run' && data.count === 0 && (
-                <p style={{ fontSize: 12, color: 'var(--color-sage)', margin: '0 0 8px' }}>{notHeldNote(postedDate)}</p>
+                <p style={{ fontSize: 12, color: 'var(--color-sage)', margin: '0 0 8px' }}>{notHeldNote(retrievedDate)}</p>
               )}
               {data.count > data.returned && (
                 <p style={{ fontSize: 12, color: 'var(--color-sage)', margin: '0 0 8px' }}>
@@ -158,7 +158,7 @@ export default function FinderShell({ data, registered = [], q, county, trade, p
                     <div className="finder-badges">
                       {r.claimed && <span className="badge claimed">Claimed</span>}
                       {r.absent_from_latest_file
-                        ? <span className="badge dated">Not in the latest state file</span>
+                        ? <span className="badge dated">Not in the latest state records</span>
                         : (r.expiry_has_passed ?? r.record_dated) && <span className="badge dated">Expiry date passed</span>}
                       {(r.lat == null || r.lng == null) && <span className="badge nomap">Not on the map</span>}
                     </div>
@@ -175,7 +175,7 @@ export default function FinderShell({ data, registered = [], q, county, trade, p
               )}
               {data.coverage_note && (
                 <p style={{ fontSize: 11, color: 'var(--color-sage)', margin: '12px 0 0' }}>
-                  {data.coverage_note} Source: Florida DBPR public licence file, retrieved {data.source_retrieved}.
+                  {data.coverage_note} Our records come from federal, state and local sources, or user-inputted data. Retrieved {data.source_retrieved}.
                 </p>
               )}
             </section>
@@ -186,7 +186,7 @@ export default function FinderShell({ data, registered = [], q, county, trade, p
           <section style={{ marginTop: 16 }} aria-labelledby="self-registered">
             <h2 id="self-registered" className="finder-h2">Self-registered businesses</h2>
             <p style={{ fontSize: 11, color: 'var(--color-sage)', margin: '0 0 8px' }}>
-              These businesses registered themselves. They are not entries from a state licence file: each page shows what the
+              These businesses registered themselves. They are not entries from a state register: each page shows what the
               business declared and what we could check.
             </p>
             <ol className="finder-results">

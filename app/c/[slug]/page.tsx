@@ -176,7 +176,7 @@ export default async function ContractorProfilePage({
   // if the business chooses to at claim time (ruling 2026-09-24). contractors_public nulls it too.
   // 978: a numeric placeholder state ('99') is the file recording none - omitted and said, never rewritten
   const st = stateForDisplay(c.state)
-  const address = [c.city, st.value, c.zip_code].filter(Boolean).join(', ') + (st.unrecorded && (c.city || c.zip_code) ? ' (the state file records no state)' : '')
+  const address = [c.city, st.value, c.zip_code].filter(Boolean).join(', ') + (st.unrecorded && (c.city || c.zip_code) ? ' (the state register records no state)' : '')
 
   const qrUrl = `/api/qr/${slug}?ref=profile&size=200`
   const scanUrl = `/c/${slug}/scan`
@@ -221,12 +221,12 @@ export default async function ContractorProfilePage({
                   background: statusColor + '18', color: statusColor, border: `1px solid ${statusColor}40`
                 }}>
                   {/* DBPR's status field, reproduced — not our endorsement. */}
-                  {absent ? 'Not in the latest state file' : `${reg ? 'Registration' : 'Licence'} status: ${statusLabel(c.license_status)}`}
+                  {absent ? 'Not in the latest state records' : `${reg ? 'Registration' : 'Licence'} status: ${statusLabel(c.license_status)}`}
                 </span>
                 {/* This is the page a QR code lands on: the reader has no other way to know how old
                     the record is. */}
                 <span style={{ fontSize: '0.72rem', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--color-sage)', border: '1px solid var(--color-light-gray)', padding: '4px 10px', borderRadius: '20px' }}>
-                  {recordDate ? (absent ? `Last seen in the state file of ${recordDate}` : `From the state file of ${recordDate}`) : 'File date not available'}
+                  {recordDate ? (absent ? `Last seen in the state records ${recordDate}` : `Retrieved ${recordDate}`) : 'Retrieval date not available'}
                 </span>
               </div>
             </div>
@@ -273,7 +273,7 @@ export default async function ContractorProfilePage({
               </div>
             )}
             <p style={{ flexBasis: '100%', fontSize: '0.74rem', color: 'var(--color-sage)', margin: 0 }}>
-              {reg ? 'Registration status, expiry and registration year' : 'Licence status, expiry and first-issue year'} are reproduced from the Florida DBPR public licence file
+              {reg ? 'Registration status, expiry and registration year' : 'Licence status, expiry and first-issue year'} are as the state register recorded them
               {recordDate ? ` as retrieved on ${recordDate}` : ''}. They may have changed since — a licence
               may have been renewed, or its status changed. Confirm current standing at myfloridalicense.com.
             </p>
@@ -303,7 +303,7 @@ export default async function ContractorProfilePage({
                 ))}
               </ul>
               <p style={{ fontSize: '0.72rem', color: 'var(--color-sage)', margin: '6px 0 0' }}>
-                As published in the DBPR licence file. Confirm current standing at myfloridalicense.com.
+                As the state register records them. Confirm current standing at myfloridalicense.com.
               </p>
             </div>
           )}
@@ -316,7 +316,7 @@ export default async function ContractorProfilePage({
           <div style={{ background: 'var(--color-white)', borderRadius: '14px', border: '1px solid var(--color-light-gray)', padding: '20px', marginBottom: '20px' }}>
             <h2 style={{ fontFamily: 'Georgia, serif', color: 'var(--color-navy)', fontSize: '1rem', fontWeight: 700, margin: '0 0 2px' }}>From the business</h2>
             <p style={{ fontSize: '0.72rem', color: 'var(--color-sage)', margin: '0 0 12px' }}>
-              Added by the business{own.updated_on ? `, last updated ${fileDate(own.updated_on)}` : ''}. Not from the state licence file.
+              Added by the business{own.updated_on ? `, last updated ${fileDate(own.updated_on)}` : ''}. Not from the state register.
             </p>
             {own.description && <p style={{ fontSize: '0.86rem', color: 'var(--color-ink)', margin: '0 0 10px', whiteSpace: 'pre-line' }}>{own.description}</p>}
             {(own.phone || own.email || own.website) && (

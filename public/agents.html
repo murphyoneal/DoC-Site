@@ -164,7 +164,7 @@ footer a{color:var(--gold)}
 <p class="eyebrow">What's behind it</p>
 <h2>Held today.</h2>
 <div class="figs">
-<div class="fig"><b class="num">496,407</b><span>Licence records from the state file</span></div>
+<div class="fig"><b class="num">496,407</b><span>Licence records from the state register</span></div>
 <div class="fig"><b class="num">457,917</b><span>Individual licences — associates, brokers, instructors</span></div>
 <div class="fig"><b class="num">38,490</b><span>Brokerages, branch offices and partnerships</span></div>
 <div class="fig"><b class="num">350,292</b><span>Current and active on the last status file</span></div>
@@ -177,7 +177,7 @@ footer a{color:var(--gold)}
 <h2>If this is your licence, correct it.</h2>
 <div class="two">
 <div class="col rule"><h3>Claim your entry</h3>
-<p class="sub">Verify your licence and fill in what the state file doesn't carry. Unclaimed licences stay searchable but never get a published page — the claim is what grants publication.</p></div>
+<p class="sub">Verify your licence and fill in what the state register doesn't carry. Unclaimed licences stay searchable but never get a published page — the claim is what grants publication.</p></div>
 <div class="col rule"><h3>What we won't publish</h3>
 <p class="sub">No phone number, no email, no street address. Nothing beyond name, licence, type, county and status appears here until you claim the entry and tell us what to show.</p></div>
 </div>
@@ -191,7 +191,7 @@ footer a{color:var(--gold)}
 <a href="register.html">Register your business</a>
 <a href="https://departmentofconstruction.com">Contractor register</a>
 </div>
-<p>Licence data is reproduced from the Florida Department of Business and Professional Regulation's public download files. Names and licence types are current to no earlier than 3 September 2026; licence status and expiry come from the state file posted 23 July 2026. County is the county recorded on the licence and is not a service area.</p>
+<p>Licences are issued by the Florida Real Estate Commission. Our records come from federal, state and local sources, or user-inputted data. Each record shows the date we retrieved it. County is the county recorded on the licence and is not a service area.</p>
 <p>Department of Property holds land and property records. Department of Construction holds contractor and permit records. Neither is a licensing authority, a government agency, or affiliated with any government body. Always verify a licence directly with the state register.</p>
 </div></footer>
 <script>
@@ -211,7 +211,7 @@ footer a{color:var(--gold)}
   function render(d){
     if(d.field_status==="not_run"){res.innerHTML='<p class="rmeta">'+esc(d.note)+'</p>';show();return;}
     if(d.field_status==="none_found"){
-      res.innerHTML='<p class="rmeta">No licence record matches &ldquo;'+esc(d.query)+'&rdquo; in the state file we hold.</p>'+
+      res.innerHTML='<p class="rmeta">No licence record matches &ldquo;'+esc(d.query)+'&rdquo; in the register we publish.</p>'+
         '<p class="rnote">This is what our copy of the register contains — not a statement that no such licence exists. '+
         'Names are held as the state writes them, surname first.</p>';
       show();return;}
@@ -229,7 +229,7 @@ footer a{color:var(--gold)}
            ? '<a class="rclaim" href="/agents/claim?licence='+encodeURIComponent(r.license_number)+'" style="display:block;margin-top:6px;font-size:12px;color:#8B6F47">Claim this licence &rarr;</a>'
            : '')+
         '</div></div>';});
-    h+='</div><p class="rnote">'+esc(d.coverage_note)+' Source: '+esc(d.source)+'.</p>';
+    h+='</div><p class="rnote">'+esc(d.coverage_note)+' '+esc(d.source)+'</p>';
     res.innerHTML=h;show();}
   function run(){
     var v=(q.value||"").trim();

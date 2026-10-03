@@ -13,21 +13,21 @@ export default function PropertyHome() {
           Florida&rsquo;s licensed agents and contractors, from the state registers.
         </h1>
         <p className="text-sm" style={{ color: 'var(--color-sage)', margin: '8px 0 20px' }}>
-          Two public registers, each reproduced from the Florida licence file that holds it, with the date we read it.
+          Two public registers, each as the Florida register showed it on the date we retrieved it.
           Counts and dates, never a rating.
         </p>
         <div className="grid gap-3 sm:grid-cols-2">
           <a href="/agents.html" className="block p-5 rounded-lg" style={{ background: 'var(--color-white)', border: '1px solid #e2ddd6', textDecoration: 'none' }}>
             <span className="block font-semibold" style={{ color: 'var(--color-navy)', fontSize: '1.05rem' }}>Real estate agents &rarr;</span>
             <span className="block text-sm mt-1" style={{ color: 'var(--color-sage)' }}>
-              Sales associates, broker associates and brokers from the Florida real estate licence file: licence
+              Sales associates, broker associates and brokers from the Florida real estate licence register: licence
               status as recorded, and the brokerage each works under.
             </span>
           </a>
           <a href={`${CONTRACTOR_URL}/c`} className="block p-5 rounded-lg" style={{ background: 'var(--color-white)', border: '1px solid #e2ddd6', textDecoration: 'none' }}>
             <span className="block font-semibold" style={{ color: 'var(--color-navy)', fontSize: '1.05rem' }}>Contractors &rarr;</span>
             <span className="block text-sm mt-1" style={{ color: 'var(--color-sage)' }}>
-              Florida contracting businesses from the state construction licence file, on Department of Construction:
+              Florida contracting businesses from the state construction licence register, on Department of Construction:
               trade, city, county and licence status as recorded.
             </span>
           </a>

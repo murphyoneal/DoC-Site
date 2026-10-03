@@ -24,7 +24,7 @@ const DOC: Brand = {
   mark: 'DoC',
   url: DOC_URL,
   description:
-    'Florida’s licensed construction contractors from the state licence file: search by trade, name, licence number, city or county, and see each licence’s status as recorded.',
+    'Florida’s licensed construction contractors from the state licence register: search by trade, name, licence number, city or county, and see each licence’s status as recorded.',
   titleDefault: 'Florida contractor register | Department of Construction',
   nav: [
     { label: 'Search', href: '/c' },
@@ -76,7 +76,7 @@ const DOP_LEGACY: Brand = {
   mark: 'DoP',
   url: DOP_URL,
   description:
-    'Search Florida construction contractors by trade and location, and see each licence’s status as recorded in the state licence file.',
+    'Search Florida construction contractors by trade and location, and see each licence’s status as recorded in the state licence register.',
   titleDefault: 'Find Licensed Contractors Near You | Department of Property',
   nav: [
     { label: 'Florida', href: '/florida' },
@@ -87,7 +87,7 @@ const DOP_LEGACY: Brand = {
     { label: 'Volusia County', href: '/florida/volusia' },
     { label: 'Disclaimer', href: '/disclaimer' },
   ],
-  footerLine: 'Licensed contractor search from the Florida DBPR state licence file.',
+  footerLine: 'Our records come from federal, state and local sources, or user-inputted data.',
 }
 
 const DOP = DOMAIN_SPLIT ? DOP_SPLIT : DOP_LEGACY

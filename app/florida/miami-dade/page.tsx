@@ -6,7 +6,7 @@ const county = getCounty('miami-dade')!
 
 export const metadata: Metadata = {
   title: `${county.name} Licensed Contractors`,
-  description: `Find licensed contractors in ${county.name}, Florida — ${county.cities.map(c => c.name).join(', ')}. DBPR verified licence data.`,
+  description: `Find licensed contractors in ${county.name}, Florida — ${county.cities.map(c => c.name).join(', ')}. Licence status as the state register records it.`,
   alternates: { canonical: `/florida/${county.slug}` },
   openGraph: {
     title: `${county.name} Licensed Contractors`,
