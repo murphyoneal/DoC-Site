@@ -131,7 +131,7 @@ export default async function VolusiaPage() {
         </p>
         <div className="flex flex-col gap-2 text-sm">
           <a
-            href="https://www.vcgov.org/government/building-and-code-administration/"
+            href="https://www.volusia.org/services/growth-and-resource-management/building-and-zoning/"
             target="_blank"
             rel="noopener noreferrer"
             className="underline"

@@ -28,7 +28,8 @@ export async function generateMetadata(): Promise<Metadata> {
       siteName: b.name,
       title: b.titleDefault,
       description: b.description,
-      url: '/',
+      // No url here (audit 971 M8): set at the root it was inherited by every page, so a shared profile previewed as the
+      // homepage. Pages that need one set their own.
       images: [{ url: '/og-image.png', width: 512, height: 512, alt: b.name }],
     },
     twitter: { card: 'summary', title: b.titleDefault, description: b.description, images: ['/og-image.png'] },

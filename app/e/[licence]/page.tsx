@@ -49,9 +49,14 @@ export async function generateMetadata({ params }: { params: Promise<{ licence: 
   const e = await getEntry(decodeURIComponent(licence))
   if (!e?.found) return { title: 'Licence not found' }
   const name = e.business_name ?? e.licensee_name ?? e.license_number
+  const title = `${name} — electrical licence ${e.license_number}`
+  const description = `${e.license_number}: ${e.class_label ?? e.class_code} in the Florida Electrical Contractors' Licensing Board file${e.file_date ? ` dated ${isoDay(e.file_date)}` : ''}.`
   return {
-    title: `${name} — electrical licence ${e.license_number}`,
-    description: `${e.license_number}: ${e.class_label ?? e.class_code} in the Florida Electrical Contractors' Licensing Board file${e.file_date ? ` dated ${isoDay(e.file_date)}` : ''}.`,
+    title,
+    description,
+    // audit 971 M8: a shared entry previews as the entry, not the homepage
+    alternates: { canonical: `/e/${e.license_number}` },
+    openGraph: { type: 'profile', title, description, url: `/e/${e.license_number}`, images: [{ url: '/og-image.png', width: 512, height: 512 }] },
   }
 }
 

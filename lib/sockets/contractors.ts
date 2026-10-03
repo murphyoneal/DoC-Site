@@ -1,4 +1,5 @@
 ﻿import type { BoundingBox, Contractor, ContractorMapPin } from '@/types/contractor'
+import { CATEGORY_LABELS } from '@/lib/tradeCategories'
 
 const SB_HOST = 'eaifqorwmgayiqmbtzcg.supabase.co'
 const SB_KEY = process.env.SUPABASE_SECRET_KEY!
@@ -27,13 +28,19 @@ export const contractorSocket = {
       'lng=lte.' + bounds.east,
       'limit=' + limit,
     ]
-    if (filters.category) { parts.push('doc_category=eq.' + filters.category) }
+    // Audit 971 B3: this value came straight from the query string into a PostgREST URL called with the SECRET key, so
+    // '&limit=500' or '&order=...' rode along (the 50-row cap was bypassed live). Only a known category key is accepted,
+    // and it is encoded anyway.
+    if (filters.category) {
+      if (!Object.prototype.hasOwnProperty.call(CATEGORY_LABELS, filters.category)) return []
+      parts.push('doc_category=eq.' + encodeURIComponent(filters.category))
+    }
     const data = await httpGet('/rest/v1/contractors_public?' + parts.join('&'))
     return data as ContractorMapPin[]
   },
 
   forProfile: async function(slug: string): Promise<Contractor | null> {
-    const data = await httpGet('/rest/v1/contractors_public?select=*&slug=eq.' + slug + '&active=eq.true&limit=1')
+    const data = await httpGet('/rest/v1/contractors_public?select=*&slug=eq.' + encodeURIComponent(slug) + '&active=eq.true&limit=1')
     return data[0] as Contractor ?? null
   },
 
@@ -71,8 +78,8 @@ export const contractorSocket = {
   forCounty: async function(countyCode: string, state: string, limit: number = 20): Promise<Contractor[]> {
     const parts = [
       'select=id,slug,display_name,trade_label,doc_category,city,state,license_status,tier,profile_tier_label',
-      'state=eq.' + state.toUpperCase(),
-      'county_code=eq.' + countyCode,
+      'state=eq.' + encodeURIComponent(state.toUpperCase()),
+      'county_code=eq.' + encodeURIComponent(String(countyCode)),
       'active=eq.true',
       'limit=' + limit,
     ]
@@ -83,7 +90,7 @@ export const contractorSocket = {
   forState: async function(state: string, limit: number = 20): Promise<Contractor[]> {
     const parts = [
       'select=id,slug,display_name,trade_label,doc_category,city,state,license_status,tier,profile_tier_label',
-      'state=eq.' + state.toUpperCase(),
+      'state=eq.' + encodeURIComponent(state.toUpperCase()),
       'active=eq.true',
       'limit=' + limit,
     ]
@@ -122,7 +129,7 @@ export const contractorSocket = {
   forCity: async function(city: string, state: string, limit: number = 20): Promise<Contractor[]> {
     const parts = [
       'select=id,slug,display_name,trade_label,doc_category,city,state,license_status,tier,profile_tier_label',
-      'state=eq.' + state.toUpperCase(),
+      'state=eq.' + encodeURIComponent(state.toUpperCase()),
       'city=ilike.*' + city + '*',
       'active=eq.true',
       'limit=' + limit,
