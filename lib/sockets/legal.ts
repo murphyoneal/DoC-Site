@@ -18,6 +18,8 @@ export type LegalStateRow = {
   warranty_regime: string | null
   warranty_cite: string | null
   presuit_required: boolean | null
+  // Three states, never two (220a): a NULL boolean was rendering as silence, indistinguishable from "not required".
+  presuit_state?: 'required' | 'not_required' | 'not_researched' | null
   presuit_days: number | null
   presuit_cite: string | null
   presuit_note: string | null
