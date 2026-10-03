@@ -1,4 +1,5 @@
 import { notFound, permanentRedirect } from 'next/navigation'
+import { stateForDisplay } from '@/lib/state-code'
 import { headers } from 'next/headers'
 import { after } from 'next/server'
 import Link from 'next/link'
@@ -173,7 +174,9 @@ export default async function ContractorProfilePage({
 
   // No street: the registered address is usually a sole trader's home, and it is published only
   // if the business chooses to at claim time (ruling 2026-09-24). contractors_public nulls it too.
-  const address = [c.city, c.state, c.zip_code].filter(Boolean).join(', ')
+  // 978: a numeric placeholder state ('99') is the file recording none - omitted and said, never rewritten
+  const st = stateForDisplay(c.state)
+  const address = [c.city, st.value, c.zip_code].filter(Boolean).join(', ') + (st.unrecorded && (c.city || c.zip_code) ? ' (the state file records no state)' : '')
 
   const qrUrl = `/api/qr/${slug}?ref=profile&size=200`
   const scanUrl = `/c/${slug}/scan`
