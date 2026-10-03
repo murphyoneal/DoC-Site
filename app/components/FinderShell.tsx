@@ -159,7 +159,7 @@ export default function FinderShell({ data, registered = [], q, county, trade, p
                       {r.claimed && <span className="badge claimed">Claimed</span>}
                       {r.absent_from_latest_file
                         ? <span className="badge dated">Not in the latest state file</span>
-                        : r.record_dated && <span className="badge dated">Record dated</span>}
+                        : (r.expiry_has_passed ?? r.record_dated) && <span className="badge dated">Expiry date passed</span>}
                       {(r.lat == null || r.lng == null) && <span className="badge nomap">Not on the map</span>}
                     </div>
                   </li>

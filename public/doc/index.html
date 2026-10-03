@@ -223,7 +223,7 @@ footer a{color:var(--gold)}
 </div>
 
 <div class="card">
-<div class="stamp"><b>RECORD DATED</b><span>Last matched to the state file 7 Sep 2026. It may have changed since.</span></div>
+<div class="stamp"><b>FROM THE STATE FILE</b><span>Last matched to the state file 7 Sep 2026. It may have changed since.</span></div>
 <div class="chead"><h3>Example Contracting, Inc.</h3><p class="m">Jacksonville, FL · Building contractor, roofing contractor</p></div>
 <div class="cbody">
 <div class="line"><div class="lab">Licences held</div><div class="val">CBC0000000 &mdash; certified building contractor, first issued 2007<br>CCC0000000 &mdash; certified roofing contractor, first issued 2012</div></div>
@@ -310,7 +310,9 @@ footer a{color:var(--gold)}
         var what=r.register==="electrical"?(r.class_label||r.class_code||"Class not recorded"):(r.trade||"Trade not recorded");
         var flag=r.register==="electrical"
           ?'<span class="flag">'+esc(r.status_text||"")+'</span>'
-          :(r.claimed?'<span class="flag claimed">CLAIMED</span>':'<span class="flag">'+(r.record_dated?'RECORD DATED':'UNCLAIMED')+'</span>');
+          :(r.claimed?'<span class="flag claimed">CLAIMED</span>'
+            :r.absent_from_latest_file?'<span class="flag" title="Last seen in the state file of '+esc(day(r.last_seen_file_date))+'">NOT IN LATEST FILE</span>'
+            :'<span class="flag">'+((r.expiry_has_passed!=null?r.expiry_has_passed:r.record_dated)?'EXPIRY PASSED':'UNCLAIMED')+'</span>');
         h+='<div class="ritem"><div><p class="nm">'+nm+'</p><p class="dt"><span class="lic">'+
           esc(r.license_number||"—")+'</span> · '+esc(what)+(l?' · '+l:'')+'</p></div><div>'+flag+'</div></div>';});
       h+='</div>';});
