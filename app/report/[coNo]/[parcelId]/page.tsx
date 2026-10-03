@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { pirSocket } from '@/lib/sockets/pir'
 import { purchaseSocket } from '@/lib/sockets/purchase'
 import ReportPaywall from '@/app/components/ReportPaywall'
+import { pirSalesOpen } from '@/lib/pir-sales'
 import ReportError from '@/app/components/ReportError'
 import ReportAbsent from '@/app/components/ReportAbsent'
 import { CompassBadgeGrid, type CompassBadgeData } from '@/app/components/AmenityCompass'
@@ -197,6 +198,7 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
         parcelId={parcelId}
         address={titleCase(view.address)}
         identity={identityLine(view.frameLabel, null)}
+        salesOpen={pirSalesOpen()}
       />
     )
   }
