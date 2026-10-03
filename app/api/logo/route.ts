@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { logSubmission } from '@/lib/custody'
+import { openSubmission, closeSubmission } from '@/lib/custody'
 import { getSessionUser } from '@/lib/supabase/ssr-server'
 
 // A claimed business's logo (work order 733). Upload: signed-in owner of an approved claim only ->
@@ -69,13 +69,16 @@ export async function POST(req: NextRequest) {
 
   const before = await current(gate.business_id)
   const path = `${gate.business_id}/${crypto.randomUUID()}.png`
+  // 210e: custody first; business_logo_set refuses a save that does not cite it
+  const eventId = await openSubmission(req, { kind: 'logo_upload', ref: slug, email: user.email })
+  if (eventId == null) return fail(503, 'The logo could not be saved just now. Please try again.')
   await put('logo-private', path, out)
-  const set = await rpc('business_logo_set', { p_slug: slug, p_email: user.email, p_logo_path: path })
-  if (!set?.saved) { await remove('logo-private', [path]); return fail(500, 'The logo could not be saved.') }
+  const set = await rpc('business_logo_set', { p_slug: slug, p_email: user.email, p_logo_path: path, p_submission_event_id: eventId })
+  if (!set?.saved) { await remove('logo-private', [path]); await closeSubmission(eventId, 'error'); return fail(500, 'The logo could not be saved.') }
   if (before?.logo_path && before.logo_path !== path) await remove('logo-private', [before.logo_path])
   // already switched on: the public copy follows immediately
   if (set.publish_logo) await put('logo-public', `${gate.business_id}.png`, out)
-  await logSubmission(req, { kind: 'logo_upload', ref: slug, email: user.email, outcome: set.publish_logo ? 'saved:published' : 'saved:private' })
+  await closeSubmission(eventId, set.publish_logo ? 'saved:published' : 'saved:private')
   return NextResponse.json({ ok: true, preview: `data:image/png;base64,${out.toString('base64')}`, published: !!set.publish_logo })
 }
 
@@ -87,9 +90,12 @@ export async function DELETE(req: NextRequest) {
   const gate = await rpc('work_upload_gate', { p_slug: slug, p_email: user.email })
   if (!gate?.allowed) return fail(403, 'Not your business.')
   const before = await current(gate.business_id)
-  await rpc('business_logo_set', { p_slug: slug, p_email: user.email, p_logo_path: null })
+  const eventId = await openSubmission(req, { kind: 'logo_remove', ref: slug, email: user.email })
+  if (eventId == null) return fail(503, 'The logo could not be removed just now. Please try again.')
+  const del = await rpc('business_logo_set', { p_slug: slug, p_email: user.email, p_logo_path: null, p_submission_event_id: eventId })
+  if (!del?.saved) { await closeSubmission(eventId, 'error'); return fail(500, 'The logo could not be removed.') }
   if (before?.logo_path) await remove('logo-private', [before.logo_path])
   await remove('logo-public', [`${gate.business_id}.png`])
-  await logSubmission(req, { kind: 'logo_remove', ref: slug, email: user.email, outcome: 'removed' })
+  await closeSubmission(eventId, 'removed')
   return NextResponse.json({ ok: true })
 }
