@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { takeLimit } from '@/lib/rateLimit'
 import { openSubmission, closeSubmission } from '@/lib/custody'
 import { getSessionUser } from '@/lib/supabase/ssr-server'
 
@@ -69,6 +70,8 @@ export async function POST(req: NextRequest) {
 
   const before = await current(gate.business_id)
   const path = `${gate.business_id}/${crypto.randomUUID()}.png`
+  // 210f: persisted per-account limit
+  if (!(await takeLimit('logo:actor:' + user.email.toLowerCase(), 20, 60 * 60_000))) return fail(429, 'Too many logo changes. Try again later.')
   // 210e: custody first; business_logo_set refuses a save that does not cite it
   const eventId = await openSubmission(req, { kind: 'logo_upload', ref: slug, email: user.email })
   if (eventId == null) return fail(503, 'The logo could not be saved just now. Please try again.')

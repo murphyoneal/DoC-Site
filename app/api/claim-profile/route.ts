@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { takeLimit, clientIp } from '@/lib/rateLimit'
 import { openSubmission, closeSubmission } from '@/lib/custody'
 import { notifyLanguageFlags, type LanguageFlag } from '@/lib/language-notice'
 import { getSessionUser } from '@/lib/supabase/ssr-server'
@@ -36,6 +37,9 @@ export async function POST(req: NextRequest) {
   const web = typeof body.website === 'string' ? body.website.trim() : ''
   const payload = { ...body, website: web && !/^https?:\/\//i.test(web) ? 'https://' + web : web }
   delete (payload as Record<string, unknown>).slug
+  // 210f: persisted limits, per account and per address
+  if (!(await takeLimit('profile-save:actor:' + user.email.toLowerCase(), 30, 60 * 60_000)) || !(await takeLimit('profile-save:' + clientIp(req), 60, 60 * 60_000)))
+    return NextResponse.json({ saved: false, reason: 'limited' }, { status: 429 })
   // 210e: custody first - a save that cannot be custody-logged does not happen
   const eventId = await openSubmission(req, { kind: 'profile_save', ref: slug, email: user.email })
   if (eventId == null) return NextResponse.json({ saved: false, reason: 'custody_unavailable' }, { status: 503 })
