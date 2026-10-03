@@ -34,11 +34,26 @@ async function domainRedirects() {
   ]
 }
 
+// The indexing switch (also read by app/robots.ts and app/layout.tsx; build-time, so flipping it needs a redeploy).
+// The DoC homepage is a static file (public/doc/index.html, served on "/" by a proxy.ts rewrite), so the layout's
+// noindex never reaches it. It gets the same rule as an HTTP header instead, matched on the ORIGINAL path "/" -
+// next.config headers run before the proxy. Direct requests to /doc/* are always noindex: they duplicate "/".
+const INDEXABLE = process.env.SITE_INDEXABLE === 'true'
+
 const nextConfig: NextConfig = {
   redirects: domainRedirects,
 
   async headers() {
     return [
+      ...(INDEXABLE ? [] : [{
+        source: '/',
+        has: [{ type: 'host' as const, value: DOC_HOST }],
+        headers: [{ key: 'X-Robots-Tag', value: 'noindex, nofollow' }],
+      }]),
+      {
+        source: '/doc/:path*',
+        headers: [{ key: 'X-Robots-Tag', value: 'noindex' }],
+      },
       {
         source: '/(.*)',
         headers: [

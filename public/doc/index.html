@@ -4,12 +4,11 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Florida contractor register — Department of Construction</title>
 <meta name="description" content="Florida licensed trades held with their history — licences, permits and every state file they appeared in. Free to search, free to claim.">
-<meta name="robots" content="noindex, nofollow">
-<!-- Nothing here is crawled until every form and function is tested and audited.
-     robots.txt asks a crawler not to FETCH; this tag is what prevents INDEXING, and a page
-     linked from elsewhere can be indexed without ever being fetched. Both are needed.
-     This domain is a static deploy and was never covered by SITE_INDEXABLE on the sibling
-     Next.js app, so it sat open. -->
+<!-- No robots meta here, on purpose. This page used to hard-code noindex, nofollow, because it was a separate static
+     deploy that SITE_INDEXABLE never covered. It is now served by the Next app (proxy.ts rewrites "/" on
+     departmentofconstruction.com to this file), so next.config.ts sends X-Robots-Tag: noindex, nofollow on "/" for
+     as long as SITE_INDEXABLE is off, and nothing once it is on. A hard-coded tag here would have kept the register's
+     homepage out of the index, and stopped crawlers following its links, after the flip. One switch, one place. -->
 <link rel="icon" href="/doc/doc-seal.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
