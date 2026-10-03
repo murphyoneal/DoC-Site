@@ -27,7 +27,7 @@ export default function AgentClaimForm({ licence }: { licence: string }) {
     <div className="reg-card">
       <h2 className="reg-h2">Received. A person will review your claim.</h2>
       <p className="reg-p">Licence {reply.licence_name ? `for ${reply.licence_name}` : ''}{reply.rank ? ` (${reply.rank})` : ''}. A person reviews every claim and will email you.
-        If it is approved, your page goes live with your licence details from the state file, and that email carries a link to set your password; then use &ldquo;Sign in&rdquo; at the top of any page to add your own details. Questions: register@departmentofproperty.com.</p>
+        If it is approved, your page goes live with your licence details from the state register, and that email carries a link to set your password; then use &ldquo;Sign in&rdquo; at the top of any page to add your own details. Questions: register@departmentofproperty.com.</p>
     </div>
   )
   if (reply?.outcome === 'already_claimed') return (

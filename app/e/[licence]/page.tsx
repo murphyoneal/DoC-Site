@@ -17,7 +17,7 @@ type Entry = {
   city?: string | null; county?: string | null
   primary_status_code?: string | null; secondary_status_code?: string | null; status_text?: string
   original_date?: string | null; effective_date?: string | null; expiry_date?: string | null
-  in_latest_file?: boolean; file_name?: string | null; file_source_url?: string | null; file_date?: string | null
+  in_latest_file?: boolean; file_date?: string | null
   board_lookup_url?: string
 }
 
@@ -50,7 +50,7 @@ export async function generateMetadata({ params }: { params: Promise<{ licence: 
   if (!e?.found) return { title: 'Licence not found' }
   const name = e.business_name ?? e.licensee_name ?? e.license_number
   const title = `${name} — electrical licence ${e.license_number}`
-  const description = `${e.license_number}: ${e.class_label ?? e.class_code} in the Florida Electrical Contractors' Licensing Board file${e.file_date ? ` dated ${isoDay(e.file_date)}` : ''}.`
+  const description = `${e.license_number}: ${e.class_label ?? e.class_code} issued by the Florida Electrical Contractors' Licensing Board${e.file_date ? `; record retrieved ${isoDay(e.file_date)}` : ''}.`
   return {
     title,
     description,
@@ -96,20 +96,19 @@ export default async function ElectricalEntryPage({ params }: { params: Promise<
         <div style={row}><span style={key}>Licence class</span><span>{classText}</span></div>
         {e.business_name && e.licensee_name && <div style={row}><span style={key}>Licensee</span><span>{e.licensee_name}</span></div>}
         {(e.city || e.county) && <div style={row}><span style={key}>Recorded location</span><span>{[e.city, e.county ? `${e.county} County` : null].filter(Boolean).join(', ')}</span></div>}
-        <div style={row}><span style={key}>Status in the file</span><span>{e.status_text}</span></div>
+        <div style={row}><span style={key}>Status as recorded</span><span>{e.status_text}</span></div>
         {e.original_date && <div style={row}><span style={key}>Original date</span><span>{e.original_date} (as published)</span></div>}
         {e.effective_date && <div style={row}><span style={key}>Effective date</span><span>{e.effective_date} (as published)</span></div>}
         {e.expiry_date && <div style={row}><span style={key}>Expiry date</span><span>{e.expiry_date} (as published)</span></div>}
         <div style={{ ...row, borderBottom: 'none' }}><span style={key}>Source</span>
           <span>
-            The Florida DBPR electrical contractor licence file{fileDay ? `, dated ${fileDay}` : ''}{e.in_latest_file ? ' — this licence is in that file' : ''}.
-            {e.file_source_url && <> <a href={e.file_source_url} style={{ color: 'var(--color-bronze)' }} rel="nofollow">The file</a>.</>}
+            Electrical Contractors&rsquo; Licensing Board record{fileDay ? `, retrieved ${fileDay}` : ''}{e.in_latest_file ? ' — in the latest records we retrieved' : ''}.
           </span>
         </div>
       </section>
 
       <p style={{ fontSize: '0.84rem', color: 'var(--color-ink)', margin: '0 0 18px' }}>
-        A licence register shows who is licensed now; this page shows the file as of its date, so the licence may have been
+        A licence register shows who is licensed now; this page shows the record as of the date we retrieved it, so the licence may have been
         renewed or changed since. Confirm current standing with the board: search licence number <strong>{e.license_number}</strong> on{' '}
         <a href={e.board_lookup_url} style={{ color: 'var(--color-bronze)' }} rel="nofollow">the state licence search</a>.
       </p>
@@ -123,7 +122,7 @@ export default async function ElectricalEntryPage({ params }: { params: Promise<
           We can&rsquo;t yet promise how long that takes.
         </p>
         <p style={{ fontSize: '0.78rem', color: 'var(--color-sage)', margin: 0 }}>
-          Nothing on this page is a rating or a recommendation. We hold the board&rsquo;s file; we do not hold complaints, discipline, insurance or bonding for any contractor.
+          Nothing on this page is a rating or a recommendation. We hold the board&rsquo;s licence records; we do not hold complaints, discipline, insurance or bonding for any contractor.
         </p>
       </section>
     </main>

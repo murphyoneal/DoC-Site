@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { rpc } from '@/lib/agent-profile'
 import { DOP_URL } from '@/lib/site'
-import { checkRateLimit, clientIp } from '@/lib/rateLimit'
+import { clientIp, takeLimit } from '@/lib/rateLimit'
 import { logSubmission } from '@/lib/custody'
 
 // An agent claims their licence (work order 712). agent_claim_submit records the claim and our check
@@ -12,7 +12,7 @@ const FORMSPREE_URL = 'https://formspree.io/f/xrpgyrjp'
 const s = (v: unknown, n: number) => (typeof v === 'string' ? v.trim().slice(0, n) : '')
 
 export async function POST(req: NextRequest) {
-  if (!checkRateLimit('agent-claim:' + clientIp(req), 5, 10 * 60_000).allowed) return NextResponse.json({ outcome: 'limited' }, { status: 429 })
+  if (!(await takeLimit('agent-claim:' + clientIp(req), 5, 10 * 60_000))) return NextResponse.json({ outcome: 'limited' }, { status: 429 })
   let b: Record<string, unknown>
   try { b = await req.json() } catch { return NextResponse.json({ outcome: 'invalid', field: 'body' }, { status: 400 }) }
   if (s(b.company_url, 200)) return NextResponse.json({ outcome: 'received' }) // honeypot

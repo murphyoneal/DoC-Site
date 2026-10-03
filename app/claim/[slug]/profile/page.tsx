@@ -55,7 +55,7 @@ export default async function ProfileEditPage({ params }: { params: Promise<{ sl
         Your business details
       </h1>
       <p style={{ fontSize: '0.84rem', color: 'var(--color-sage)', margin: '0 0 18px', lineHeight: 1.55 }}>
-        Add what the state licence file doesn&rsquo;t carry. It appears on your profile under &ldquo;From the business&rdquo;,
+        Add what the state register doesn&rsquo;t carry. It appears on your profile under &ldquo;From the business&rdquo;,
         separate from the register, and only the items you switch on are shown. Nothing is shown until you switch it on.
         {' '}<Link href={`/claim/${slug}/photos`} style={{ color: 'var(--color-bronze)' }}>Add photos of your work</Link>.
       </p>

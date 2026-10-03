@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { COUNTY_KEYS, COUNTY_KEYS_BY_LABEL, countyLabel } from '@/lib/county'
 import { notHeldNote } from '@/lib/licence-status'
-import { getRegisterPostedDate } from '@/lib/register-date'
+import { getRegisterRetrievedDate } from '@/lib/register-date'
 
 // "Search another contractor" — where a profile's search box goes (work order 653 (c)).
 // Backed by register_search (201b): both Florida contractor registers - the construction file (Construction Industry
@@ -17,6 +17,7 @@ type Result = {
   trade: string | null; class_code?: string | null; class_label?: string | null
   city: string | null; county: string | null; license_number: string | null
   status_text?: string | null; file_date?: string | null
+  absent_from_latest_file?: boolean | null; last_seen_file_date?: string | null
 }
 type Register = { register: string; label: string; file_date: string | null; count: number; returned: number }
 type Payload = { field_status: string; count: number; returned: number; results: Result[]; registers?: Register[]; coverage_note?: string }
@@ -57,7 +58,7 @@ export default async function ContractorSearchPage({
   // Every word must match (name, licence, trade or class, city or county); a picked county is a strict
   // filter, sent as county:<key> so a word like "orange" cannot stand in for Orange County.
   const query = [q, county ? `county:${county}` : ''].filter(Boolean).join(' ')
-  const [data, postedDate] = await Promise.all([q.length >= 2 || county ? search(query) : Promise.resolve(null), getRegisterPostedDate()])
+  const [data, retrievedDate] = await Promise.all([q.length >= 2 || county ? search(query) : Promise.resolve(null), getRegisterRetrievedDate()])
   const groups = (data?.registers ?? []).map(reg => ({ reg, rows: (data?.results ?? []).filter(r => r.register === reg.register) }))
 
   return (
@@ -66,7 +67,7 @@ export default async function ContractorSearchPage({
         Search contractors
       </h1>
       <p style={{ fontSize: '0.82rem', color: 'var(--color-sage)', margin: '0 0 14px' }}>
-        Two Florida state licence files: construction (Construction Industry Licensing Board) and electrical (Electrical Contractors&rsquo; Licensing Board).
+        Two Florida licensing boards: construction (Construction Industry Licensing Board) and electrical (Electrical Contractors&rsquo; Licensing Board).
       </p>
       <form action="/c" method="get" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '20px' }}>
         <label htmlFor="q" style={{ position: 'absolute', left: '-9999px' }}>Business name or licence number</label>
@@ -92,8 +93,8 @@ export default async function ContractorSearchPage({
 
       {data && data.field_status !== 'present' && (
         <p style={{ fontSize: '0.86rem', color: 'var(--color-sage)' }}>
-          Nothing in either licence file we hold matched &ldquo;{q}&rdquo;{county ? ` in ${countyLabel(county)} County` : ''}. Every word has to match a name, licence number, trade or class, city or county.
-          {' '}{notHeldNote(postedDate)}
+          Nothing in the register we publish matched &ldquo;{q}&rdquo;{county ? ` in ${countyLabel(county)} County` : ''}. Every word has to match a name, licence number, trade or class, city or county.
+          {' '}{notHeldNote(retrievedDate)}
           {' '}<Link href="/register-your-business">Not listed? Register your business</Link>.</p>
       )}
 
@@ -108,7 +109,7 @@ export default async function ContractorSearchPage({
               : reg.count > reg.returned
                 ? `Showing ${reg.returned} of ${reg.count} matching licence records — add a word or pick a county to narrow it.`
                 : `${reg.count} matching licence record${reg.count === 1 ? '' : 's'}.`}
-            {isoDay(reg.file_date) ? ` From the state file dated ${isoDay(reg.file_date)}.` : ''}
+            {isoDay(reg.file_date) ? ` Retrieved ${isoDay(reg.file_date)}.` : ''}
           </p>
           {rows.length > 0 && (
             <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -120,6 +121,12 @@ export default async function ContractorSearchPage({
                     {r.license_number ? ` · Licence ${r.license_number}` : ''}
                     {r.register === 'electrical' && r.status_text ? ` · ${r.status_text}` : ''}
                   </p>
+                  {/* 215a: a licence missing from the file this group is dated by says so (audit 971 C) */}
+                  {r.register === 'construction' && r.absent_from_latest_file && (
+                    <p style={{ fontSize: '0.76rem', color: '#8B6F47', margin: '2px 0 0' }}>
+                      Not in the latest state records{isoDay(r.last_seen_file_date) ? ` · last seen ${isoDay(r.last_seen_file_date)}` : ''}
+                    </p>
+                  )}
                 </li>
               ))}
             </ul>

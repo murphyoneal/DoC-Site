@@ -57,3 +57,26 @@ export function clientIp(req: { headers: Headers }): string {
     'unknown'
   )
 }
+
+/**
+ * 210f (ruling 975): the PERSISTED limit for write routes. The Map above is per serverless instance, so it limits one
+ * warm instance and nothing else; this counts in the database (rate_limit_take, per-key lock). If the database cannot
+ * be reached it falls back to the in-memory check - a guard that fails closed on its own outage becomes the outage
+ * (CLAUDE.md invariant 4) - and says so in the log.
+ */
+export async function takeLimit(key: string, max: number, windowMs: number): Promise<boolean> {
+  const sk = process.env.SUPABASE_SECRET_KEY ?? ''
+  try {
+    const r = await fetch('https://eaifqorwmgayiqmbtzcg.supabase.co/rest/v1/rpc/rate_limit_take', {
+      method: 'POST', cache: 'no-store',
+      headers: { apikey: sk, Authorization: 'Bearer ' + sk, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ p_key: key.slice(0, 300), p_max: max, p_window_seconds: Math.max(1, Math.round(windowMs / 1000)) }),
+    })
+    if (!r.ok) throw new Error(`HTTP ${r.status}`)
+    const j = await r.json()
+    return j?.allowed === true
+  } catch (e) {
+    console.error('[rateLimit] persisted limit unavailable, using the per-instance one:', e instanceof Error ? e.message : String(e))
+    return checkRateLimit(key, max, windowMs).allowed
+  }
+}

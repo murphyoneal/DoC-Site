@@ -91,7 +91,7 @@ export default function AgentProfileForm({ slug, initial, registerBrokerage, voc
       </fieldset>
       <div><label className="finder-label" htmlFor="ap-brk">Brokerage</label>
         <p className="reg-p" style={{ margin: '4px 0' }}>
-          The state file shows: <b>{registerBrokerage ?? 'no brokerage recorded'}</b>. That always appears on your page. If you have moved,
+          The state register shows: <b>{registerBrokerage ?? 'no brokerage recorded'}</b>. That always appears on your page. If you have moved,
           say so here; it is shown beside the state&rsquo;s, labelled as yours.
         </p>
         <input id="ap-brk" className="finder-input" maxLength={200} value={p.declared_brokerage} onChange={e => set('declared_brokerage', e.target.value)} />

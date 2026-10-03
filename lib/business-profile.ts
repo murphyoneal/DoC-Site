@@ -55,5 +55,6 @@ export const getPublicBusinessProfile = (slug: string) =>
 export const getEditorProfile = (slug: string, email: string | null) =>
   rpc<Gate>('business_profile_get', { p_slug: slug, p_email: email })
 
-export const saveBusinessProfile = (slug: string, email: string, p: unknown) =>
-  rpc<{ allowed: boolean; saved?: boolean; reason?: string; field?: string; business_id?: string }>('business_profile_save', { p_slug: slug, p_email: email, p })
+// 210e: the save cites the custody record opened for it (lib/custody openSubmission); the database refuses it otherwise.
+export const saveBusinessProfile = (slug: string, email: string, p: unknown, submissionEventId: number) =>
+  rpc<{ allowed: boolean; saved?: boolean; reason?: string; field?: string; business_id?: string }>('business_profile_save', { p_slug: slug, p_email: email, p, p_submission_event_id: submissionEventId })

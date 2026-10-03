@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { logSubmission } from '@/lib/custody'
+import { takeLimit, clientIp } from '@/lib/rateLimit'
+import { openSubmission, closeSubmission } from '@/lib/custody'
 import { notifyLanguageFlags, type LanguageFlag } from '@/lib/language-notice'
 import { getSessionUser } from '@/lib/supabase/ssr-server'
 import { saveBusinessProfile } from '@/lib/business-profile'
@@ -36,11 +37,17 @@ export async function POST(req: NextRequest) {
   const web = typeof body.website === 'string' ? body.website.trim() : ''
   const payload = { ...body, website: web && !/^https?:\/\//i.test(web) ? 'https://' + web : web }
   delete (payload as Record<string, unknown>).slug
-  const r = await saveBusinessProfile(slug, user.email, payload)
-  if (!r) return NextResponse.json({ saved: false, reason: 'error' }, { status: 502 })
+  // 210f: persisted limits, per account and per address
+  if (!(await takeLimit('profile-save:actor:' + user.email.toLowerCase(), 30, 60 * 60_000)) || !(await takeLimit('profile-save:' + clientIp(req), 60, 60 * 60_000)))
+    return NextResponse.json({ saved: false, reason: 'limited' }, { status: 429 })
+  // 210e: custody first - a save that cannot be custody-logged does not happen
+  const eventId = await openSubmission(req, { kind: 'profile_save', ref: slug, email: user.email })
+  if (eventId == null) return NextResponse.json({ saved: false, reason: 'custody_unavailable' }, { status: 503 })
+  const r = await saveBusinessProfile(slug, user.email, payload, eventId)
+  if (!r) { await closeSubmission(eventId, 'error'); return NextResponse.json({ saved: false, reason: 'error' }, { status: 502 }) }
   if (r.saved && r.business_id) await syncPublicLogo(r.business_id)
   const flags = (r as { flags?: LanguageFlag[] }).flags
-  await logSubmission(req, { kind: 'profile_save', ref: slug, email: user.email, outcome: r.saved ? (flags?.length ? `saved:flagged:${flags.length}` : 'saved') : `refused:${r.field ?? r.reason ?? 'not_allowed'}` })
+  await closeSubmission(eventId, r.saved ? (flags?.length ? `saved:flagged:${flags.length}` : 'saved') : `refused:${r.field ?? r.reason ?? 'not_allowed'}`)
   await notifyLanguageFlags(flags, { what: 'business', subject: slug, page: `https://departmentofconstruction.com/c/${slug}` })
   // The flag is ours - never returned to the page (ruling 761.6).
   const { flags: _f, ...out } = r as Record<string, unknown>

@@ -146,12 +146,12 @@ export default function ScanLanding({
             Licence <strong>{licenseNumber ?? 'not recorded'}</strong>
           </p>
           <p style={{ fontSize: '0.8rem', fontWeight: 600, color: statusColor, margin: '0.25rem 0 0' }}>
-            {absent ? 'Not in the latest state licence file' : <>Status: {statusText}{expiryDate ? ` · expires ${expiryDate}` : ''}</>}
+            {absent ? 'Not in the latest state records' : <>Status: {statusText}{expiryDate ? ` · expires ${expiryDate}` : ''}</>}
           </p>
           <p style={{ fontSize: '0.7rem', color: 'var(--color-sage)', margin: '0.35rem 0 0' }}>
             {absent
-              ? `Last seen in the state file${recordDate ? ` of ${recordDate}` : ''}. Absence is not by itself evidence the licence has lapsed.`
-              : `As recorded in the state licence file${recordDate ? ` retrieved ${recordDate}` : ''}. It may have changed since.`}
+              ? `Last seen in the state records${recordDate ? ` ${recordDate}` : ''}. Absence is not by itself evidence the licence has lapsed.`
+              : `As recorded by the state${recordDate ? `, retrieved ${recordDate}` : ''}. It may have changed since.`}
           </p>
         </div>
       </div>
@@ -220,7 +220,7 @@ export default function ScanLanding({
       </div>
 
       <p style={{ fontSize: '0.72rem', color: 'var(--color-sage)', marginTop: '2rem', textAlign: 'center' }}>
-        Licence details from the Florida DBPR public licence file. Confirm current standing at myfloridalicense.com.<br />
+        Our records come from federal, state and local sources, or user-inputted data. Confirm current standing at myfloridalicense.com.<br />
         <a href="/disclaimer" style={{ color: 'var(--color-sage)' }}>Disclaimer</a>
       </p>
     </div>

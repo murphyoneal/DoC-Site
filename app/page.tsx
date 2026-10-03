@@ -13,7 +13,7 @@ export const metadata: Metadata = DOMAIN_SPLIT
   ? {
       title: { absolute: 'Department of Property — Florida’s licensed agents and contractors' },
       description:
-        'Florida’s licensed real estate agents and contractors, from the state licence files that hold them, with the date each was read.',
+        'Florida’s licensed real estate agents and contractors, from the state licence registers, with the date we retrieved each.',
     }
   : {
       // absolute: the layout's title.template does not apply to the page in its own segment, so
@@ -21,7 +21,7 @@ export const metadata: Metadata = DOMAIN_SPLIT
       title: { absolute: 'Find Licensed Contractors Near You | Department of Property' },
       description:
         // Measured 2026-09-24: 98,749 businesses from 114,104 DBPR licence records, all Florida.
-        'Nearly 100,000 Florida contracting businesses from the state construction licence file, on a map. Search by trade, name, licence number, city or county, and see each licence’s status as recorded.',
+        'More than 110,000 Florida contracting businesses from the state construction licence register, on a map. Search by trade, name, licence number, city or county, and see each licence’s status as recorded.',
     }
 
 export default function HomePage() {

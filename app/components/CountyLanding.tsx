@@ -23,7 +23,7 @@ export default function CountyLanding({ county }: { county: FloridaCounty }) {
     '@context': 'https://schema.org',
     '@type': 'CollectionPage',
     name: `${county.name} Licensed Contractors`,
-    description: `Licensed contractors in ${county.name}, Florida — ${county.cities.map(c => c.name).join(', ')}. DBPR verified licence data.`,
+    description: `Licensed contractors in ${county.name}, Florida — ${county.cities.map(c => c.name).join(', ')}. Licence status as the state register records it.`,
     url,
     isPartOf: { '@type': 'WebSite', name: CONTRACTOR_BRAND, url: BASE },
     about: {
@@ -54,7 +54,7 @@ export default function CountyLanding({ county }: { county: FloridaCounty }) {
         </h1>
         <p className="text-base mb-2" style={{ color: 'var(--color-sage)' }}>{county.blurb}</p>
         <p className="text-sm mb-4" style={{ color: 'var(--color-sage)' }}>
-          Licence data sourced from the Florida DBPR and updated monthly.
+          Our records come from federal, state and local sources, or user-inputted data.
         </p>
         <Link
           href="/"

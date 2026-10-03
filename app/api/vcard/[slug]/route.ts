@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { stateForDisplay, countryForState } from '@/lib/state-code'
 import { contractorSocket } from '@/lib/sockets/contractors'
 import { CONTRACTOR_URL } from '@/lib/site'
 import { resolveBusinessSlug } from '@/lib/business'
@@ -38,8 +39,8 @@ export async function GET(
     own?.phone ? `TEL;TYPE=WORK,VOICE:${own.phone}` : null,
     own?.email ? `EMAIL;TYPE=WORK:${own.email}` : null,
     own?.website ? `URL;TYPE=WORK:${own.website}` : null,
-    c.city && c.state
-      ? `ADR;TYPE=WORK:;;;${c.city};${c.state};${c.zip_code ?? ''};US` // no street — see the profile page
+    c.city && stateForDisplay(c.state).value
+      ? `ADR;TYPE=WORK:;;;${c.city};${stateForDisplay(c.state).value};${c.zip_code ?? ''};${countryForState(c.state) ?? ''}` // no street — see the profile page; country from the code, not assumed
       : null,
     c.trade_label ? `TITLE:${c.trade_label}` : null,
     `URL:${baseUrl}/c/${slug}`,

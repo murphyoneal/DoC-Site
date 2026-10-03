@@ -23,12 +23,12 @@ export default async function AgentClaimPage({ searchParams }: { searchParams: P
       <div style={{ maxWidth: 620, margin: '0 auto' }}>
         <h1 style={{ fontFamily: 'Georgia, serif', color: 'var(--color-navy)', fontSize: '1.4rem', margin: '0 0 8px' }}>Claim your licence</h1>
         <p style={{ fontSize: '0.88rem', color: 'var(--color-ink)', margin: '0 0 8px', lineHeight: 1.55 }}>
-          For Florida real estate licensees. We check the name you give against the state licence file and whether the licence
+          For Florida real estate licensees. We check the name you give against the state licence register and whether the licence
           is current, and a person reviews every claim before anything is published.
         </p>
         <p style={{ fontSize: '0.84rem', color: 'var(--color-sage)', margin: '0 0 18px', lineHeight: 1.55 }}>
           Once approved, you get a page showing your licence as the state records it (type, status, expiry and brokerage, each
-          with the date of the file) and you can add your own details: contact, website, a short bio, the counties and property
+          with the date we retrieved it) and you can add your own details: contact, website, a short bio, the counties and property
           types you work. Each one is off until you switch it on.
         </p>
         {cs && cs.state !== 'none' ? (

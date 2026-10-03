@@ -113,7 +113,7 @@ export default function ClaimForm({ slug, displayName }: Props) {
       {step === 'details' && (
         <>
           <div className="flex items-center gap-2 mb-4 px-3 py-2 rounded-lg" style={{ background: '#e8f0fb' }}>
-            <span style={{ color: 'var(--color-navy)', fontSize: '0.85rem' }}>{'Licence entered: ' + enteredLicense.toUpperCase() + '. We check it against the state file when you submit.'}</span>
+            <span style={{ color: 'var(--color-navy)', fontSize: '0.85rem' }}>{'Licence entered: ' + enteredLicense.toUpperCase() + '. We check it against the state register when you submit.'}</span>
           </div>
           <h3 className="text-base font-bold mb-1" style={{ fontFamily: 'Georgia, serif', color: 'var(--color-navy)' }}>
             Step 2 — Your Contact Details

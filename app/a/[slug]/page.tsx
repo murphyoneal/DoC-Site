@@ -15,7 +15,7 @@ export async function generateMetadata({ params }: { params: P }): Promise<Metad
   const a = await getAgentPage((await params).slug)
   if (!a) return { title: 'Not found' }
   return { title: `${a.register.name}: Florida real estate licence ${a.register.license_number}`,
-           description: `${a.register.rank ?? 'Real estate licensee'}. Licence status as recorded in the Florida real estate licence file.` }
+           description: `${a.register.rank ?? 'Real estate licensee'}. Licence status as recorded in the Florida real estate licence register.` }
 }
 
 const row = (label: string, value: React.ReactNode) => value ? (
@@ -41,13 +41,13 @@ export default async function AgentPublicPage({ params }: { params: P }) {
           {row('County on the licence', r.county)}
           {row('First licensed', fileDate(r.first_issued))}
           <p style={{ fontSize: '0.74rem', color: 'var(--color-sage)', margin: '10px 0 0' }}>
-            From the {r.source}; status, expiry and brokerage as of {fileDate(r.status_as_of) ?? 'the file we hold'}. Confirm current standing at myfloridalicense.com.
+            {r.source} Status, expiry and brokerage as retrieved {fileDate(r.status_as_of) ?? 'on an unrecorded date'}. Confirm current standing at myfloridalicense.com.
           </p>
         </div>
         {hasOwn && (
           <div className="reg-card">
             <h2 className="reg-h2" style={{ marginTop: 0 }}>From the agent</h2>
-            <p style={{ fontSize: '0.72rem', color: 'var(--color-sage)', margin: '2px 0 10px' }}>Added by the agent{o.updated_on ? `, last updated ${fileDate(o.updated_on)}` : ''}. Not from the state licence file.</p>
+            <p style={{ fontSize: '0.72rem', color: 'var(--color-sage)', margin: '2px 0 10px' }}>Added by the agent{o.updated_on ? `, last updated ${fileDate(o.updated_on)}` : ''}. Not from the state registerce file.</p>
             {o.bio && <p style={{ fontSize: '0.86rem', margin: '0 0 10px', whiteSpace: 'pre-line' }}>{o.bio}</p>}
             {(o.phone || o.email || o.website) && (
               <p style={{ display: 'flex', gap: 14, flexWrap: 'wrap', margin: '0 0 8px', fontSize: '0.84rem' }}>
@@ -61,7 +61,7 @@ export default async function AgentPublicPage({ params }: { params: P }) {
             {o.declared_brokerage && (
               <p style={{ fontSize: '0.84rem', margin: '0 0 6px' }}><b>Brokerage, as the agent states it:</b> {o.declared_brokerage}
                 {r.brokerage && o.declared_brokerage.toUpperCase() !== r.brokerage.toUpperCase() &&
-                  <span style={{ color: 'var(--color-sage)' }}> (the state file dated {fileDate(r.status_as_of)} shows {r.brokerage})</span>}</p>
+                  <span style={{ color: 'var(--color-sage)' }}> (the state register, retrieved {fileDate(r.status_as_of)}, shows {r.brokerage})</span>}</p>
             )}
           </div>
         )}

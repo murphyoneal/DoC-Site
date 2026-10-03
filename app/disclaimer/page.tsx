@@ -61,18 +61,15 @@ export default function DisclaimerPage() {
             2. Data Accuracy and Currency
           </h2>
           <p className="mb-3">
-            {/* Audit 971 A5: this said "one register" and "no other state's register" while the electrical file was
-                served and Oregon's file was held. */}
-            The contractor licence data on this site is reproduced from two Florida files published by the
-            Department of Business &amp; Professional Regulation (DBPR): the construction licence file
-            (Construction Industry Licensing Board) and the electrical contractor licence file (Electrical
-            Contractors&rsquo; Licensing Board). We also hold Oregon&rsquo;s construction contractor file, used only
-            to check the licence an Oregon business gives when it registers itself; it is not shown as a register.
-            A business that registers itself is shown as its own declaration, and says which of its licences we
-            could not check.
+            {/* Rulings 990-992: no named source, file or authority, and no claim to hold any register beyond what is
+                served. The one attribution line. */}
+            Our records come from federal, state and local sources, or user-inputted data. Licence records are
+            reproduced as the government record showed them on the date we retrieved them. A business that registers
+            itself is shown as its own declaration, and says which of its licences we could not check. We make no claim
+            about the validity of user-supplied information.
           </p>
           <p className="mb-3">
-            Each contractor&rsquo;s page shows the date of the licence file its record was read from. There will always be a lag
+            Each contractor&rsquo;s page shows the date its record was retrieved. There will always be a lag
             between a change made at the registry (licence renewal, revocation, suspension) and this site.
           </p>
           <p className="font-semibold" style={{ color: 'var(--color-navy)' }}>

@@ -6,7 +6,7 @@ import ContractorCard from '@/app/components/ContractorCard'
 export const metadata: Metadata = {
   title: 'Licensed Contractors in Florida',
   description:
-    'Search nearly 100,000 Florida contracting businesses. Verify DBPR licence status and connect with local professionals.',
+    'Search more than 110,000 Florida contracting businesses and see each licence status as the state register records it.',
 }
 
 const FLORIDA_COUNTIES = [
@@ -47,8 +47,7 @@ export default async function FloridaPage() {
           {/* Measured 2026-09-24: 98,749 businesses from 114,104 DBPR licence records. The
               previous "228,000+ active" was more than double, and "active" is a status we only
               hold as of the record date. */}
-          Nearly 100,000 Florida contracting businesses, from the licence file published by the
-          Florida Department of Business &amp; Professional Regulation (DBPR). Verify licence
+          More than 110,000 Florida contracting businesses, with each licence as the state register records it. Verify licence
           status and find professionals near you.
         </p>
         <Link
@@ -117,8 +116,7 @@ export default async function FloridaPage() {
         </h2>
         <p className="text-sm mb-3" style={{ color: 'var(--color-ink)' }}>
           Florida contractor licences are issued by the Florida Department of Business
-          and Professional Regulation (DBPR). Licence data on this site is sourced directly
-          from DBPR public records and updated monthly.
+          and Professional Regulation (DBPR). Our records come from federal, state and local sources, or user-inputted data.
         </p>
         <a
           href="https://www.myfloridalicense.com/wl11.asp?mode=2&SID=&brd=&typ=&sid=&lic=&nam=&cit=&sta=0&zip=&cou=0&con=&bna=&pho="

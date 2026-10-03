@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { SB_HEADERS, SB_REST } from '@/lib/registration'
 import { CONTRACTOR_URL } from '@/lib/site'
-import { checkRateLimit, clientIp } from '@/lib/rateLimit'
+import { clientIp, takeLimit } from '@/lib/rateLimit'
 import { logSubmission } from '@/lib/custody'
 import { notifyLanguageFlags, type LanguageFlag } from '@/lib/language-notice'
 
@@ -28,7 +28,7 @@ function str(v: unknown, max: number): string | null {
 }
 
 export async function POST(req: NextRequest) {
-  if (!checkRateLimit('register:' + clientIp(req), 5, 10 * 60_000).allowed) return NextResponse.json({ outcome: 'limited' }, { status: 429 })
+  if (!(await takeLimit('register:' + clientIp(req), 5, 10 * 60_000))) return NextResponse.json({ outcome: 'limited' }, { status: 429 })
   let body: Record<string, unknown>
   try { body = await req.json() } catch { return NextResponse.json({ outcome: 'invalid', field: 'body' }, { status: 400 }) }
 

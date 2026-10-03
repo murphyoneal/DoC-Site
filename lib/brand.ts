@@ -24,7 +24,7 @@ const DOC: Brand = {
   mark: 'DoC',
   url: DOC_URL,
   description:
-    'Florida’s licensed construction contractors from the state licence file: search by trade, name, licence number, city or county, and see each licence’s status as recorded.',
+    'Florida’s licensed construction contractors from the state licence register: search by trade, name, licence number, city or county, and see each licence’s status as recorded.',
   titleDefault: 'Florida contractor register | Department of Construction',
   nav: [
     { label: 'Search', href: '/c' },
@@ -36,11 +36,11 @@ const DOC: Brand = {
   footer: [
     { label: 'Florida contractors', href: '/florida' },
     { label: 'Construction-defect deadlines', href: '/rights' },
-    { label: 'State coverage', href: '/coverage' },
     { label: 'Disclaimer', href: '/disclaimer' },
     { label: 'Department of Property', href: `${DOP_URL}/about.html` },
   ],
-  footerLine: 'Licensed contractor records from the Florida DBPR state licence file.',
+  // Ruling 992 (Murphy): the one attribution line - never a named source, file or authority.
+  footerLine: 'Our records come from federal, state and local sources, or user-inputted data.',
 }
 
 // DoP after the split: land, PIR, agents.
@@ -62,11 +62,10 @@ const DOP_SPLIT: Brand = {
     { label: 'About', href: '/about.html' },
     { label: 'Agent register', href: '/agents.html' },
     { label: 'Contractor register', href: `${CONTRACTOR_URL}/c` },
-    { label: 'State coverage', href: '/coverage' },
     { label: 'Privacy', href: '/privacy.html' },
     { label: 'Terms', href: '/terms.html' },
   ],
-  footerLine: 'Property and licence records from the government registers that hold them.',
+  footerLine: 'Our records come from federal, state and local sources, or user-inputted data.',
 }
 
 // DoP BEFORE the split is still the contractor finder, exactly as it is today: its home is the map,
@@ -77,7 +76,7 @@ const DOP_LEGACY: Brand = {
   mark: 'DoP',
   url: DOP_URL,
   description:
-    'Search Florida construction contractors by trade and location, and see each licence’s status as recorded in the state licence file.',
+    'Search Florida construction contractors by trade and location, and see each licence’s status as recorded in the state licence register.',
   titleDefault: 'Find Licensed Contractors Near You | Department of Property',
   nav: [
     { label: 'Florida', href: '/florida' },
@@ -88,7 +87,7 @@ const DOP_LEGACY: Brand = {
     { label: 'Volusia County', href: '/florida/volusia' },
     { label: 'Disclaimer', href: '/disclaimer' },
   ],
-  footerLine: 'Licensed contractor search from the Florida DBPR state licence file.',
+  footerLine: 'Our records come from federal, state and local sources, or user-inputted data.',
 }
 
 const DOP = DOMAIN_SPLIT ? DOP_SPLIT : DOP_LEGACY

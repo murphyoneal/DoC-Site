@@ -6,7 +6,7 @@ import ContractorCard from '@/app/components/ContractorCard'
 export const metadata: Metadata = {
   title: 'Spruce Creek Contractors — Port Orange, Volusia County',
   description:
-    'Find licensed contractors serving Spruce Creek Fly-In and Port Orange, Florida. DBPR verified roofing, electrical, plumbing, HVAC and general contractors.',
+    'Find licensed contractors serving Spruce Creek Fly-In and Port Orange, Florida. Licensed roofing, electrical, plumbing, HVAC and general contractors.',
 }
 
 export default async function SpruceCreeKPage() {
@@ -40,7 +40,7 @@ export default async function SpruceCreeKPage() {
         </h1>
         <p className="text-base mb-4" style={{ color: 'var(--color-sage)' }}>
           Licensed contractors serving Spruce Creek Fly-In and Port Orange, Volusia County, Florida.
-          All records sourced from the Florida DBPR public registry.
+          Our records come from federal, state and local sources, or user-inputted data.
         </p>
         <div className="flex flex-wrap gap-2">
           <span

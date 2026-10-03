@@ -98,7 +98,7 @@ export default function SelfRegisterForm({ states, trades }: { states: Geo[]; tr
       <div className="reg-card">
         <h2 className="reg-h2">You are already in the Florida register</h2>
         <p className="reg-p">
-          The licence you gave belongs to a business of the same name in the state licence file, so it already
+          The licence you gave belongs to a business of the same name in the state licence register, so it already
           has an entry. One business, one page: claim that entry instead of registering again.
         </p>
         <p className="reg-p" style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
