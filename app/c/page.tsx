@@ -93,7 +93,7 @@ export default async function ContractorSearchPage({
 
       {data && data.field_status !== 'present' && (
         <p style={{ fontSize: '0.86rem', color: 'var(--color-sage)' }}>
-          Nothing in either licence file we hold matched &ldquo;{q}&rdquo;{county ? ` in ${countyLabel(county)} County` : ''}. Every word has to match a name, licence number, trade or class, city or county.
+          Nothing in the register we publish matched &ldquo;{q}&rdquo;{county ? ` in ${countyLabel(county)} County` : ''}. Every word has to match a name, licence number, trade or class, city or county.
           {' '}{notHeldNote(postedDate)}
           {' '}<Link href="/register-your-business">Not listed? Register your business</Link>.</p>
       )}

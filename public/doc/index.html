@@ -290,8 +290,8 @@ footer a{color:var(--gold)}
   function render(d){
     if(d.field_status==="not_run"){res.innerHTML='<p class="rmeta">'+esc(d.note)+'</p>';return;}
     if(d.field_status==="none_found"){
-      res.innerHTML='<p class="rmeta">No licence record matches &ldquo;'+esc((d.terms||[]).join(" "))+'&rdquo;'+(d.county_filter?' in '+esc(document.getElementById("county").selectedOptions[0].text)+' County':'')+' in the state file we hold.</p>'+
-        '<p class="rnote">This is what our copy of the register contains \u2014 not a statement that no such contractor exists. The state file excludes null-and-void, delinquent and involuntarily inactive records.</p>';
+      res.innerHTML='<p class="rmeta">No licence record matches &ldquo;'+esc((d.terms||[]).join(" "))+'&rdquo;'+(d.county_filter?' in '+esc(document.getElementById("county").selectedOptions[0].text)+' County':'')+' in the register we publish.</p>'+
+        '<p class="rnote">This is what our published register contains — not a statement that no such contractor or licence exists. Check with the state licensing board before deciding.</p>';
       return;}
     var MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
     function day(iso){var m=/^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso||""));return m?(+m[3])+" "+MON[+m[2]-1]+" "+m[1]:"";}

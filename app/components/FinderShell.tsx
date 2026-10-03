@@ -131,7 +131,7 @@ export default function FinderShell({ data, registered = [], q, county, trade, p
             <section style={{ marginTop: 16 }}>
               <h2 className="finder-h2">
                 {data.field_status === 'not_run' ? data.note
-                  : data.count === 0 ? 'Nothing in the register we hold matches'
+                  : data.count === 0 ? 'Nothing in the register we publish matches'
                   : `${data.count.toLocaleString()} ${data.count === 1 ? 'business' : 'businesses'}`}
               </h2>
               {data.field_status !== 'not_run' && data.count === 0 && (
