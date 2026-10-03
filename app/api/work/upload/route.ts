@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSessionUser } from '@/lib/supabase/ssr-server'
 import { addressSocket } from '@/lib/sockets/address'
-import { checkRateLimit, pruneRateLimitStore } from '@/lib/rateLimit'
+import { checkRateLimit, pruneRateLimitStore, takeLimit } from '@/lib/rateLimit'
 import { logSubmission } from '@/lib/custody'
 import { scanImage, decide, currentPolicy } from '@/lib/moderation'
 
@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
   if (!user?.email) return fail(401, 'Sign in to upload photos.')
 
   pruneRateLimitStore()
-  if (!checkRateLimit('work-upload:' + user.id).allowed) return fail(429, 'Too many uploads. Try again in a minute.')
+  if (!(await takeLimit('work-upload:actor:' + user.id, 30, 60 * 60_000))) return fail(429, 'Too many uploads. Try again in a minute.')
 
   let form: FormData
   try { form = await req.formData() } catch { return fail(400, 'Expected a form upload.') }

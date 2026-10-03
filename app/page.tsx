@@ -21,7 +21,7 @@ export const metadata: Metadata = DOMAIN_SPLIT
       title: { absolute: 'Find Licensed Contractors Near You | Department of Property' },
       description:
         // Measured 2026-09-24: 98,749 businesses from 114,104 DBPR licence records, all Florida.
-        'Nearly 100,000 Florida contracting businesses from the state construction licence file, on a map. Search by trade, name, licence number, city or county, and see each licence’s status as recorded.',
+        'More than 110,000 Florida contracting businesses from the state construction licence file, on a map. Search by trade, name, licence number, city or county, and see each licence’s status as recorded.',
     }
 
 export default function HomePage() {

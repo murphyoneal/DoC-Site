@@ -1,11 +1,11 @@
 ﻿import { NextRequest, NextResponse } from 'next/server'
-import { checkRateLimit, clientIp } from '@/lib/rateLimit'
+import { clientIp, takeLimit } from '@/lib/rateLimit'
 
 const SB_HOST = 'eaifqorwmgayiqmbtzcg.supabase.co'
 const SB_KEY = process.env.SUPABASE_SECRET_KEY!
 
 export async function POST(req: NextRequest) {
-  if (!checkRateLimit('scan:' + clientIp(req), 20, 60_000).allowed) return NextResponse.json({ ok: false }, { status: 429 })
+  if (!(await takeLimit('scan:' + clientIp(req), 20, 60_000))) return NextResponse.json({ ok: false }, { status: 429 })
   try {
     const body = await req.json()
     const { slug, ref, action, trade_category, city, state } = body

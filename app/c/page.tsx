@@ -17,6 +17,7 @@ type Result = {
   trade: string | null; class_code?: string | null; class_label?: string | null
   city: string | null; county: string | null; license_number: string | null
   status_text?: string | null; file_date?: string | null
+  absent_from_latest_file?: boolean | null; last_seen_file_date?: string | null
 }
 type Register = { register: string; label: string; file_date: string | null; count: number; returned: number }
 type Payload = { field_status: string; count: number; returned: number; results: Result[]; registers?: Register[]; coverage_note?: string }
@@ -92,7 +93,7 @@ export default async function ContractorSearchPage({
 
       {data && data.field_status !== 'present' && (
         <p style={{ fontSize: '0.86rem', color: 'var(--color-sage)' }}>
-          Nothing in either licence file we hold matched &ldquo;{q}&rdquo;{county ? ` in ${countyLabel(county)} County` : ''}. Every word has to match a name, licence number, trade or class, city or county.
+          Nothing in the register we publish matched &ldquo;{q}&rdquo;{county ? ` in ${countyLabel(county)} County` : ''}. Every word has to match a name, licence number, trade or class, city or county.
           {' '}{notHeldNote(postedDate)}
           {' '}<Link href="/register-your-business">Not listed? Register your business</Link>.</p>
       )}
@@ -120,6 +121,12 @@ export default async function ContractorSearchPage({
                     {r.license_number ? ` · Licence ${r.license_number}` : ''}
                     {r.register === 'electrical' && r.status_text ? ` · ${r.status_text}` : ''}
                   </p>
+                  {/* 215a: a licence missing from the file this group is dated by says so (audit 971 C) */}
+                  {r.register === 'construction' && r.absent_from_latest_file && (
+                    <p style={{ fontSize: '0.76rem', color: '#8B6F47', margin: '2px 0 0' }}>
+                      Not in the latest state file{isoDay(r.last_seen_file_date) ? ` · last seen in the file of ${isoDay(r.last_seen_file_date)}` : ''}
+                    </p>
+                  )}
                 </li>
               ))}
             </ul>

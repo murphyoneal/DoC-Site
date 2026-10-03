@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { stateForDisplay } from '@/lib/state-code'
 import type { Contractor } from '@/types/contractor'
 import StatusBadge from './StatusBadge'
 
@@ -29,7 +30,7 @@ export default function ContractorCard({ contractor: c }: ContractorCardProps) {
           </p>
           {c.city && (
             <p className="text-xs mt-0.5" style={{ color: 'var(--color-sage)' }}>
-              {c.city}, {c.state}
+              {[c.city, stateForDisplay(c.state).value].filter(Boolean).join(', ')}
             </p>
           )}
         </div>

@@ -17,6 +17,7 @@ export type FinderRow = {
   lng: number | null
   claimed: boolean
   record_dated: boolean | null
+  expiry_has_passed?: boolean | null  // 215a: the predicate name for record_dated (ruling 966)
   absent_from_latest_file: boolean
 }
 

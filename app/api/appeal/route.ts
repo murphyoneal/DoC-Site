@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSessionUser } from '@/lib/supabase/ssr-server'
-import { checkRateLimit, clientIp } from '@/lib/rateLimit'
+import { clientIp, takeLimit } from '@/lib/rateLimit'
 import { logSubmission } from '@/lib/custody'
 import { rpc } from '@/lib/suspension'
 
@@ -11,7 +11,7 @@ import { rpc } from '@/lib/suspension'
 export async function POST(req: NextRequest) {
   const user = await getSessionUser()
   if (!user?.email) return NextResponse.json({ ok: false, error: 'Sign in first.' }, { status: 401 })
-  if (!checkRateLimit('appeal:' + clientIp(req), 5, 10 * 60_000).allowed) return NextResponse.json({ ok: false, error: 'Too many attempts. Please wait a few minutes.' }, { status: 429 })
+  if (!(await takeLimit('appeal:' + clientIp(req), 5, 10 * 60_000))) return NextResponse.json({ ok: false, error: 'Too many attempts. Please wait a few minutes.' }, { status: 429 })
   let b: Record<string, unknown>
   try { b = await req.json() } catch { return NextResponse.json({ ok: false, error: 'Expected JSON.' }, { status: 400 }) }
   const slug = typeof b.slug === 'string' ? b.slug : ''

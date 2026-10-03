@@ -1,4 +1,5 @@
 import { notFound, permanentRedirect } from 'next/navigation'
+import { stateForDisplay } from '@/lib/state-code'
 import { isTestFixture } from '@/lib/test-fixture'
 import { headers } from 'next/headers'
 import { after } from 'next/server'
@@ -106,7 +107,7 @@ export default async function ScanPage({
       displayName={c.display_name}
       tradeLabel={tradeLabel}
       city={c.city ?? ''}
-      state={c.state ?? ''}
+      state={stateForDisplay(c.state).value ?? ''}
       tradeCategory={c.doc_category ?? ''}
       hasWebsite={!!ownWebsite}
       websiteUrl={ownWebsite}

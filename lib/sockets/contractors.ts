@@ -75,10 +75,13 @@ export const contractorSocket = {
     })
   },
 
+  // Jurisdiction, not address (Murphy 2026-10-03): which register a licence belongs to is source_state. contractors.state
+  // is the MAILING address - since 212a restored it, a Florida licensee who mails from Georgia has state GA and would
+  // silently drop out of "Florida contractors".
   forCounty: async function(countyCode: string, state: string, limit: number = 20): Promise<Contractor[]> {
     const parts = [
       'select=id,slug,display_name,trade_label,doc_category,city,state,license_status,tier,profile_tier_label',
-      'state=eq.' + encodeURIComponent(state.toUpperCase()),
+      'source_state=eq.' + encodeURIComponent(state.toUpperCase()),
       'county_code=eq.' + encodeURIComponent(String(countyCode)),
       'active=eq.true',
       'limit=' + limit,
@@ -90,7 +93,7 @@ export const contractorSocket = {
   forState: async function(state: string, limit: number = 20): Promise<Contractor[]> {
     const parts = [
       'select=id,slug,display_name,trade_label,doc_category,city,state,license_status,tier,profile_tier_label',
-      'state=eq.' + encodeURIComponent(state.toUpperCase()),
+      'source_state=eq.' + encodeURIComponent(state.toUpperCase()),  // jurisdiction, not mailing address
       'active=eq.true',
       'limit=' + limit,
     ]
@@ -130,7 +133,7 @@ export const contractorSocket = {
     const parts = [
       'select=id,slug,display_name,trade_label,doc_category,city,state,license_status,tier,profile_tier_label',
       'state=eq.' + encodeURIComponent(state.toUpperCase()),
-      'city=ilike.*' + city + '*',
+      'city=ilike.*' + encodeURIComponent(city) + '*',  // an address query: the address state above is right here
       'active=eq.true',
       'limit=' + limit,
     ]
