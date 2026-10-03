@@ -39,7 +39,9 @@ def check(url, quote):
         return None, 'dead' if dead else 'error', 'not_checkable', msg
     if 'pdf' in ctype.lower():
         return status, 'live', 'not_checkable', 'PDF - quote not compared'
-    text = page_text(body.decode('utf-8', 'replace'))
+    # Some legislature APIs serve UTF-16; decoding it as UTF-8 interleaves NULs and no quote can ever match.
+    utf16 = body[:2] in (b'\xff\xfe', b'\xfe\xff') or body.count(b'\x00') > len(body) // 4
+    text = page_text(body.decode('utf-16' if utf16 else 'utf-8', 'replace'))
     if len(text) < 400 or 'captcha' in text or 'verify you are human' in text or 'access denied' in text[:2000]:
         return status, 'blocked', 'not_checkable', 'page body is a challenge or too short to hold the statute'
     if not quote:
