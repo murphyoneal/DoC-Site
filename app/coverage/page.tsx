@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { notFound } from 'next/navigation'
 import CoverageMap, { type StateRow } from '../components/CoverageMap'
 
 // /coverage - which state licence registers we hold, as a map (relayed ruling, 2026-09-28). It is the
@@ -6,8 +7,8 @@ import CoverageMap, { type StateRow } from '../components/CoverageMap'
 // beside coverage. Read from register_coverage via coverage_map(), service_role only.
 
 export const metadata: Metadata = {
-  title: 'Which state registers we hold',
-  description: 'The state licence registers we reproduce, the ones we have not collected yet, and the states that keep no register at state level.',
+  title: 'Not found',
+  robots: { index: false, follow: false },
 }
 
 const SB = 'https://eaifqorwmgayiqmbtzcg.supabase.co/rest/v1'
@@ -23,7 +24,12 @@ async function getCoverage(): Promise<StateRow[]> {
   } catch { return [] }
 }
 
+// TAKEN DOWN (rulings 990-992, Murphy 2026-10-03): this page is a national map coloured by what WE HOLD - "a
+// disclosure of weakness and a worklist for a competitor" - and it named Oregon as held while nothing public serves
+// Oregon. A coverage map is an internal instrument, never a route; the rights map (/rights) is the one that ships.
+// The component and coverage_map() stay for internal use. The page answers 404.
 export default async function CoveragePage() {
+  notFound()
   const rows = await getCoverage()
   return (
     <main style={{ minHeight: '100vh', background: 'var(--color-cream)', padding: '24px 16px 48px' }}>
