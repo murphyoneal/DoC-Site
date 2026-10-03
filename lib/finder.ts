@@ -20,8 +20,14 @@ export type FinderRow = {
   absent_from_latest_file: boolean
 }
 
+// 208a (ruling 955): which licence board the finder covers and which it does not, served as data so a check can see it.
+export type RegisterCoverage = {
+  covered: { register: string; label: string; file?: string; file_date?: string | null }[]
+  not_covered: { register: string; label: string; trades?: string[]; search_href?: string; note?: string }[]
+}
+
 export type FinderResult =
-  | { mode: 'counties'; counties: { county: string; businesses: number }[]; source_retrieved: string | null }
+  | { mode: 'counties'; counties: { county: string; businesses: number }[]; source_retrieved: string | null; register_coverage?: RegisterCoverage }
   | {
       mode: 'results'
       field_status?: string
@@ -33,6 +39,7 @@ export type FinderResult =
       trades: { trade: string; businesses: number }[]
       source_retrieved?: string | null
       coverage_note?: string
+      register_coverage?: RegisterCoverage
       results: FinderRow[]
     }
   | { mode: 'error'; message: string }

@@ -60,7 +60,21 @@ export default function FinderShell({ data, registered = [], q, county, trade, p
           {trade || county ? `${what} in ${where}` : 'Find a licensed contractor'}
         </h1>
         <p style={{ fontSize: 12, color: 'var(--color-sage)', margin: '0 0 12px' }}>
-          From the Florida construction licence file. Electrical contractors are licensed separately and are not in it.
+          {(() => {
+            // 208a (ruling 955): the boards come from the payload (register_coverage), so the page cannot drift from
+            // what the finder searched. "Not found" here must never read as "not licensed".
+            const cov = data.mode !== 'error' ? data.register_coverage : undefined
+            const inFile = cov?.covered?.[0]?.label ?? 'Construction Industry Licensing Board'
+            const out = cov?.not_covered?.[0]
+            return (
+              <>
+                From the {inFile} licence file only.{' '}
+                {out
+                  ? <>Electrical and alarm-system contractors are licensed by the {out.label} and are not on this map: <a href={out.search_href ?? '/c'} style={{ color: 'var(--color-bronze)' }}>search both boards</a>.</>
+                  : <>Electrical contractors are licensed by a separate board and are not on this map: <a href="/c" style={{ color: 'var(--color-bronze)' }}>search both boards</a>.</>}
+              </>
+            )
+          })()}
           {' '}Outside Florida, or not in the file? <a href="/register-your-business" style={{ color: 'var(--color-bronze)' }}>Register your business</a>.
         </p>
 
