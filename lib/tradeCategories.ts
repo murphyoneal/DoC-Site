@@ -53,6 +53,33 @@ export function categoryLabel(
   return tradeLabel ?? 'Contractor'
 }
 
+// Licence SCOPES (trade_display_category grouping licence_scope). Under s.489.105 these state what a licence
+// legally permits - "General Contractor" is unlimited as to type of work. Ruling 957: 10,125 business
+// registrations (QB, no licence of their own) rendered "General Contractor" because a page preferred the
+// category over the record's own trade label. A scope is rendered only where the row's own licence grants it.
+export const LICENCE_SCOPE_CATEGORIES: readonly string[] = [
+  "building_contractor",
+  "general_contractor",
+  "pollutant_storage",
+  "residential_contractor",
+  "tank_testing",
+  "underground_utility",
+] as const
+
+/**
+ * The trade line for a register row: the category label, EXCEPT that a licence scope is never shown for a row whose
+ * category is a business registration or which holds no licence number - then the record's own trade label is used.
+ */
+export function rowTradeLabel(row: {
+  doc_category?: string | null
+  trade_label?: string | null
+  license_number?: string | null
+}): string {
+  const cat = row.doc_category ?? null
+  if (cat && LICENCE_SCOPE_CATEGORIES.includes(cat) && !row.license_number) return row.trade_label ?? 'Contractor'
+  return categoryLabel(cat, row.trade_label)
+}
+
 export type ChipCategory = {
   category: string
   label: string
@@ -80,16 +107,16 @@ export type ChipCategory = {
 // NEVER LABEL THE MAP WITH `records`. Use `pins`. They differ by ~15% on every construction trade
 // and by everything on the two electrical ones.
 export const CHIP_CATEGORIES: readonly ChipCategory[] = [
-  { category: "general_contractor", label: "General Contractor", records: 43171, construction: 43171, electrical: 0, pins: 36877, pinShare: 85.4, mapCapable: true },
+  { category: "general_contractor", label: "General Contractor", records: 33046, construction: 33046, electrical: 0, pins: 28735, pinShare: 87, mapCapable: true },
   { category: "building_contractor", label: "Building Contractor", records: 17414, construction: 17414, electrical: 0, pins: 15032, pinShare: 86.3, mapCapable: true },
-  { category: "electrical", label: "Electrical", records: 15877, construction: 1, electrical: 15876, pins: 1, pinShare: 0, mapCapable: false },
-  { category: "hvac", label: "HVAC", records: 13789, construction: 13789, electrical: 0, pins: 11987, pinShare: 86.9, mapCapable: true },
-  { category: "roofing", label: "Roofing", records: 10498, construction: 10498, electrical: 0, pins: 9085, pinShare: 86.5, mapCapable: true },
-  { category: "plumbing", label: "Plumbing", records: 8923, construction: 8923, electrical: 0, pins: 7735, pinShare: 86.7, mapCapable: true },
+  { category: "electrical", label: "Electrical", records: 15876, construction: 0, electrical: 15876, pins: 0, pinShare: 0, mapCapable: false },
+  { category: "hvac", label: "HVAC", records: 13741, construction: 13741, electrical: 0, pins: 11939, pinShare: 86.9, mapCapable: true },
+  { category: "roofing", label: "Roofing", records: 10421, construction: 10421, electrical: 0, pins: 9008, pinShare: 86.4, mapCapable: true },
+  { category: "plumbing", label: "Plumbing", records: 8863, construction: 8863, electrical: 0, pins: 7675, pinShare: 86.6, mapCapable: true },
   { category: "residential_contractor", label: "Residential Contractor", records: 7775, construction: 7775, electrical: 0, pins: 6747, pinShare: 86.8, mapCapable: true },
-  { category: "pool_spa", label: "Pool & Spa", records: 4690, construction: 4690, electrical: 0, pins: 4086, pinShare: 87.1, mapCapable: true },
+  { category: "pool_spa", label: "Pool & Spa", records: 4651, construction: 4651, electrical: 0, pins: 4047, pinShare: 87, mapCapable: true },
   { category: "specialty", label: "Specialty Contractor", records: 3770, construction: 3770, electrical: 0, pins: 3348, pinShare: 88.8, mapCapable: true },
   { category: "underground_utility", label: "Underground Utility", records: 2663, construction: 2663, electrical: 0, pins: 2222, pinShare: 83.4, mapCapable: true },
   { category: "alarm_system", label: "Alarm System", records: 2092, construction: 0, electrical: 2092, pins: 0, pinShare: 0, mapCapable: false },
-  { category: "solar", label: "Solar", records: 442, construction: 442, electrical: 0, pins: 400, pinShare: 90.5, mapCapable: true },
+  { category: "solar", label: "Solar", records: 436, construction: 436, electrical: 0, pins: 394, pinShare: 90.4, mapCapable: true },
 ] as const

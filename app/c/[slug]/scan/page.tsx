@@ -6,7 +6,7 @@ import ScanLanding from '@/app/components/ScanLanding'
 import { getPublicBusinessProfile } from '@/lib/business-profile'
 import { isSuspended } from '@/lib/suspension'
 import { logScanServer, requestMeta } from '@/lib/scan'
-import { CATEGORY_LABELS } from '@/lib/tradeCategories'
+import { rowTradeLabel } from '@/lib/tradeCategories'
 import { resolveBusinessSlug, withQuery } from '@/lib/business'
 import { fileDate, ABSENT } from '@/lib/licence-status'
 import { requestBrand } from '@/lib/brand'
@@ -51,7 +51,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const fixture = await isTestFixture('contractors', c.license_number)  // ruling 927: fixtures are never indexed
   return {
     title: `${c.display_name}`,
-    description: `${CATEGORY_LABELS[c.doc_category] ?? 'Contractor'} in ${c.city ?? 'Florida'}.`,
+    description: `${rowTradeLabel(c)} in ${c.city ?? 'Florida'}.`,
     ...(fixture ? { robots: { index: false, follow: false } } : {}),
   }
 }
@@ -93,7 +93,7 @@ export default async function ScanPage({
     tradeCategory: c.doc_category, city: c.city, state: c.state, meta,
   }))
 
-  const tradeLabel = CATEGORY_LABELS[c.doc_category] ?? c.trade_label ?? 'Contractor'
+  const tradeLabel = rowTradeLabel(c)  // ruling 957
   // A website only exists once the owner has claimed and published one (work order 730); the state
   // file's website column is empty and is never offered.
   const ownWebsite = c.claimed ? ((await getPublicBusinessProfile(slug))?.website ?? null) : null

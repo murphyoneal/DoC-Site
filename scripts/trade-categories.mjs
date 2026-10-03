@@ -105,6 +105,11 @@ function render(rows, chips) {
   // Counts are rendered as DATA on each row, not as a hand-kept comment. They carry their unit
   // because the two registers do not count the same thing: construction rows are LISTINGS
   // (114,000 rows hold 103,478 distinct licence numbers), electrical rows are LICENCES.
+  // 209a/ruling 957: the scope list is rendered from the table, so a new scope cannot be missed by the page guard.
+  let scopeBody = ''
+  for (const r of rows.filter((r) => r.grouping === 'licence_scope')) scopeBody += `  ${JSON.stringify(r.category)},
+`
+
   let chipBody = ''
   for (const c of chips) {
     chipBody +=
@@ -136,6 +141,27 @@ export function categoryLabel(
 ): string {
   if (docCategory && CATEGORY_LABELS[docCategory]) return CATEGORY_LABELS[docCategory]
   return tradeLabel ?? 'Contractor'
+}
+
+// Licence SCOPES (trade_display_category grouping licence_scope). Under s.489.105 these state what a licence
+// legally permits - "General Contractor" is unlimited as to type of work. Ruling 957: 10,125 business
+// registrations (QB, no licence of their own) rendered "General Contractor" because a page preferred the
+// category over the record's own trade label. A scope is rendered only where the row's own licence grants it.
+export const LICENCE_SCOPE_CATEGORIES: readonly string[] = [
+${scopeBody}] as const
+
+/**
+ * The trade line for a register row: the category label, EXCEPT that a licence scope is never shown for a row whose
+ * category is a business registration or which holds no licence number - then the record's own trade label is used.
+ */
+export function rowTradeLabel(row: {
+  doc_category?: string | null
+  trade_label?: string | null
+  license_number?: string | null
+}): string {
+  const cat = row.doc_category ?? null
+  if (cat && LICENCE_SCOPE_CATEGORIES.includes(cat) && !row.license_number) return row.trade_label ?? 'Contractor'
+  return categoryLabel(cat, row.trade_label)
 }
 
 export type ChipCategory = {

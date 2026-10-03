@@ -3,7 +3,7 @@ import { headers } from 'next/headers'
 import { after } from 'next/server'
 import Link from 'next/link'
 import { logScanServer, requestMeta, firstParam } from '@/lib/scan'
-import { CATEGORY_LABELS } from '@/lib/tradeCategories'
+import { CATEGORY_LABELS, rowTradeLabel } from '@/lib/tradeCategories'
 import { resolveBusinessSlug, getBusinessLicences, getRelatedBusinesses, withQuery } from '@/lib/business'
 import { countyLabel, countyLanding as countyLandingFor } from '@/lib/county'
 import { statusLabel, fileDate, ABSENT, ABSENT_NOTE } from '@/lib/licence-status'
@@ -84,7 +84,8 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const fixture = await isTestFixture('contractors', c.license_number)
   return {
     title: `${c.display_name}`,
-    description: `${CATEGORY_LABELS[c.doc_category] ?? 'Contractor'} in ${c.city ?? 'Florida'}. License ${c.license_number}.`,
+    // ruling 957: never a licence scope the row does not hold, and never a licence sentence without a licence number
+    description: `${rowTradeLabel(c)} in ${c.city ?? 'Florida'}.${c.license_number ? ` License ${c.license_number}.` : ''}`,
     ...(fixture ? { robots: { index: false, follow: false } } : {}),
   }
 }
@@ -152,7 +153,11 @@ export default async function ContractorProfilePage({
   const siteName = (await requestBrand()).name
 
 
-  const tradeLabel = CATEGORY_LABELS[c.doc_category] ?? c.trade_label ?? 'Contractor'
+  // ruling 957: a business registration (QB) rendered "General Contractor" here on 10,125 pages. rowTradeLabel never
+  // shows a licence scope for a row holding no licence number.
+  const tradeLabel = rowTradeLabel(c)
+  // a business registration has no trade to compare against, so it gets no "Other ... businesses" list
+  const isRegistration = c.doc_category === 'qualifier_business'
 
   const statusColor =
     absent                         ? '#8B6F47' :
@@ -403,7 +408,7 @@ export default async function ContractorProfilePage({
 
         {/* Everything about THIS business comes first; alternatives come after the claim card
             (ruling 2026-09-25). The order is claimed-first then alphabetical — never a ranking. */}
-        {related?.field_status === 'present' && related.items.length > 0 && (
+        {!isRegistration && related?.field_status === 'present' && related.items.length > 0 && (
           <div style={{ background: 'var(--color-white)', borderRadius: '14px', border: '1px solid var(--color-light-gray)', padding: '20px', marginTop: '28px' }}>
             <h2 style={{ fontFamily: 'Georgia, serif', color: 'var(--color-navy)', fontSize: '1rem', fontWeight: 700, margin: '0 0 4px' }}>
               Other {tradeLabel} businesses in {countyTitle} County
