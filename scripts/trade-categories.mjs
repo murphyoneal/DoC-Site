@@ -68,18 +68,25 @@ function fetchCategories() {
 }
 
 // The chips, from the view that counts BOTH registers against a declared threshold. is_chip already
-// excludes grouping not_a_trade, so education_provider (2,127 licences) cannot become a chip by
-// crossing the threshold.
+// excludes grouping not_a_trade, so education_provider cannot become a chip by crossing the threshold.
 //
-// Two counts, deliberately. records_total is the REGISTER count; plottable_records is the PIN count,
-// and they are different populations - about 15% of construction listings carry no coordinates and
-// the electrical board's file carries none at all. map_capable is the view's declared judgement
-// (pins as a share of records, against a 50% floor), not "is there a pin": Electrical has exactly one
-// plottable listing out of 15,877 and a map of it is an empty map with a dot on it.
+// NO COUNTS ARE EMITTED, and that is a correction (ruling 959). The first version of this generator
+// baked records_total and plottable_records into the file as DATA, to avoid the stale-comment defect
+// that CHIP_KEYS had. It traded one failure for a worse one: a count changes on every register load,
+// the --check is an equality test, so every routine data load broke the build until someone
+// regenerated. 209a proved it within a day - fixing 10,125 miscategorised rows moved General
+// Contractor by exactly that much and made main unbuildable.
+//
+// What belongs in a generated file is what SHOULD stop a build when it changes: which trades exist,
+// what they are called, and whether the map can represent them. A trade appearing or disappearing is
+// a semantic change. 43,171 becoming 33,046 is Tuesday.
+//
+// And a count left in the file but excluded from the check would be the stale comment again wearing a
+// data costume - a number nothing verifies. So it is not emitted at all. Any surface that wants a
+// count reads trade_chip_map at runtime, where it is never stale.
 function fetchChips() {
   return sbGet(
-    'trade_chip_map?select=category,label,records_total,construction_records,electrical_records,' +
-      'plottable_records,plottable_share_pct,map_capable' +
+    'trade_chip_map?select=category,label,map_capable' +
       '&is_chip=is.true&order=records_total.desc,category',
     'trade_chip_map',
   )
@@ -102,9 +109,6 @@ function render(rows, chips) {
     }
   }
 
-  // Counts are rendered as DATA on each row, not as a hand-kept comment. They carry their unit
-  // because the two registers do not count the same thing: construction rows are LISTINGS
-  // (114,000 rows hold 103,478 distinct licence numbers), electrical rows are LICENCES.
   // 209a/ruling 957: the scope list is rendered from the table, so a new scope cannot be missed by the page guard.
   let scopeBody = ''
   for (const r of rows.filter((r) => r.grouping === 'licence_scope')) scopeBody += `  ${JSON.stringify(r.category)},
@@ -114,9 +118,7 @@ function render(rows, chips) {
   for (const c of chips) {
     chipBody +=
       `  { category: ${JSON.stringify(c.category)}, label: ${JSON.stringify(c.label)},` +
-      ` records: ${c.records_total}, construction: ${c.construction_records},` +
-      ` electrical: ${c.electrical_records}, pins: ${c.plottable_records},` +
-      ` pinShare: ${Number(c.plottable_share_pct)}, mapCapable: ${c.map_capable} },\n`
+      ` mapCapable: ${c.map_capable} },\n`
   }
 
   return `// GENERATED FILE — DO NOT EDIT.
@@ -167,29 +169,23 @@ export function rowTradeLabel(row: {
 export type ChipCategory = {
   category: string
   label: string
-  /** Records across BOTH registers. Construction rows are listings; electrical rows are licences. */
-  records: number
-  construction: number
-  electrical: number
-  /** PINS — construction listings holding lat and lng. A DIFFERENT POPULATION from \`records\`. */
-  pins: number
-  /** pins as a percentage of records. */
-  pinShare: number
   /**
-   * Whether the map can REPRESENT this trade (pins >= 50% of records), not whether a pin exists.
-   * False for Electrical (1 plottable of 15,877) and Alarm System (0 of 2,092): the electrical
-   * board's file has no coordinates. Those trades are reachable by search, never by the map.
+   * Whether the map can REPRESENT this trade — pins are at least half its records — not whether a
+   * pin exists. False for Electrical (one plottable listing out of ~16,000) and Alarm System (none):
+   * the electrical board's file carries no coordinates. Those trades are reachable by search only.
    */
   mapCapable: boolean
 }
 
-// The homepage trade chips, from trade_chip_map where is_chip — the view holds the threshold, the
-// plottable-share floor, and the exclusion of grouping not_a_trade, by rule rather than by omission.
-// A register loaded without regenerating this file fails prebuild instead of quietly dropping a trade,
-// which is how Electrical (15,876), Alarm System (2,092) and Specialty (3,770) went missing before.
+// The homepage trade chips, from trade_chip_map where is_chip. The view holds the record threshold,
+// the plottable-share floor and the exclusion of grouping not_a_trade, by rule rather than by
+// omission. A register loaded without regenerating this file fails prebuild instead of quietly
+// dropping a trade — which is how Electrical, Alarm System and Specialty went missing before.
 //
-// NEVER LABEL THE MAP WITH \`records\`. Use \`pins\`. They differ by ~15% on every construction trade
-// and by everything on the two electrical ones.
+// NO COUNTS LIVE HERE. They change on every register load and would break the build each time; a
+// count kept here but unchecked would just be the stale comment again. Read trade_chip_map at runtime
+// for records_total (register rows) or plottable_records (map pins) — and never label a map with the
+// first, because ~15% of construction listings have no coordinates.
 export const CHIP_CATEGORIES: readonly ChipCategory[] = [
 ${chipBody}] as const
 `

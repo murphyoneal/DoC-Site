@@ -83,40 +83,34 @@ export function rowTradeLabel(row: {
 export type ChipCategory = {
   category: string
   label: string
-  /** Records across BOTH registers. Construction rows are listings; electrical rows are licences. */
-  records: number
-  construction: number
-  electrical: number
-  /** PINS — construction listings holding lat and lng. A DIFFERENT POPULATION from `records`. */
-  pins: number
-  /** pins as a percentage of records. */
-  pinShare: number
   /**
-   * Whether the map can REPRESENT this trade (pins >= 50% of records), not whether a pin exists.
-   * False for Electrical (1 plottable of 15,877) and Alarm System (0 of 2,092): the electrical
-   * board's file has no coordinates. Those trades are reachable by search, never by the map.
+   * Whether the map can REPRESENT this trade — pins are at least half its records — not whether a
+   * pin exists. False for Electrical (one plottable listing out of ~16,000) and Alarm System (none):
+   * the electrical board's file carries no coordinates. Those trades are reachable by search only.
    */
   mapCapable: boolean
 }
 
-// The homepage trade chips, from trade_chip_map where is_chip — the view holds the threshold, the
-// plottable-share floor, and the exclusion of grouping not_a_trade, by rule rather than by omission.
-// A register loaded without regenerating this file fails prebuild instead of quietly dropping a trade,
-// which is how Electrical (15,876), Alarm System (2,092) and Specialty (3,770) went missing before.
+// The homepage trade chips, from trade_chip_map where is_chip. The view holds the record threshold,
+// the plottable-share floor and the exclusion of grouping not_a_trade, by rule rather than by
+// omission. A register loaded without regenerating this file fails prebuild instead of quietly
+// dropping a trade — which is how Electrical, Alarm System and Specialty went missing before.
 //
-// NEVER LABEL THE MAP WITH `records`. Use `pins`. They differ by ~15% on every construction trade
-// and by everything on the two electrical ones.
+// NO COUNTS LIVE HERE. They change on every register load and would break the build each time; a
+// count kept here but unchecked would just be the stale comment again. Read trade_chip_map at runtime
+// for records_total (register rows) or plottable_records (map pins) — and never label a map with the
+// first, because ~15% of construction listings have no coordinates.
 export const CHIP_CATEGORIES: readonly ChipCategory[] = [
-  { category: "general_contractor", label: "General Contractor", records: 33046, construction: 33046, electrical: 0, pins: 28735, pinShare: 87, mapCapable: true },
-  { category: "building_contractor", label: "Building Contractor", records: 17414, construction: 17414, electrical: 0, pins: 15032, pinShare: 86.3, mapCapable: true },
-  { category: "electrical", label: "Electrical", records: 15876, construction: 0, electrical: 15876, pins: 0, pinShare: 0, mapCapable: false },
-  { category: "hvac", label: "HVAC", records: 13741, construction: 13741, electrical: 0, pins: 11939, pinShare: 86.9, mapCapable: true },
-  { category: "roofing", label: "Roofing", records: 10421, construction: 10421, electrical: 0, pins: 9008, pinShare: 86.4, mapCapable: true },
-  { category: "plumbing", label: "Plumbing", records: 8863, construction: 8863, electrical: 0, pins: 7675, pinShare: 86.6, mapCapable: true },
-  { category: "residential_contractor", label: "Residential Contractor", records: 7775, construction: 7775, electrical: 0, pins: 6747, pinShare: 86.8, mapCapable: true },
-  { category: "pool_spa", label: "Pool & Spa", records: 4651, construction: 4651, electrical: 0, pins: 4047, pinShare: 87, mapCapable: true },
-  { category: "specialty", label: "Specialty Contractor", records: 3770, construction: 3770, electrical: 0, pins: 3348, pinShare: 88.8, mapCapable: true },
-  { category: "underground_utility", label: "Underground Utility", records: 2663, construction: 2663, electrical: 0, pins: 2222, pinShare: 83.4, mapCapable: true },
-  { category: "alarm_system", label: "Alarm System", records: 2092, construction: 0, electrical: 2092, pins: 0, pinShare: 0, mapCapable: false },
-  { category: "solar", label: "Solar", records: 436, construction: 436, electrical: 0, pins: 394, pinShare: 90.4, mapCapable: true },
+  { category: "general_contractor", label: "General Contractor", mapCapable: true },
+  { category: "building_contractor", label: "Building Contractor", mapCapable: true },
+  { category: "electrical", label: "Electrical", mapCapable: false },
+  { category: "hvac", label: "HVAC", mapCapable: true },
+  { category: "roofing", label: "Roofing", mapCapable: true },
+  { category: "plumbing", label: "Plumbing", mapCapable: true },
+  { category: "residential_contractor", label: "Residential Contractor", mapCapable: true },
+  { category: "pool_spa", label: "Pool & Spa", mapCapable: true },
+  { category: "specialty", label: "Specialty Contractor", mapCapable: true },
+  { category: "underground_utility", label: "Underground Utility", mapCapable: true },
+  { category: "alarm_system", label: "Alarm System", mapCapable: false },
+  { category: "solar", label: "Solar", mapCapable: true },
 ] as const
