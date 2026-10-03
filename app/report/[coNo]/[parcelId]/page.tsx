@@ -409,6 +409,7 @@ export default async function ReportPage({ params }: { params: Promise<{ coNo: s
                       {fb.determination?.headline ? <div style={{ fontSize: 12.5, color: 'var(--color-sage)', marginTop: 4 }}>{fb.determination.headline}</div> : null}
                     </div>
                     {fb.bfe ? <Fact l="Base flood elevation" v={fb.bfe.label} /> : null}
+                    {!fb.bfe && fb.bfeNotAvailable ? <Fact l="Base flood elevation" v={`Not available — ${fb.bfeNotAvailable}`} /> : null}
                     {/* in_sfha === null is UNDETERMINED (Zone D — FEMA performed no analysis), NOT a
                         clearance. A truthy test renders null exactly like false, which is the false
                         clearance this fix exists to remove. Three states, three renderings. Ruling 251. */}

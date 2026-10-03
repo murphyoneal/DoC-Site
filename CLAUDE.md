@@ -194,9 +194,13 @@ transaction on 2026-09-08: re-applying an **identical** body took
 > or table migrations I blamed at the time.
 >
 > **So: after any migration containing function DDL, re-assert the grants on every browser-called
-> RPC.** That set is exactly two today — `contractor_register_search` and `agent_register_search` —
-> and it is enumerable, not guessable:
-> `grep -rhoE "rpc/[a-zA-Z_]+" public/*.html ../DoC-Public/*.html`. Everything else the front end
+> RPC.** **Every anon-callable SECURITY DEFINER function is declared in `browser_rpc` with a reason.
+> The allowlist is the count** — this document deliberately carries no number, because a count in a
+> document is a fact the code can change without telling it (ruling 937). Detection
+> `anon-callable-secdef-functions` compares that list with the catalogue for every owner, PostGIS
+> included, and alarms on disagreement in either direction. Exposing a function means adding its row,
+> with the reason in the words of whoever ruled it. Cross-check the browser side with
+> `grep -rhoE "rpc/[a-zA-Z_]+" public/*.html public/doc/*.html ../DoC-Public/*.html`. Everything else the front end
 > calls goes through server routes on `service_role`, which bypasses grants — which is why those 24
 > other functions having no `anon` grant is the trigger working as intended and **not** an outage.
 > Do not "fix" those.
