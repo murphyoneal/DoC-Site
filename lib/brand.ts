@@ -36,11 +36,11 @@ const DOC: Brand = {
   footer: [
     { label: 'Florida contractors', href: '/florida' },
     { label: 'Construction-defect deadlines', href: '/rights' },
-    { label: 'State coverage', href: '/coverage' },
     { label: 'Disclaimer', href: '/disclaimer' },
     { label: 'Department of Property', href: `${DOP_URL}/about.html` },
   ],
-  footerLine: 'Licensed contractor records from the Florida DBPR state licence file.',
+  // Ruling 992 (Murphy): the one attribution line - never a named source, file or authority.
+  footerLine: 'Our records come from federal, state and local sources, or user-inputted data.',
 }
 
 // DoP after the split: land, PIR, agents.
@@ -62,11 +62,10 @@ const DOP_SPLIT: Brand = {
     { label: 'About', href: '/about.html' },
     { label: 'Agent register', href: '/agents.html' },
     { label: 'Contractor register', href: `${CONTRACTOR_URL}/c` },
-    { label: 'State coverage', href: '/coverage' },
     { label: 'Privacy', href: '/privacy.html' },
     { label: 'Terms', href: '/terms.html' },
   ],
-  footerLine: 'Property and licence records from the government registers that hold them.',
+  footerLine: 'Our records come from federal, state and local sources, or user-inputted data.',
 }
 
 // DoP BEFORE the split is still the contractor finder, exactly as it is today: its home is the map,
