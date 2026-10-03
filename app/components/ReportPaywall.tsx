@@ -21,11 +21,14 @@ export default function ReportPaywall({
   parcelId,
   address,
   identity,
+  salesOpen,
 }: {
   coNo: number
   parcelId: string
   address: string
   identity?: string
+  /** Decided on the server (lib/pir-sales). False: no price, no button, no payment wording - the report is not on sale. */
+  salesOpen: boolean
 }) {
   const [status, setStatus] = useState<'idle' | 'loading' | 'error' | 'unavailable'>('idle')
   const [msg, setMsg] = useState('')
@@ -64,7 +67,7 @@ export default function ReportPaywall({
           <span className="text-sm font-semibold" style={{ color: 'var(--color-navy)', fontFamily: 'Georgia, serif' }}>
             What the full report covers
           </span>
-          <span className="text-2xl font-bold" style={{ fontFamily: 'Georgia, serif', color: 'var(--color-ink)' }}>$5</span>
+          {salesOpen && <span className="text-2xl font-bold" style={{ fontFamily: 'Georgia, serif', color: 'var(--color-ink)' }}>$5</span>}
         </div>
         <ul className="grid sm:grid-cols-2 gap-x-6 gap-y-2 mb-2">
           {COVERS.map(c => (
@@ -75,34 +78,44 @@ export default function ReportPaywall({
         </ul>
       </div>
 
-      {(status === 'error' || status === 'unavailable') && (
-        <div
-          className="rounded-lg px-4 py-3 mb-4 text-sm"
-          style={
-            status === 'error'
-              ? { background: '#fdecea', border: '1px solid #f0a9a2', color: '#8a2a1f' }
-              : { background: 'var(--color-light-gray)', border: '1px solid #ddd8d0', color: 'var(--color-ink)' }
-          }
-        >
-          {msg}
+      {/* Ruling 976: the offer renders only when the report can actually be bought, payment confirmation included.
+          Otherwise the page says so, and offers nothing - a price beside a checkout that refuses is a false statement. */}
+      {!salesOpen ? (
+        <div className="rounded-lg px-4 py-3 text-sm" style={{ background: 'var(--color-light-gray)', border: '1px solid #ddd8d0', color: 'var(--color-ink)' }}>
+          The full report is not on sale yet. Nothing can be bought on this page.
         </div>
-      )}
+      ) : (
+        <>
+        {(status === 'error' || status === 'unavailable') && (
+          <div
+            className="rounded-lg px-4 py-3 mb-4 text-sm"
+            style={
+              status === 'error'
+                ? { background: '#fdecea', border: '1px solid #f0a9a2', color: '#8a2a1f' }
+                : { background: 'var(--color-light-gray)', border: '1px solid #ddd8d0', color: 'var(--color-ink)' }
+            }
+          >
+            {msg}
+          </div>
+        )}
 
-      <button
-        onClick={buy}
-        disabled={status === 'loading'}
-        className="w-full py-3.5 rounded-lg text-base font-semibold"
-        style={{
-          background: 'var(--color-navy)', color: 'var(--color-white)',
-          opacity: status === 'loading' ? 0.6 : 1, cursor: status === 'loading' ? 'wait' : 'pointer',
-        }}
-      >
-        {status === 'loading' ? 'Redirecting to secure checkout…' : 'Unlock the full report — $5'}
-      </button>
-      <p className="text-xs mt-3 text-center" style={{ color: 'var(--color-sage)' }}>
-        Secure one-off payment by Stripe. No account needed. After payment you get a permanent link to
-        your report; bookmark it. Apple Pay & Google Pay accepted.
-      </p>
+        <button
+          onClick={buy}
+          disabled={status === 'loading'}
+          className="w-full py-3.5 rounded-lg text-base font-semibold"
+          style={{
+            background: 'var(--color-navy)', color: 'var(--color-white)',
+            opacity: status === 'loading' ? 0.6 : 1, cursor: status === 'loading' ? 'wait' : 'pointer',
+          }}
+        >
+          {status === 'loading' ? 'Redirecting to secure checkout…' : 'Unlock the full report — $5'}
+        </button>
+        <p className="text-xs mt-3 text-center" style={{ color: 'var(--color-sage)' }}>
+          Secure one-off payment by Stripe. No account needed. After payment you get a permanent link to
+          your report; bookmark it. Apple Pay & Google Pay accepted.
+        </p>
+        </>
+      )}
     </div>
   )
 }
