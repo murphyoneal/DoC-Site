@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 }
 
 export default function DisclaimerPage() {
-  const updated = 'June 2026'
+  const updated = 'October 2026'
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10">
@@ -61,14 +61,18 @@ export default function DisclaimerPage() {
             2. Data Accuracy and Currency
           </h2>
           <p className="mb-3">
-            The contractor licence data on this site is reproduced from one register: the Florida
-            Department of Business &amp; Professional Regulation (DBPR) construction licence file. We do
-            not hold any other state&rsquo;s contractor register. A business from another state that
-            registers itself is shown as its own declaration, and says which of its licences we could
-            not check.
+            {/* Audit 971 A5: this said "one register" and "no other state's register" while the electrical file was
+                served and Oregon's file was held. */}
+            The contractor licence data on this site is reproduced from two Florida files published by the
+            Department of Business &amp; Professional Regulation (DBPR): the construction licence file
+            (Construction Industry Licensing Board) and the electrical contractor licence file (Electrical
+            Contractors&rsquo; Licensing Board). We also hold Oregon&rsquo;s construction contractor file, used only
+            to check the licence an Oregon business gives when it registers itself; it is not shown as a register.
+            A business that registers itself is shown as its own declaration, and says which of its licences we
+            could not check.
           </p>
           <p className="mb-3">
-            Every page shows the date of the licence file it was read from. There will always be a lag
+            Each contractor&rsquo;s page shows the date of the licence file its record was read from. There will always be a lag
             between a change made at the registry (licence renewal, revocation, suspension) and this site.
           </p>
           <p className="font-semibold" style={{ color: 'var(--color-navy)' }}>
@@ -88,9 +92,7 @@ export default function DisclaimerPage() {
             The appearance of a contractor on this site does not constitute an endorsement,
             recommendation, or guarantee of their work quality, reliability, or professional
             conduct. A valid licence does not guarantee satisfactory workmanship or adherence
-            to building codes. The &quot;Verified&quot; badge on this site reflects only that
-            we have cross-referenced the licence data — it is not a character reference or
-            quality assurance certification.
+            to building codes.
           </p>
         </section>
 
@@ -126,8 +128,8 @@ export default function DisclaimerPage() {
             computer fraud and data protection laws.
           </p>
           <p>
-            Contractor records are displayed on a per-search, bounding-box basis. No bulk
-            export or paginated list endpoint exists or is provided.
+            Search results and lists are shown a page at a time for individual reference. We do not offer a bulk
+            export.
           </p>
         </section>
 
@@ -156,7 +158,7 @@ export default function DisclaimerPage() {
             7. Verify Directly
           </h2>
           <p className="mb-4">
-            We reproduce Florida&rsquo;s construction licence register. For any other state, check
+            We reproduce Florida&rsquo;s construction and electrical licence registers. For any other state, check
             directly with the issuing authority below. Before engaging any contractor, verify their
             licence status directly with the relevant government registry:
           </p>
@@ -185,7 +187,7 @@ export default function DisclaimerPage() {
             </li>
             <li>
               <a
-                href="https://lni.wa.gov/licensing-permits/contractors/hiring-a-contractor/verify-a-contractors-license-and-bond/"
+                href="https://secure.lni.wa.gov/verify/"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="underline"
@@ -196,7 +198,7 @@ export default function DisclaimerPage() {
             </li>
             <li>
               <a
-                href="https://www.oregon.gov/ccb/Pages/verify-license.aspx"
+                href="https://search.ccb.state.or.us/search/"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="underline"

@@ -83,7 +83,7 @@ export default async function SpruceCreeKPage() {
           Port Orange building permits are issued through the City of Port Orange Building Department.
         </p>
         <a
-          href="https://www.portorange.org/departments/building-official/"
+          href="https://www.port-orange.org/264/Building"
           target="_blank"
           rel="noopener noreferrer"
           className="text-sm underline mt-3 inline-block"
